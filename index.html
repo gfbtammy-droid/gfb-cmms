@@ -207,7 +207,7 @@ const WO_TYPES=['Breakdown / repair','Preventive maintenance','Calibration','Ins
 const WO_STATUS=['Open','In progress','Waiting parts','Completed','Verified'];
 const PRIORITY=['Critical','High','Normal','Low'];
 const INTERVALS=[['','No schedule'],['7','Weekly'],['14','Every 2 weeks'],['30','Monthly'],['60','Every 2 months'],['90','Quarterly'],['180','Half-yearly'],['365','Yearly']];
-const S={assets:{},workorders:{},parts:{},suppliers:{},incidents:{},config:{},settings:{...DEFAULTS},view:'dash',f:{},detail:null,sel:new Set(),canWrite:false,canAdmin:false,me:null,seq:0,ready:false};
+const S={assets:{},workorders:{},parts:{},suppliers:{},incidents:{},contracts:{},config:{},settings:{...DEFAULTS},view:'dash',f:{},detail:null,sel:new Set(),canWrite:false,canAdmin:false,me:null,seq:0,ready:false};
 /* ---------- Supabase connection ---------- */
 const CFG=window.GFB_CONFIG||{};
 let sb=null;
@@ -257,7 +257,7 @@ async function uploadFile(coll,id,file){
 async function fillFiles(root){const els=$$('[data-fp]',root);if(!els.length||!sbClient())return;
   const paths=[...new Set(els.map(e=>e.dataset.fp))];const {data,error}=await sb.storage.from('attachments').createSignedUrls(paths,3600);if(error||!data)return;
   const u={};data.forEach(d=>{if(d.signedUrl)u[d.path]=d.signedUrl});els.forEach(e=>{const x=u[e.dataset.fp];if(!x)return;if(e.tagName==='IMG')e.src=x;else e.href=x})}
-const COLLS=['assets','workorders','parts','suppliers','incidents'];
+const COLLS=['assets','workorders','parts','suppliers','incidents','contracts'];
 
 /* ---------- derived ---------- */
 const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
@@ -316,7 +316,7 @@ async function put(coll,id,data,act){
     if(e.code===409){if(e.body&&e.body.current)S[coll][id]=e.body.current;renderList();if(!$('.sheet'))renderDetail()}
     if(e.code!==401)toast(e.message);throw e}
 }
-const newId=coll=>({assets:'ast',workorders:'wo',parts:'prt',suppliers:'sup'}[coll]||'doc')+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const newId=coll=>({assets:'ast',workorders:'wo',parts:'prt',suppliers:'sup',contracts:'con'}[coll]||'doc')+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 function diffAct(prev,next,fields){
   if(!prev)return'Created';const ch=[];
   fields.forEach(f=>{if(f.type==='sec')return;const a=prev[f.k]??'',b=next[f.k]??'';if(String(a)!==String(b)){ch.push(f.type==='check'?`${f.short||f.label}: ${b?'ticked':'unticked'}`:(f.k==='status'?`Status ${a||'—'} → ${b}`:(f.short||f.label)))}});
@@ -463,18 +463,19 @@ const F_SUP=[
 ];
 
 /* ---------- shell / navigation ---------- */
-const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['assets','Asset register'],['parts','Spares & consumables'],['suppliers','Contractors'],['activity','Activity log'],['settings','Settings & locations'],['users','Users']];
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['contracts','Contracts & renewals'],['assets','Asset register'],['parts','Spares & consumables'],['suppliers','Contractors'],['activity','Activity log'],['settings','Settings & locations'],['users','Users']];
 let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
 function counts(){
   const as=Object.values(S.assets);
   return{
     overdue:as.filter(a=>pmInfo(a)?.state==='overdue').length,
     open:Object.values(S.workorders).filter(openWO).length,
-    low:Object.values(S.parts).filter(lowStock).length
+    low:Object.values(S.parts).filter(lowStock).length,
+    renew:Object.values(S.contracts).filter(conDue).length
   };
 }
 function renderTabs(){
-  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low};
+  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low,contracts:c.renew};
   $('#tabs').innerHTML=VIEWS.map(([k,l])=>`<button type="button" data-v="${k}" aria-current="${S.view===k}">${l}${badge[k]?`<span class="n">${badge[k]}</span>`:''}</button>`).join('');
   $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 }
@@ -512,6 +513,7 @@ VIEW.dash={shell:()=>'<div id="list"></div>',list(){
   as.forEach(([id,a])=>{const w=dateWatch(a.warrantyUntil);if(w&&w.state!=='ok'&&w.days>-30)watch.push(['asset:'+id,a.code+' · '+a.name,'Warranty',w,a.warrantyUntil]);
     const c=dateWatch(a.calibDue);if(c&&c.state!=='ok'&&a.status!=='Disposed')watch.push(['asset:'+id,a.code+' · '+a.name,'Calibration',c,a.calibDue])});
   ss.forEach(([id,s])=>{const w=dateWatch(s.evalDue);if(w&&w.state!=='ok')watch.push(['supplier:'+id,s.name,'Supplier evaluation',w,s.evalDue])});
+  Object.entries(S.contracts).forEach(([id,c])=>{const i=conInfo(c);if(i&&(i.state==='soon'||i.state==='expired'))watch.push(['contract:'+id,c.title,'Contract renewal',{days:i.days,state:i.state==='expired'?'overdue':'soon'},c.endDate])});
   watch.sort((a,b)=>a[3].days-b[3].days);
   const now=new Date();const months=[];for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push([d.getFullYear()+'-'+pad(d.getMonth()+1),d.toLocaleString('en-MY',{month:'short'})])}
   const mcost=months.map(([k,l])=>[l,ws.filter(([,w])=>woDate(w).startsWith(k)).reduce((s,[,w])=>s+woCost(w),0)]);
@@ -527,6 +529,7 @@ VIEW.dash={shell:()=>'<div id="list"></div>',list(){
     ${tile('warn',toVerify.length,'Awaiting QA verification','wos|status|Completed')}
     ${tile('bad',down.length,'Machines under repair','assets|status|Under repair')}
     ${tile('warn',low.length,'Spares at re-order level','parts|low|1')}
+    ${tile('warn',Object.values(S.contracts).filter(conDue).length,'Contract renewals due','contracts|state|due')}
     ${S.me&&S.me.incidents?tile('bad',Object.values(S.incidents).filter(i=>i.status!=='Closed').length,'Open incidents','incidents|status|open')+tile('bad',Object.values(S.incidents).filter(incPending).length,'DOSH / PERKESO reports due','incidents|status|due'):''}
   </div>
   <div class="grid2">
@@ -610,10 +613,10 @@ VIEW.activity={
   bind(){bindFilters('activity')},
   list(){
     const q=fval('activity','q');const ev=[];
-    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>r.no+' · '+aLabel(r.assetId)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>r.no+' · '+r.title]};
+    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>r.no+' · '+aLabel(r.assetId)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>r.no+' · '+r.title],contracts:['contract',r=>r.title]};
     COLLS.forEach(c=>Object.entries(S[c]).forEach(([id,r])=>(r.history||[]).forEach(h=>ev.push([h,c,id,lab[c][1](r)]))));
     const rows=ev.filter(([h,,,n])=>match(q,h.act,n)).sort((a,b)=>String(b[0].at).localeCompare(String(a[0].at))).slice(0,300);
-    const kind={assets:'Asset',workorders:'Work order',parts:'Spare',suppliers:'Contractor',incidents:'Incident'};
+    const kind={assets:'Asset',workorders:'Work order',parts:'Spare',suppliers:'Contractor',incidents:'Incident',contracts:'Contract'};
     return`<div class="tbl-wrap"><table><thead><tr><th>When</th><th>Who</th><th class="hs">Record</th><th>Change</th></tr></thead><tbody>${rows.length?rows.map(([h,c,id,n])=>`<tr data-open="${lab[c][0]}:${id}"><td class="num" style="white-space:nowrap">${fmtDT(h.at)}</td><td>${who(h)}</td><td class="hs"><span class="pill">${kind[c]}</span><br>${esc(n)}</td><td>${esc(h.act)}<span class="muted" style="display:block">${esc(n)}</span></td></tr>`).join(''):emptyRow(4,'No activity yet','Changes appear here as your team records them.')}</tbody></table></div>`;
   }};
 
@@ -660,7 +663,7 @@ function userForm(id){
 function openDetail(kind,id){S.detail={kind,id};renderDetail()}
 function renderDetail(){
   if(!S.detail)return;const{kind,id}=S.detail;const l=$('#layer');
-  const coll={asset:'assets',wo:'workorders',part:'parts',supplier:'suppliers',incident:'incidents'}[kind];const r=S[coll][id];
+  const coll={asset:'assets',wo:'workorders',part:'parts',supplier:'suppliers',incident:'incidents',contract:'contracts'}[kind];const r=S[coll][id];
   $$('.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());
   if(!r){S.detail=null;return}
   const scrollY=l.dataset.sy||0;
@@ -681,15 +684,16 @@ const DETAIL={
     return{eyebrow:esc(a.code)+' · '+esc(a.category||''),title:a.name,
       pills:statusPill(a.status)+(a.foodContact?'<span class="pill acc">Food-contact</span>':'')+(a.criticality?`<span class="pill">${esc(a.criticality)} criticality</span>`:''),
       body:`<div class="acts">${W(()=>`<button class="btn pri" id="dNewWO">Report problem / new job</button>${a.pmInterval?'<button class="btn" id="dPM">Log PM</button>':''}<button class="btn" id="dEdit">Edit asset</button><button class="btn" id="dMove">Move location</button><button class="btn" id="dDup">Add another unit</button>`)}<button class="btn" id="dQR">QR label</button></div>
-      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],['Calibration due',a.calibDue?fmtD(a.calibDue)+' '+watchPill(dateWatch(a.calibDue)):'']])}
+      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],isIT(a)&&!a.calibDue?['Support / licence',(()=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?conPill(c):''})()]:['Calibration due',a.calibDue?fmtD(a.calibDue)+' '+watchPill(dateWatch(a.calibDue)):'']])}
       ${a.pmTasks?`<div><h3>PM checklist</h3><ul style="margin:0;padding-left:20px">${a.pmTasks.split('\n').filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`:''}
+      ${conSection(id,a)}
       ${a.notes?`<div><h3>Specs &amp; notes</h3><div style="white-space:pre-wrap">${esc(a.notes)}</div></div>`:''}
       ${(a.moves||[]).length?`<div><h3>Location history</h3><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>From → to</th><th class="hs">Reason</th></tr></thead><tbody>${a.moves.slice().reverse().map(m=>`<tr><td class="num" style="white-space:nowrap">${fmtD(m.date)}</td><td>${esc([m.fromDept,m.fromLoc].filter(Boolean).join(' · ')||'—')} → <b>${esc([m.toDept,m.toLoc].filter(Boolean).join(' · ')||'—')}</b>${m.fromUser!==m.toUser?`<br><span class="muted">User: ${esc(m.fromUser||'—')} → ${esc(m.toUser||'—')}</span>`:''}<br><span class="muted">${who(m)}</span></td><td class="hs">${esc(m.reason||'')}</td></tr>`).join('')}</tbody></table></div></div>`:''}
       ${(()=>{const sib=sameModel(id,a);return sib.length?`<div><h3>Same model elsewhere</h3><p class="muted" style="margin:0 0 8px">${sib.length} other unit(s) of ${esc([a.manufacturer,a.model].filter(Boolean).join(' '))}</p><div class="tbl-wrap"><table style="min-width:0"><tbody>${sib.map(([sid,b])=>`<tr data-open="asset:${sid}"><td class="mono">${esc(b.code)}</td><td>${esc(place(b)||'—')}${b.assignedTo?'<br><span class="muted">'+esc(b.assignedTo)+'</span>':''}</td><td>${statusPill(b.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
       <div><h3>Maintenance history</h3><p class="muted" style="margin:0 0 8px">${ws.length} job(s) · ${rm(total)} · ${down} h downtime</p>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(w.type)}</span></td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs logged for this asset yet.</span>'}</div>
       ${S.me&&S.me.incidents?(()=>{const inc=Object.entries(S.incidents).filter(([,i])=>i.assetId===id);return inc.length?`<div><h3>Incidents involving this asset</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${inc.map(([iid,i])=>`<tr data-open="incident:${iid}"><td class="mono">${esc(i.no)}<br><span class="muted">${fmtD(i.incDate)}</span></td><td>${esc(i.title)}</td><td>${incStatusPill(i.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})():''}
       ${usedParts.length?`<div><h3>Spares for this asset</h3>${usedParts.map(p=>`<div>${esc(p.code)} · ${esc(p.name)} — <b class="num">${num(p.qty)} ${esc(p.unit||'')}</b> in store</div>`).join('')}</div>`:''}`,
-      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)})}};
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)});const ac=$('#dAddCon',d);if(ac)ac.onclick=()=>conForm(null,{assetId:id,supplierId:a.supplierId||'',dept:a.dept||'',title:a.name+' – support',type:isIT(a)?'Support agreement / AMC':'Service contract (non-IT)'})}};
   },
   wo(id,w){
     const chk=[['chkHygiene','Hygiene condition checked'],['chkSafety','Safety condition checked'],['chkIsolated','Work area isolated from production'],['chkPPE','Technicians wore PPE'],['chkTools','No foreign matter / tools left on line'],['chkClearance','Hygiene clearance before restart']];
@@ -720,13 +724,14 @@ const DETAIL={
       body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Edit</button>')}</div>
       ${kv([['Services',esc(s.services)],['Contact',esc(s.contact)],['Phone',s.phone?`<span class="mono" style="user-select:all">${esc(s.phone)}</span>`:''],['Email',s.email?`<span style="user-select:all">${esc(s.email)}</span>`:''],['Next evaluation',s.evalDue?fmtD(s.evalDue)+' '+watchPill(dateWatch(s.evalDue)):''],['Invoiced to date',rm(ws.reduce((t,[,w])=>t+num(w.invoiceAmount),0))]])}
       ${s.notes?`<div style="white-space:pre-wrap">${esc(s.notes)}</div>`:''}
+      ${(()=>{const cs=Object.entries(S.contracts).filter(([,c])=>c.supplierId===id);return cs.length?`<div><h3>Contracts</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${cs.map(([cid,c])=>`<tr data-open="contract:${cid}"><td>${esc(c.title)}<br><span class="muted">${esc(c.type||'')}</span></td><td class="r">${conPill(c)}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
       <div><h3>Jobs done</h3>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(aLabel(w.assetId))}<br><span class="muted">${esc(w.title)}</span></td><td class="r num">${w.invoiceNo?esc(w.invoiceNo)+'<br>':''}${rm(w.invoiceAmount)}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs linked yet.</span>'}</div>`,
       bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>supForm(id)}};
   }
 };
 
 /* ---------- attachments (supplier reports, invoices, photos) ---------- */
-const FILE_KINDS={incidents:['Photo','Medical certificate (MC)','JKKP 6 / JKKP 7 copy','Borang 34 copy','Police report','Investigation report','Other'],assets:['Photo','Manual','Warranty / certificate','Purchase invoice','Other'],workorders:['Supplier service report','Invoice','Photo – before','Photo – after','Quotation','Other'],parts:['Photo','Delivery order','Invoice','Spec / food-grade certificate','Other'],suppliers:['Certificate / licence','Supplier evaluation','Agreement','Safety briefing form','Other']};
+const FILE_KINDS={incidents:['Photo','Medical certificate (MC)','JKKP 6 / JKKP 7 copy','Borang 34 copy','Police report','Investigation report','Other'],assets:['Photo','Manual','Warranty / certificate','Purchase invoice','Other'],workorders:['Supplier service report','Invoice','Photo – before','Photo – after','Quotation','Other'],parts:['Photo','Delivery order','Invoice','Spec / food-grade certificate','Other'],suppliers:['Certificate / licence','Supplier evaluation','Agreement','Safety briefing form','Other'],contracts:['Agreement / contract','Quotation','Purchase order','Invoice','Licence certificate','Other']};
 function filesBlock(coll,id,r){
   const fs=r.files||[];
   return`<div><h3>Attachments</h3>${fs.length?`<div class="files">${fs.map((f,i)=>{const img=String(f.ct).startsWith('image/');return`<div class="file"><a class="th" data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${img?`<img data-fp="${esc(f.id)}" alt="${esc(f.name)}" loading="lazy">`:'PDF'}</a><div class="m"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${esc(f.name)}</a><span class="muted">${esc(f.kind)} · ${fmtD((f.at||'').slice(0,10))}</span>${S.canWrite?`<button class="btn sm danger" data-rmf="${i}" type="button">Remove</button>`:''}</div></div>`}).join('')}</div>`:'<span class="muted">No files attached.</span>'}
@@ -850,6 +855,7 @@ function assetForm(id,copyFrom){
       const key=id||newId('assets');const next={...(prev||{}),...v};
       await put('assets',key,next,src?'Created as another unit of '+src.code:diffAct(prev,next,F_ASSET));toast(prev?'Asset updated':'Asset added');renderList();if(prev)renderDetail();else openDetail('asset',key);
     }});
+  if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});['calibInterval','calibDue'].forEach(k=>{const f=$('#f_'+k,sh)?.closest('.field');if(f)f.hidden=it&&!(prev&&prev.calibDue)})};if(cat){cat.addEventListener('change',tog);tog()}}
   if(src&&sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent=`Copied from ${src.code}. Check the asset code, then enter the serial no., department and location of this unit.`;$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
 }
 function supForm(id){
@@ -973,11 +979,12 @@ function exportCSV(coll){
     assets:[['Asset code','code'],['Fixed asset no','faNo'],['Name','name'],['Category','category'],['Department','dept'],['Location','location'],['Status','status'],['Criticality','criticality'],['Food contact',a=>a.foodContact?'Yes':'No'],['Manufacturer','manufacturer'],['Model','model'],['Serial no','serial'],['Supplier',a=>sup(a.supplierId)?.name||''],['Purchase date','purchaseDate'],['Warranty until','warrantyUntil'],['Assigned to','assignedTo'],['PM every (days)','pmInterval'],['Last PM','lastPM'],['Next PM',a=>pmInfo(a)?.due||''],['Calibration due','calibDue'],['Notes','notes']],
     workorders:[['WO no','no'],['Report date','reportDate'],['Type','type'],['Asset code',w=>A(w.assetId)?.code||''],['Asset',w=>A(w.assetId)?.name||''],['Problem','title'],['Priority','priority'],['Status','status'],['Reported by','reportedBy'],['Performed by','performedBy'],['Contractor',w=>sup(w.supplierId)?.name||''],['Technician','technician'],['Start','startDate'],['Completed','completedDate'],['Downtime (h)','downtimeHrs'],['Tasks done','tasksDone'],['Hygiene check',w=>w.chkHygiene?'Y':'N'],['Safety check',w=>w.chkSafety?'Y':'N'],['Area isolated',w=>w.chkIsolated?'Y':'N'],['PPE',w=>w.chkPPE?'Y':'N'],['Foreign matter check',w=>w.chkTools?'Y':'N'],['Hygiene clearance',w=>w.chkClearance?'Y':'N'],['Supplier report no','supplierReportNo'],['Invoice no','invoiceNo'],['Invoice date','invoiceDate'],['Invoice (RM)','invoiceAmount'],['Labour (RM)','labourCost'],['Spares (RM)',w=>partsCost(w).toFixed(2)],['Total (RM)',w=>woCost(w).toFixed(2)],['Verified by','verifiedBy'],['Verified on','verifiedDate'],['Attachments',w=>(w.files||[]).length]],
     parts:[['Part code','code'],['Name','name'],['Category','category'],['Unit','unit'],['On hand','qty'],['Re-order level','minQty'],['Store','store'],['Unit cost (RM)','unitCost'],['Value (RM)',p=>(num(p.qty)*num(p.unitCost)).toFixed(2)],['Food grade',p=>p.foodGrade?'Yes':'No'],['Supplier',p=>sup(p.supplierId)?.name||''],['Used on','compatible']],
+    contracts:[['Contract','title'],['Type','type'],['Vendor',c=>sup(c.supplierId)?.name||''],['Linked asset code',c=>A(c.assetId)?.code||''],['Linked asset',c=>A(c.assetId)?.name||''],['Department','dept'],['Person in charge','owner'],['Reference','ref'],['Users / seats','seats'],['Period start','startDate'],['Renewal date','endDate'],['Status',c=>{const i=conInfo(c);return({cancelled:'Cancelled / not renewing',expired:'Expired',soon:'Due for renewal',ok:'Active',unset:'No renewal date'})[i.state]}],['Days to renewal',c=>conInfo(c).days??''],['Reminder (days)','noticeDays'],['Billing','billing'],['Annual cost (RM)','annualCost'],['Auto-renew',c=>c.autoRenew?'Yes':'No'],['Support contact','supportContact'],['Support phone','supportPhone'],['Support email','supportEmail'],['Renewals recorded',c=>(c.renewals||[]).length],['Scope','scope'],['Notes','notes']],
     suppliers:[['Company','name'],['Type','kind'],['Services','services'],['Contact','contact'],['Phone','phone'],['Email','email'],['Approval','approval'],['Next evaluation','evalDue'],['Safety briefing',s=>s.safetyBriefed?'Yes':'No'],['Jobs',s=>Object.values(S.workorders).filter(w=>w.supplierId===s._id).length]]
   }[coll];
   const rows=Object.entries(S[coll]).map(([id,r])=>({...r,_id:id}));
   const csv='﻿'+[spec.map(c=>c[0]).join(','),...rows.map(r=>spec.map(([,k])=>csvCell(typeof k==='function'?k(r):r[k])).join(','))].join('\r\n');
-  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors'})[coll]}_${today()}.csv`,csv);
+  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors',contracts:'Contracts_Renewals'})[coll]}_${today()}.csv`,csv);
 }
 function downloadF45(id,print){
   const w=S.workorders[id],a=A(w.assetId)||{},s=sup(w.supplierId)||{};
@@ -1266,6 +1273,147 @@ function printLabels(ids){
   const html=`<!doctype html><html><head><meta charset="utf-8"><title>GFB asset QR labels</title><style>@page{margin:10mm}body{font:11px Arial,sans-serif;margin:0}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}.lab{border:1px dashed #999;padding:3mm;display:flex;gap:3mm;align-items:center;break-inside:avoid;height:32mm}.q{width:26mm;height:26mm;flex:none}.q svg{width:100%;height:100%}.t{display:flex;flex-direction:column;gap:1mm;min-width:0}.t b{font-size:14px}.t em{font-style:normal;color:#444}small{color:#555}</style></head><body><div class="g">${labels}</div><script>setTimeout(function(){window.print()},300)<\/script></body></html>`;
   const w=window.open('','_blank');if(!w){toast('Allow pop-ups for this site to print labels.');return}w.document.write(html);w.document.close();
 }
+
+/* ---------- contracts & renewals (support agreements, licences, subscriptions, service contracts) ---------- */
+const CON_TYPES=['Support agreement / AMC','Software subscription / licence','Warranty extension','Hosting / domain / SSL','Antivirus / security','Internet / telco','Service contract (non-IT)','Other'];
+const CON_BILLING=['Yearly','Quarterly','Monthly','Multi-year','One-time'];
+const isIT=a=>/computer|software|\bIT\b/i.test((a&&a.category)||'');
+const addMonths=(iso,n)=>{const [y,m,d]=iso.split('-').map(Number);const t=new Date(y,m-1+Number(n),1);const last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();t.setDate(Math.min(d,last));return isoOf(t)};
+function conInfo(c){
+  if(!c)return null;if(c.status==='Cancelled')return{state:'cancelled'};
+  if(!c.endDate)return{state:'unset'};
+  const notice=c.noticeDays===''||c.noticeDays==null?60:num(c.noticeDays),d=dayDiff(today(),c.endDate);
+  return{days:d,notice,state:d<0?'expired':d<=notice?'soon':'ok'};
+}
+const conDue=c=>{const i=conInfo(c);return i&&(i.state==='soon'||i.state==='expired')};
+function conPill(c){const i=conInfo(c);if(!i)return'';
+  if(i.state==='cancelled')return'<span class="pill">Not renewing</span>';
+  if(i.state==='unset')return'<span class="pill warn">Set renewal date</span>';
+  const t=i.days<0?'Expired '+Math.abs(i.days)+' d ago':i.days===0?'Renews today':(c.autoRenew?'Auto-renews in ':'Renew in ')+i.days+' d';
+  return`<span class="pill ${i.state==='expired'?'bad':i.state==='soon'?'warn':'ok'}">${i.state==='ok'?fmtD(c.endDate)+' · in '+i.days+' d':t}</span>`}
+const periodMonths=c=>({Yearly:12,Quarterly:3,Monthly:1,'One-time':0}[c.billing]??(c.billing==='Multi-year'&&c.startDate&&c.endDate?Math.max(12,Math.round(dayDiff(c.startDate,c.endDate)/30.44)):12));
+const F_CON=[
+  {type:'sec',label:'Contract'},
+  {k:'title',label:'Contract / licence name',req:true,full:true,ph:'e.g. SAP Business One annual support'},
+  {k:'type',label:'Type',type:'select',opts:CON_TYPES,req:true},
+  {k:'supplierId',label:'Vendor / service provider',short:'Vendor',type:'select',opts:supOpts},
+  {k:'assetId',label:'Linked asset (optional)',short:'Linked asset',type:'select',opts:assetOpts},
+  {k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments},
+  {k:'owner',label:'Person in charge',ph:'Who handles the renewal'},
+  {k:'ref',label:'Contract / licence / account no.',short:'Reference'},
+  {k:'seats',label:'Users / seats / quantity',short:'Seats',ph:'e.g. 5 users'},
+  {type:'sec',label:'Period & renewal'},
+  {k:'startDate',label:'Current period starts',short:'Start date',type:'date'},
+  {k:'endDate',label:'Renewal / expiry date',short:'Renewal date',type:'date',req:true},
+  {k:'noticeDays',label:'Remind me (days before renewal)',short:'Reminder',type:'number'},
+  {k:'billing',label:'Billing cycle',type:'select',opts:CON_BILLING,blank:false},
+  {k:'annualCost',label:'Annual cost (RM, optional)',short:'Annual cost',type:'number'},
+  {k:'status',label:'Status',type:'select',opts:[['Active','Active'],['Cancelled','Cancelled / not renewing']],blank:false},
+  {k:'autoRenew',label:'Renews automatically unless cancelled in time',short:'Auto-renew',type:'check',full:true,hint:'Check the cancellation notice period in the agreement'},
+  {type:'sec',label:'Support contact & coverage'},
+  {k:'supportContact',label:'Support contact person',short:'Support contact'},{k:'supportPhone',label:'Support phone',type:'tel'},{k:'supportEmail',label:'Support email / portal',short:'Support email'},
+  {k:'scope',label:'Coverage / scope',type:'textarea',full:true,ph:'e.g. Helpdesk Mon–Fri 9am–6pm, version upgrades, 4-hour on-site response'},
+  {k:'notes',label:'Notes',type:'textarea',full:true}
+];
+function conForm(id,preset={}){
+  const prev=id?S.contracts[id]:null;
+  const data=prev||{status:'Active',noticeDays:60,billing:'Yearly',type:'Software subscription / licence',...preset};
+  formSheet({title:prev?'Edit contract':'Add contract / licence',fields:F_CON,data,
+    danger:prev&&S.canAdmin?{label:'Delete',onClick:()=>confirmBox('Delete this contract?','To keep the renewal history, set the status to <b>Cancelled / not renewing</b> instead. Deleting removes the record and its history.','Delete',async()=>{await api('DELETE','/api/docs/contracts/'+id);delete S.contracts[id];closeLayer('drawer');renderList();toast('Contract deleted')})}:null,
+    onSave:async v=>{
+      if(v.startDate&&v.endDate&&v.startDate>v.endDate)return'The renewal date must be after the start date.';
+      if(v.noticeDays===''||v.noticeDays==null)v.noticeDays=60;
+      const key=id||newId('contracts');const next={...(prev||{}),...v};
+      await put('contracts',key,next,prev?diffAct(prev,next,F_CON):'Added contract: '+v.title);toast(prev?'Contract updated':'Contract added');renderList();if(prev)renderDetail();else openDetail('contract',key);
+    }});
+}
+function renewForm(id){
+  const c=S.contracts[id];if(!c)return;const pm=periodMonths(c)||12;
+  const ns=c.endDate?addDays(c.endDate,1):today();const ne=addDays(addMonths(ns,pm),-1);
+  const fields=[{k:'start',label:'New period starts',type:'date',req:true},{k:'end',label:'New renewal / expiry date',type:'date',req:true},
+    {k:'cost',label:'Cost for this period (RM)',type:'number'},{k:'poNo',label:'PO no.'},{k:'invoiceNo',label:'Invoice no.'},{k:'note',label:'Note',full:true,ph:'e.g. Price increase 5%, added 2 users'}];
+  formSheet({title:'Renew: '+c.title,fields,data:{start:ns,end:ne,cost:c.annualCost??''},onSave:async v=>{
+    if(v.end<=v.start)return'The new renewal date must be after the start date.';
+    const r={at:new Date().toISOString(),by:S.me.name,prevStart:c.startDate||'',prevEnd:c.endDate||'',start:v.start,end:v.end,cost:v.cost,poNo:v.poNo,invoiceNo:v.invoiceNo,note:v.note};
+    const next={...c,startDate:v.start,endDate:v.end,status:'Active',annualCost:v.cost!==''&&v.cost!=null&&pm===12?v.cost:c.annualCost,renewals:[...(c.renewals||[]),r]};
+    await put('contracts',id,next,'Renewed to '+fmtD(v.end)+(v.poNo?' · PO '+v.poNo:'')+(v.invoiceNo?' · Inv '+v.invoiceNo:''));
+    toast('Renewed to '+fmtD(v.end));renderList();renderDetail();
+  }});
+}
+function conSection(id,a){
+  const cs=Object.entries(S.contracts).filter(([,c])=>c.assetId===id).sort(byStr('endDate'));
+  if(!cs.length&&!isIT(a))return'';
+  return`<div><h3>Support &amp; renewals</h3>${cs.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${cs.map(([cid,c])=>`<tr data-open="contract:${cid}"><td>${esc(c.title)}<br><span class="muted">${esc(c.type||'')}${c.supplierId&&sup(c.supplierId)?' · '+esc(sup(c.supplierId).name):''}</span></td><td class="r">${conPill(c)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted" style="margin:0 0 8px">No support agreement or licence recorded. For software and IT, track the support or subscription renewal here instead of calibration.</p>'}${W(()=>'<div class="acts" style="margin-top:8px"><button class="btn sm" id="dAddCon" type="button">Add contract / licence</button></div>')}</div>`;
+}
+DETAIL.contract=(id,c)=>{
+  const i=conInfo(c),a=c.assetId&&A(c.assetId),rn=(c.renewals||[]).slice().reverse();
+  return{eyebrow:'Contract · '+esc(c.type||''),title:c.title,
+    pills:conPill(c)+(c.autoRenew?'<span class="pill info">Auto-renew</span>':'')+(c.billing?`<span class="pill">${esc(c.billing)}</span>`:''),
+    body:`${i&&(i.state==='soon'||i.state==='expired')?`<div class="banner" style="margin:0;background:${i.state==='expired'?'var(--bad-soft)':'var(--warn-soft)'}"><b>${i.state==='expired'?'Expired.':'Renewal due soon.'}</b> ${i.state==='expired'?'Support or licence may have lapsed since '+fmtD(c.endDate)+'. Renew, or set the status to Cancelled if you are not renewing.':(c.autoRenew?'This renews automatically on '+fmtD(c.endDate)+'. Cancel before the notice period if you do not want it.':'Get the quotation and raise the PO before '+fmtD(c.endDate)+'.')}</div>`:''}
+    <div class="acts">${W(()=>'<button class="btn pri" id="dRenew">Record renewal</button><button class="btn" id="dEdit">Edit</button>')}</div>
+    ${kv([['Vendor',c.supplierId&&sup(c.supplierId)?`<a href="#" data-sup="${c.supplierId}">${esc(sup(c.supplierId).name)}</a>`:''],['Linked asset',a?`<a href="#" data-asset="${c.assetId}">${esc(a.code+' · '+a.name)}</a>`:''],['Department',esc(c.dept)],['Person in charge',esc(c.owner)],['Reference',c.ref?`<span class="mono">${esc(c.ref)}</span>`:''],['Users / seats',esc(c.seats)],['Current period',(c.startDate||c.endDate)?fmtD(c.startDate)+' → '+fmtD(c.endDate):''],['Reminder',(i&&i.notice!=null?i.notice:num(c.noticeDays)||60)+' days before'],['Annual cost',c.annualCost!==''&&c.annualCost!=null?rm(c.annualCost):''],['Support contact',esc(c.supportContact)],['Support phone',c.supportPhone?`<span class="mono" style="user-select:all">${esc(c.supportPhone)}</span>`:''],['Support email / portal',c.supportEmail?`<span style="user-select:all">${esc(c.supportEmail)}</span>`:'']])}
+    ${c.scope?`<div><h3>Coverage / scope</h3><div style="white-space:pre-wrap">${esc(c.scope)}</div></div>`:''}
+    ${c.notes?`<div><h3>Notes</h3><div style="white-space:pre-wrap">${esc(c.notes)}</div></div>`:''}
+    <div><h3>Renewal history</h3>${rn.length?`<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Period</th><th class="r">Cost</th><th class="hs">PO / invoice</th></tr></thead><tbody>${rn.map(r=>`<tr><td class="num">${fmtD(r.start)} → ${fmtD(r.end)}<br><span class="muted">Recorded ${fmtD(String(r.at).slice(0,10))} · ${esc(r.by||'')}</span>${r.note?`<br><span class="muted">${esc(r.note)}</span>`:''}</td><td class="r num">${r.cost!==''&&r.cost!=null?rm(r.cost):'—'}</td><td class="hs">${esc([r.poNo&&'PO '+r.poNo,r.invoiceNo&&'Inv '+r.invoiceNo].filter(Boolean).join(' · ')||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No renewals recorded yet. Use <b>Record renewal</b> each time the contract is renewed, so you keep an unbroken support record.</span>'}</div>`,
+    bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>conForm(id);const r=$('#dRenew',d);if(r)r.onclick=()=>renewForm(id);
+      $$('[data-asset]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)})}};
+};
+function filteredContracts(){
+  const q=fval('contracts','q'),st=fval('contracts','state'),t=fval('contracts','type');
+  return Object.entries(S.contracts).filter(([,c])=>{const i=conInfo(c);
+    if(t&&c.type!==t)return false;
+    if(!match(q,c.title,c.ref,c.type,c.owner,c.dept,sup(c.supplierId)?.name,c.assetId?aLabel(c.assetId):''))return false;
+    if(st==='all')return true;if(st==='cancelled')return i.state==='cancelled';if(st==='due')return conDue(c);if(st==='expired')return i.state==='expired';
+    return i.state!=='cancelled'}).sort((x,y)=>{const a=conInfo(x[1]),b=conInfo(y[1]);const ka=a.state==='cancelled'?1:0,kb=b.state==='cancelled'?1:0;return ka-kb||String(x[1].endDate||'9').localeCompare(String(y[1].endDate||'9'))});
+}
+VIEW.contracts={
+  shell:()=>`<h2>Contracts &amp; renewals</h2><p class="muted" style="margin-top:-4px">Software licences and subscriptions, IT support agreements, and service contracts such as aircon servicing or pest control. Each one is flagged before its renewal date so there is time for quotation, approval and PO.</p><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_k" placeholder="Search contract, vendor, asset, reference…" value="${esc(fval('contracts','q'))}">
+    <select data-f="state" id="s_k" style="width:auto">${[['','All current'],['due','Due for renewal or expired'],['expired','Expired'],['cancelled','Cancelled / not renewing'],['all','Everything']].map(o=>opt(o,fval('contracts','state'))).join('')}</select>
+    <select data-f="type" id="t_k" style="width:auto"><option value="">All types</option>${CON_TYPES.map(c=>opt(c,fval('contracts','type'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addK">Add contract</button>')}<button class="btn" id="expK">Export CSV</button><button class="btn" id="calK">Renewal calendar</button></div><div id="list"></div>`,
+  bind(){bindFilters('contracts');const a=$('#addK');if(a)a.onclick=()=>conForm();$('#expK').onclick=()=>exportCSV('contracts');$('#calK').onclick=calendarSheet},
+  list(){
+    const rows=filteredContracts();const act=Object.values(S.contracts).filter(c=>c.status!=='Cancelled');
+    const total=act.reduce((s,c)=>s+(periodMonths(c)===0?0:num(c.annualCost)),0);
+    return`<p class="muted" style="margin:0 0 8px">${act.length} active contract(s) · ${Object.values(S.contracts).filter(conDue).length} due for renewal or expired · recorded annual cost ${rm(total)}</p><div class="tbl-wrap"><table><thead><tr><th>Contract</th><th class="hs">Type · linked asset</th><th class="hs">Reference</th><th>Renewal</th><th class="r hs">Annual cost</th></tr></thead><tbody>${rows.length?rows.map(([id,c])=>`<tr data-open="contract:${id}"><td>${esc(c.title)}<br><span class="muted">${esc(sup(c.supplierId)?.name||'')}</span></td><td class="hs">${esc(c.type||'')}${c.assetId?`<br><span class="muted">${esc(aLabel(c.assetId))}</span>`:''}</td><td class="hs"><span class="mono">${esc(c.ref||'')}</span>${c.seats?`<br><span class="muted">${esc(c.seats)}</span>`:''}</td><td>${c.endDate?`<span class="num">${fmtD(c.endDate)}</span><br>`:''}${conPill(c)}</td><td class="r num hs">${c.annualCost!==''&&c.annualCost!=null?rm(c.annualCost):'—'}</td></tr>`).join(''):emptyRow(5,'No contracts here yet','Add your software licences, IT support agreements and service contracts (e.g. Microsoft 365, SAP B1 support, aircon servicing, pest control) to be reminded before each renewal.')}</tbody></table></div>`;
+  }};
+function renewalPlan(from,to){
+  const out=[],lapsed=[];
+  Object.entries(S.contracts).forEach(([id,c])=>{if(c.status==='Cancelled'||!c.endDate)return;
+    const pm=periodMonths(c);const per=pm===0?num(c.annualCost):num(c.annualCost)*pm/12;
+    if(c.endDate<today())lapsed.push([id,c]);
+    if(pm===0){if(c.endDate>=from&&c.endDate<=to)out.push({id,c,date:c.endDate,cost:per,proj:false});return}
+    for(let k=0;k<400;k++){const d=k?addMonths(c.endDate,pm*k):c.endDate;if(d>to)break;if(d>=from)out.push({id,c,date:d,cost:per,proj:k>0})}
+  });
+  out.sort((a,b)=>a.date.localeCompare(b.date)||String(a.c.title).localeCompare(String(b.c.title)));return{out,lapsed};
+}
+function calendarSheet(){
+  const now=new Date();const fyStart=now.getMonth()>=6?now.getFullYear():now.getFullYear()-1;
+  const per=[['next12','Next 12 months'],['fy'+fyStart,`FY${fyStart+1} (Jul ${fyStart} – Jun ${fyStart+1})`],['fy'+(fyStart+1),`FY${fyStart+2} (Jul ${fyStart+1} – Jun ${fyStart+2})`]];
+  const fields=[{k:'period',label:'Period',type:'select',blank:false,opts:per}];
+  const sh=formSheet({title:'Renewal calendar',fields,data:{period:'next12'},
+    extra:`<div class="acts"><button type="button" class="btn pri" id="kPrint">Print / save as PDF</button><button type="button" class="btn" id="kHtml">Download (.html)</button><button type="button" class="btn" id="kCsv">Download (.csv)</button></div><p class="muted" style="margin:0">Lists every renewal in the period with its estimated cost, for budgeting. Later renewals are projected from each contract's billing cycle and current cost.</p>`});
+  if(!sh)return;$('#fsave',sh)?.remove();
+  const range=p=>{if(p==='next12'){const f=today().slice(0,7)+'-01';return[f,addDays(addMonths(f,12),-1),'Next 12 months']}const y=+p.slice(2);return[y+'-07-01',(y+1)+'-06-30',`FY${y+1} (1 Jul ${y} – 30 Jun ${y+1})`]};
+  const go2=mode=>{const [from,to,label]=range(readForm(fields).period);const {out,lapsed}=renewalPlan(from,to);
+    if(mode==='csv'){const head=['Month','Renewal date','Contract','Type','Vendor','Linked asset','Reference','Billing','Est. cost (RM)','Projected'];
+      const csv='﻿'+[head.join(','),...out.map(e=>[e.date.slice(0,7),e.date,e.c.title,e.c.type,sup(e.c.supplierId)?.name||'',e.c.assetId?aLabel(e.c.assetId):'',e.c.ref,e.c.billing,e.cost.toFixed(2),e.proj?'Yes':'No'].map(csvCell).join(','))].join('\r\n');
+      return save(`GFB_Renewal_Calendar_${from}_${to}.csv`,csv)}
+    const months={};out.forEach(e=>{(months[e.date.slice(0,7)]=months[e.date.slice(0,7)]||[]).push(e)});
+    const mname=k=>new Date(k+'-01T00:00:00').toLocaleString('en-MY',{month:'long',year:'numeric'});
+    const tot=out.reduce((s,e)=>s+e.cost,0);
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Renewal calendar ${esc(label)}</title><style>body{font:12px Arial,sans-serif;margin:28px;color:#111}h1{font-size:16px;margin:0}h2{font-size:13px;margin:16px 0 4px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #888;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}td.r,th.r{text-align:right}.sub td{background:#f6f6f6;font-weight:bold}.note{color:#555;margin-top:14px}.lap{color:#a00}</style></head><body>
+<div style="display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:6px"><div><h1>${CO()}</h1><b>Contract &amp; licence renewal calendar</b></div><div style="text-align:right">${esc(label)}<br>Printed ${fmtD(today())}</div></div>
+${lapsed.length?`<h2 class="lap">Expired and not yet renewed (${lapsed.length})</h2><table><tr><th>Contract</th><th>Vendor</th><th>Expired on</th><th class="r">Annual cost</th></tr>${lapsed.map(([,c])=>`<tr><td>${esc(c.title)}</td><td>${esc(sup(c.supplierId)?.name||'')}</td><td>${fmtD(c.endDate)}</td><td class="r">${c.annualCost!==''&&c.annualCost!=null?rm(c.annualCost):''}</td></tr>`).join('')}</table>`:''}
+<h2>Renewals in the period</h2><table><tr><th style="width:16%">Month</th><th>Contract</th><th>Vendor</th><th>Renewal date</th><th>Billing</th><th class="r">Est. cost</th></tr>
+${Object.keys(months).sort().map(k=>months[k].map((e,ix)=>`<tr><td>${ix?'':mname(k)}</td><td>${esc(e.c.title)}${e.c.assetId?`<br><small>${esc(aLabel(e.c.assetId))}</small>`:''}</td><td>${esc(sup(e.c.supplierId)?.name||'')}</td><td>${fmtD(e.date)}${e.proj?' <small>(projected)</small>':''}</td><td>${esc(e.c.billing||'')}</td><td class="r">${e.cost?rm(e.cost):'—'}</td></tr>`).join('')+`<tr class="sub"><td colspan="5">${mname(k)} total</td><td class="r">${rm(months[k].reduce((s,e)=>s+e.cost,0))}</td></tr>`).join('')||'<tr><td colspan="6">No renewals in this period.</td></tr>'}
+<tr class="sub"><td colspan="5">Total for ${esc(label)}</td><td class="r">${rm(tot)}</td></tr></table>
+<p class="note">Costs are the annual cost recorded on each contract, split by billing cycle (monthly = 1/12, quarterly = 1/4). Projected dates assume the contract renews on the same cycle. Contracts marked Cancelled / not renewing are excluded.</p></body></html>`;
+    outputDoc(html,`GFB_Renewal_Calendar_${from}_${to}.html`,mode==='print')};
+  $('#kPrint',sh).onclick=()=>go2('print');$('#kHtml',sh).onclick=()=>go2('html');$('#kCsv',sh).onclick=()=>go2('csv');
+}
+
 function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
 window.addEventListener('hashchange',routeHash);
 
