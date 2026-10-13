@@ -231,7 +231,7 @@ async function api(method,path,body){
     let deleted=[];if(since){const {data,error}=await sb.from('tombstones').select('coll,id,seq').gt('seq',since);if(error)throw sbErr(error);deleted=data}
     return{seq:Math.max(since,...docs.map(d=>+d.seq),...deleted.map(d=>+d.seq)),docs,deleted,full:!since}}
   if((m=path.match(/^\/api\/docs\/([a-z]+)\/([A-Za-z0-9_\-]+)$/))){
-    if(method==='PUT'){const r=await rpc('save_doc',{p_coll:m[1],p_id:m[2],p_data:body.data,p_act:body.act,p_base:body.base??null});
+    if(method==='PUT'){let r;try{r=await rpc('save_doc',{p_coll:m[1],p_id:m[2],p_data:body.data,p_act:body.act,p_base:body.base??null})}catch(e){if(m[1]==='contracts'&&/Unknown record type/i.test(e.message))throw ERR('Contracts are not switched on in the database yet. An admin needs to run enable-contracts.sql in Supabase (SQL Editor).',400);throw e}
       if(r.conflict)throw ERR('Someone else changed this record while you were editing. Your copy has been refreshed; please re-enter your change.',409,{current:r.current});return{ok:true,doc:r.doc}}
     if(method==='DELETE'){await rpc('delete_doc',{p_coll:m[1],p_id:m[2]});return{ok:true}}}
   if((m=path.match(/^\/api\/stock\/([A-Za-z0-9_\-]+)$/))){const r=await rpc('stock_move',{p_id:m[1],p_type:body.type,p_delta:body.delta??0,p_count:body.count??null,p_date:body.date||'',p_ref:body.ref||'',p_note:body.note||'',p_unit_cost:(body.unitCost===''||body.unitCost==null)?null:Number(body.unitCost)});
