@@ -1,0 +1,1325 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d6b5f"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GFB Maint">
+<link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" href="icon-192.png">
+<title>GFB Asset &amp; Maintenance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: a plant-room register. Header with module tabs, summary tiles first, then scannable tables; records open in a side drawer, edits in a sheet. */
+:root{
+  --bg:#eef2f2; --surface:#ffffff; --surface-2:#f6f8f8; --ink:#152226; --muted:#5a6b70; --line:#d5dddd;
+  --accent:#0d6b5f; --accent-soft:#dcefeb; --accent-ink:#ffffff;
+  --ok:#2e7d3c; --ok-soft:#e1f1e3; --warn:#a66300; --warn-soft:#fbeed8; --bad:#b3261e; --bad-soft:#f9e1df; --info:#2d5f9a; --info-soft:#e2ebf6;
+  --shadow:0 10px 30px rgba(20,40,45,.14);
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0f1517; --surface:#162024; --surface-2:#1b272b; --ink:#e2eaeb; --muted:#93a4a8; --line:#2b383c;
+  --accent:#4fb3a3; --accent-soft:#16352f; --accent-ink:#06201b;
+  --ok:#6cc27a; --ok-soft:#173222; --warn:#e3a54a; --warn-soft:#352711; --bad:#f08a80; --bad-soft:#3a1a18; --info:#8ab4e8; --info-soft:#18283c;
+  --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f1517; --surface:#162024; --surface-2:#1b272b; --ink:#e2eaeb; --muted:#93a4a8; --line:#2b383c;
+  --accent:#4fb3a3; --accent-soft:#16352f; --accent-ink:#06201b;
+  --ok:#6cc27a; --ok-soft:#173222; --warn:#e3a54a; --warn-soft:#352711; --bad:#f08a80; --bad-soft:#3a1a18; --info:#8ab4e8; --info-soft:#18283c;
+  --shadow:0 10px 30px rgba(0,0,0,.5); color-scheme:dark}
+*{box-sizing:border-box}
+html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}[hidden]{display:none!important}img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+.wrap{padding-inline:16px;padding-block:0 48px;max-width:1280px;margin:0 auto}
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:12px;padding-block:14px 8px;flex-wrap:wrap}
+.brand h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.01em;margin:0;line-height:1}
+.brand .sub{color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.brand .me{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.brand .me img{width:26px;height:26px;border-radius:50%}
+nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+nav.tabs::-webkit-scrollbar{display:none}
+nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:9px 12px;color:var(--muted);font-weight:500;cursor:pointer;white-space:nowrap}
+nav.tabs button[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs .n{font-family:var(--f-mono);font-size:11px;background:var(--bad);color:#fff;border-radius:9px;padding:0 6px;margin-left:5px}
+.banner{margin-block:12px 0;padding:10px 14px;border-radius:8px;background:var(--warn-soft);color:var(--ink);border:1px solid var(--line)}
+h2{font-family:var(--f-display);font-weight:600;font-size:22px;margin:22px 0 10px;text-wrap:balance}
+h3{font-family:var(--f-display);font-weight:600;font-size:18px;margin:0 0 8px;letter-spacing:.01em}
+.lbl{font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600}
+.mono{font-family:var(--f-mono);font-size:12.5px}
+.muted{color:var(--muted)}
+.num{font-variant-numeric:tabular-nums}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:18px}
+.tile{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;cursor:pointer;text-align:left;display:flex;flex-direction:column;gap:2px;border-top:4px solid var(--line)}
+.tile b{font-family:var(--f-display);font-size:34px;font-weight:600;line-height:1.05;font-variant-numeric:tabular-nums}
+.tile.bad{border-top-color:var(--bad)} .tile.bad b{color:var(--bad)}
+.tile.warn{border-top-color:var(--warn)} .tile.warn b{color:var(--warn)}
+.tile.ok{border-top-color:var(--ok)}
+.tile.info{border-top-color:var(--info)}
+.tile:hover{border-color:var(--accent)}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px;margin-top:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:14px;min-width:0}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-block:14px 10px}
+.toolbar .grow{flex:1 1 200px;min-width:0}
+input[type=search],input[type=text],input[type=number],input[type=date],input[type=email],input[type=tel],select,textarea{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 10px;width:100%;min-width:0}
+textarea{min-height:76px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.btn{background:var(--surface);border:1px solid var(--line);border-radius:7px;padding:8px 12px;cursor:pointer;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.pri:hover{filter:brightness(1.06)}
+.btn.danger{color:var(--bad)}
+.btn.sm{padding:5px 9px;font-size:13px}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.tbl-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:640px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;background:var(--surface-2);position:sticky;top:0}
+tbody tr{cursor:pointer}
+tbody tr:hover td{background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.r,th.r{text-align:right}
+.panel table{min-width:0}
+.panel .tbl-wrap{border:0;border-radius:0}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);white-space:nowrap;border:1px solid var(--line)}
+.pill.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.pill.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.pill.info{background:var(--info-soft);color:var(--info);border-color:transparent}
+.pill.acc{background:var(--accent-soft);color:var(--accent);border-color:transparent}
+.fc{font-family:var(--f-mono);font-size:10.5px;font-weight:500;border:1px solid var(--accent);color:var(--accent);border-radius:4px;padding:0 4px;margin-left:6px;vertical-align:1px}
+.bulk{position:sticky;top:calc(env(safe-area-inset-top,0px) + 92px);z-index:5;display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:var(--accent-soft);border:1px solid var(--accent);border-radius:9px;padding:8px 12px;margin-bottom:10px}
+th.ck,td.ck{width:36px;padding-right:0}td.ck input,th.ck input{width:18px;height:18px;accent-color:var(--accent)}
+.empty{padding:28px 18px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-family:var(--f-display);font-size:20px;font-weight:600;margin-bottom:4px}
+.bars{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;align-items:end;height:150px;margin-top:8px}
+.bar{display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;gap:4px;min-width:0}
+.bar i{display:block;width:100%;max-width:44px;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.bar span{font-size:11px;color:var(--muted)}
+.bar em{font-style:normal;font-size:11px;font-family:var(--f-mono);color:var(--ink)}
+/* drawer & sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,20,22,.42);z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:var(--surface);z-index:41;box-shadow:var(--shadow);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.drawer .hd,.sheet .hd{display:flex;gap:10px;align-items:flex-start;padding:16px 18px;border-bottom:1px solid var(--line)}
+.drawer .hd h2,.sheet .hd h2{margin:0;font-size:22px}
+.drawer .bd{overflow-y:auto;padding:16px 18px 40px;display:flex;flex-direction:column;gap:18px;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px))}
+.x{margin-left:auto;background:none;border:1px solid var(--line);border-radius:7px;width:34px;height:34px;cursor:pointer;flex:none;font-size:18px;line-height:1}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px 16px}
+.kv div{min-width:0;overflow-wrap:anywhere}
+.kv .lbl{display:block;margin-bottom:2px}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.sheet{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,calc(100% - 24px));max-height:calc(100% - 24px);background:var(--surface);z-index:51;border-radius:12px;box-shadow:var(--shadow);display:flex;flex-direction:column}
+.sheet+.scrim,.scrim.top{z-index:50}
+.sheet form{overflow-y:auto;padding:16px 18px;display:flex;flex-direction:column;gap:16px}
+.fgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px 14px}
+.fgrid .full{grid-column:1/-1}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field label{font-size:12.5px;font-weight:600;color:var(--muted)}
+.field .req{color:var(--bad)}
+.check{display:flex;gap:9px;align-items:flex-start;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--surface-2)}
+.check input{margin-top:3px;width:16px;height:16px;flex:none;accent-color:var(--accent)}
+.sec{font-family:var(--f-display);font-size:16px;font-weight:600;letter-spacing:.02em;border-bottom:1px solid var(--line);padding-bottom:4px;grid-column:1/-1;margin-top:4px}
+.sheet .ft{display:flex;gap:8px;justify-content:flex-end;padding:12px 18px;border-top:1px solid var(--line);flex-wrap:wrap}
+.err{color:var(--bad);font-weight:500}
+.lines{display:flex;flex-direction:column;gap:6px}
+.line{display:grid;grid-template-columns:1fr 90px 110px 34px;gap:6px;align-items:center}
+.files{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:10px}
+.file{border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface-2);display:flex;flex-direction:column;min-width:0}
+.file .th{height:90px;display:flex;align-items:center;justify-content:center;background:var(--surface);font-family:var(--f-mono);font-weight:500;color:var(--muted)}
+.file .th img{width:100%;height:100%;object-fit:cover}
+.file .m{padding:6px 8px;font-size:12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.file .m a{color:var(--ink);font-weight:500;overflow-wrap:anywhere}
+.hist{display:flex;flex-direction:column;gap:6px;font-size:13px}
+.hist div{display:grid;grid-template-columns:132px 1fr;gap:10px;border-bottom:1px dashed var(--line);padding-bottom:6px}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:8px;z-index:70;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:1px;background:var(--muted)}
+.dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.bad{background:var(--bad)}
+a{color:var(--accent)}
+.login{max-width:400px;margin:8vh auto 0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px}
+.login h2{margin:0}
+.menu{position:relative}
+.menu .pop{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;min-width:200px;z-index:30}
+.menu .pop button{background:none;border:0;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer}
+.menu .pop button:hover{background:var(--surface-2)}
+.menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
+.av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
+.so{display:none}
+.capa{display:grid;grid-template-columns:2fr 1fr 150px 90px 34px;gap:6px;align-items:center}
+@media (max-width:640px){.capa{grid-template-columns:1fr 1fr;padding-bottom:8px;border-bottom:1px dashed var(--line)}.capa .ca-a{grid-column:1/-1}}
+td.mono,td .mono{white-space:nowrap}
+.qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+@media (max-width:640px){table{min-width:0}.hs{display:none}.so{display:inline}.pill{white-space:normal}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}td{padding:9px 10px}.btn{padding:10px 14px}.tiles{grid-template-columns:repeat(2,1fr)}.brand .sub{display:none}.drawer .hd h2,.sheet .hd h2{font-size:20px}}
+@media (max-width:560px){.line{grid-template-columns:1fr 70px 34px}.line .lc{display:none}.hist div{grid-template-columns:1fr}.brand h1{font-size:22px}}
+@media (prefers-reduced-motion:no-preference){.drawer{animation:slide .18s ease-out}@keyframes slide{from{transform:translateX(24px);opacity:.6}}}
+</style>
+
+</head><body>
+<header class="top">
+  <div class="wrap" style="padding-block:0">
+    <div class="brand">
+      <div><h1>GFB Asset &amp; Maintenance</h1><div class="sub">Machines · Equipment · Spares · Contractors — ISO 22000 / HACCP / GMP records</div></div>
+      <div class="me menu" id="me"></div>
+    </div>
+    <nav class="tabs" id="tabs" aria-label="Modules"></nav>
+  </div>
+</header>
+<main class="wrap" id="main">
+  <div class="empty" style="margin-top:40px"><b>Opening the register…</b>Connecting to the shared database.</div>
+</main>
+<div id="layer"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="vendor/supabase.js"></script>
+<script src="config.js"></script>
+<script>/* qrcode-generator 1.4.4, (c) Kazuhiko Arase, MIT licence */
+var qrcode=function(){var t=function(t,r){var e=t,n=g[r],o=null,i=0,a=null,u=[],f={},c=function(t,r){o=function(t){for(var r=new Array(t),e=0;e<t;e+=1){r[e]=new Array(t);for(var n=0;n<t;n+=1)r[e][n]=null}return r}(i=4*e+17),l(0,0),l(i-7,0),l(0,i-7),s(),h(),d(t,r),e>=7&&v(t),null==a&&(a=p(e,n,u)),w(a,r)},l=function(t,r){for(var e=-1;e<=7;e+=1)if(!(t+e<=-1||i<=t+e))for(var n=-1;n<=7;n+=1)r+n<=-1||i<=r+n||(o[t+e][r+n]=0<=e&&e<=6&&(0==n||6==n)||0<=n&&n<=6&&(0==e||6==e)||2<=e&&e<=4&&2<=n&&n<=4)},h=function(){for(var t=8;t<i-8;t+=1)null==o[t][6]&&(o[t][6]=t%2==0);for(var r=8;r<i-8;r+=1)null==o[6][r]&&(o[6][r]=r%2==0)},s=function(){for(var t=B.getPatternPosition(e),r=0;r<t.length;r+=1)for(var n=0;n<t.length;n+=1){var i=t[r],a=t[n];if(null==o[i][a])for(var u=-2;u<=2;u+=1)for(var f=-2;f<=2;f+=1)o[i+u][a+f]=-2==u||2==u||-2==f||2==f||0==u&&0==f}},v=function(t){for(var r=B.getBCHTypeNumber(e),n=0;n<18;n+=1){var a=!t&&1==(r>>n&1);o[Math.floor(n/3)][n%3+i-8-3]=a}for(n=0;n<18;n+=1){a=!t&&1==(r>>n&1);o[n%3+i-8-3][Math.floor(n/3)]=a}},d=function(t,r){for(var e=n<<3|r,a=B.getBCHTypeInfo(e),u=0;u<15;u+=1){var f=!t&&1==(a>>u&1);u<6?o[u][8]=f:u<8?o[u+1][8]=f:o[i-15+u][8]=f}for(u=0;u<15;u+=1){f=!t&&1==(a>>u&1);u<8?o[8][i-u-1]=f:u<9?o[8][15-u-1+1]=f:o[8][15-u-1]=f}o[i-8][8]=!t},w=function(t,r){for(var e=-1,n=i-1,a=7,u=0,f=B.getMaskFunction(r),c=i-1;c>0;c-=2)for(6==c&&(c-=1);;){for(var g=0;g<2;g+=1)if(null==o[n][c-g]){var l=!1;u<t.length&&(l=1==(t[u]>>>a&1)),f(n,c-g)&&(l=!l),o[n][c-g]=l,-1==(a-=1)&&(u+=1,a=7)}if((n+=e)<0||i<=n){n-=e,e=-e;break}}},p=function(t,r,e){for(var n=A.getRSBlocks(t,r),o=b(),i=0;i<e.length;i+=1){var a=e[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var u=0;for(i=0;i<n.length;i+=1)u+=n[i].dataCount;if(o.getLengthInBits()>8*u)throw"code length overflow. ("+o.getLengthInBits()+">"+8*u+")";for(o.getLengthInBits()+4<=8*u&&o.put(0,4);o.getLengthInBits()%8!=0;)o.putBit(!1);for(;!(o.getLengthInBits()>=8*u||(o.put(236,8),o.getLengthInBits()>=8*u));)o.put(17,8);return function(t,r){for(var e=0,n=0,o=0,i=new Array(r.length),a=new Array(r.length),u=0;u<r.length;u+=1){var f=r[u].dataCount,c=r[u].totalCount-f;n=Math.max(n,f),o=Math.max(o,c),i[u]=new Array(f);for(var g=0;g<i[u].length;g+=1)i[u][g]=255&t.getBuffer()[g+e];e+=f;var l=B.getErrorCorrectPolynomial(c),h=k(i[u],l.getLength()-1).mod(l);for(a[u]=new Array(l.getLength()-1),g=0;g<a[u].length;g+=1){var s=g+h.getLength()-a[u].length;a[u][g]=s>=0?h.getAt(s):0}}var v=0;for(g=0;g<r.length;g+=1)v+=r[g].totalCount;var d=new Array(v),w=0;for(g=0;g<n;g+=1)for(u=0;u<r.length;u+=1)g<i[u].length&&(d[w]=i[u][g],w+=1);for(g=0;g<o;g+=1)for(u=0;u<r.length;u+=1)g<a[u].length&&(d[w]=a[u][g],w+=1);return d}(o,n)};f.addData=function(t,r){var e=null;switch(r=r||"Byte"){case"Numeric":e=M(t);break;case"Alphanumeric":e=x(t);break;case"Byte":e=m(t);break;case"Kanji":e=L(t);break;default:throw"mode:"+r}u.push(e),a=null},f.isDark=function(t,r){if(t<0||i<=t||r<0||i<=r)throw t+","+r;return o[t][r]},f.getModuleCount=function(){return i},f.make=function(){if(e<1){for(var t=1;t<40;t++){for(var r=A.getRSBlocks(t,n),o=b(),i=0;i<u.length;i++){var a=u[i];o.put(a.getMode(),4),o.put(a.getLength(),B.getLengthInBits(a.getMode(),t)),a.write(o)}var g=0;for(i=0;i<r.length;i++)g+=r[i].dataCount;if(o.getLengthInBits()<=8*g)break}e=t}c(!1,function(){for(var t=0,r=0,e=0;e<8;e+=1){c(!0,e);var n=B.getLostPoint(f);(0==e||t>n)&&(t=n,r=e)}return r}())},f.createTableTag=function(t,r){t=t||2;var e="";e+='<table style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: "+(r=void 0===r?4*t:r)+"px;",e+='">',e+="<tbody>";for(var n=0;n<f.getModuleCount();n+=1){e+="<tr>";for(var o=0;o<f.getModuleCount();o+=1)e+='<td style="',e+=" border-width: 0px; border-style: none;",e+=" border-collapse: collapse;",e+=" padding: 0px; margin: 0px;",e+=" width: "+t+"px;",e+=" height: "+t+"px;",e+=" background-color: ",e+=f.isDark(n,o)?"#000000":"#ffffff",e+=";",e+='"/>';e+="</tr>"}return e+="</tbody>",e+="</table>"},f.createSvgTag=function(t,r,e,n){var o={};"object"==typeof arguments[0]&&(t=(o=arguments[0]).cellSize,r=o.margin,e=o.alt,n=o.title),t=t||2,r=void 0===r?4*t:r,(e="string"==typeof e?{text:e}:e||{}).text=e.text||null,e.id=e.text?e.id||"qrcode-description":null,(n="string"==typeof n?{text:n}:n||{}).text=n.text||null,n.id=n.text?n.id||"qrcode-title":null;var i,a,u,c,g=f.getModuleCount()*t+2*r,l="";for(c="l"+t+",0 0,"+t+" -"+t+",0 0,-"+t+"z ",l+='<svg version="1.1" xmlns="http://www.w3.org/2000/svg"',l+=o.scalable?"":' width="'+g+'px" height="'+g+'px"',l+=' viewBox="0 0 '+g+" "+g+'" ',l+=' preserveAspectRatio="xMinYMin meet"',l+=n.text||e.text?' role="img" aria-labelledby="'+y([n.id,e.id].join(" ").trim())+'"':"",l+=">",l+=n.text?'<title id="'+y(n.id)+'">'+y(n.text)+"</title>":"",l+=e.text?'<description id="'+y(e.id)+'">'+y(e.text)+"</description>":"",l+='<rect width="100%" height="100%" fill="white" cx="0" cy="0"/>',l+='<path d="',a=0;a<f.getModuleCount();a+=1)for(u=a*t+r,i=0;i<f.getModuleCount();i+=1)f.isDark(a,i)&&(l+="M"+(i*t+r)+","+u+c);return l+='" stroke="transparent" fill="black"/>',l+="</svg>"},f.createDataURL=function(t,r){t=t||2,r=void 0===r?4*t:r;var e=f.getModuleCount()*t+2*r,n=r,o=e-r;return I(e,e,(function(r,e){if(n<=r&&r<o&&n<=e&&e<o){var i=Math.floor((r-n)/t),a=Math.floor((e-n)/t);return f.isDark(a,i)?0:1}return 1}))},f.createImgTag=function(t,r,e){t=t||2,r=void 0===r?4*t:r;var n=f.getModuleCount()*t+2*r,o="";return o+="<img",o+=' src="',o+=f.createDataURL(t,r),o+='"',o+=' width="',o+=n,o+='"',o+=' height="',o+=n,o+='"',e&&(o+=' alt="',o+=y(e),o+='"'),o+="/>"};var y=function(t){for(var r="",e=0;e<t.length;e+=1){var n=t.charAt(e);switch(n){case"<":r+="&lt;";break;case">":r+="&gt;";break;case"&":r+="&amp;";break;case'"':r+="&quot;";break;default:r+=n}}return r};return f.createASCII=function(t,r){if((t=t||1)<2)return function(t){t=void 0===t?2:t;var r,e,n,o,i,a=1*f.getModuleCount()+2*t,u=t,c=a-t,g={"██":"█","█ ":"▀"," █":"▄","  ":" "},l={"██":"▀","█ ":"▀"," █":" ","  ":" "},h="";for(r=0;r<a;r+=2){for(n=Math.floor((r-u)/1),o=Math.floor((r+1-u)/1),e=0;e<a;e+=1)i="█",u<=e&&e<c&&u<=r&&r<c&&f.isDark(n,Math.floor((e-u)/1))&&(i=" "),u<=e&&e<c&&u<=r+1&&r+1<c&&f.isDark(o,Math.floor((e-u)/1))?i+=" ":i+="█",h+=t<1&&r+1>=c?l[i]:g[i];h+="\n"}return a%2&&t>0?h.substring(0,h.length-a-1)+Array(a+1).join("▀"):h.substring(0,h.length-1)}(r);t-=1,r=void 0===r?2*t:r;var e,n,o,i,a=f.getModuleCount()*t+2*r,u=r,c=a-r,g=Array(t+1).join("██"),l=Array(t+1).join("  "),h="",s="";for(e=0;e<a;e+=1){for(o=Math.floor((e-u)/t),s="",n=0;n<a;n+=1)i=1,u<=n&&n<c&&u<=e&&e<c&&f.isDark(o,Math.floor((n-u)/t))&&(i=0),s+=i?g:l;for(o=0;o<t;o+=1)h+=s+"\n"}return h.substring(0,h.length-1)},f.renderTo2dContext=function(t,r){r=r||2;for(var e=f.getModuleCount(),n=0;n<e;n++)for(var o=0;o<e;o++)t.fillStyle=f.isDark(n,o)?"black":"white",t.fillRect(n*r,o*r,r,r)},f};t.stringToBytes=(t.stringToBytesFuncs={default:function(t){for(var r=[],e=0;e<t.length;e+=1){var n=t.charCodeAt(e);r.push(255&n)}return r}}).default,t.createStringToBytes=function(t,r){var e=function(){for(var e=S(t),n=function(){var t=e.read();if(-1==t)throw"eof";return t},o=0,i={};;){var a=e.read();if(-1==a)break;var u=n(),f=n()<<8|n();i[String.fromCharCode(a<<8|u)]=f,o+=1}if(o!=r)throw o+" != "+r;return i}(),n="?".charCodeAt(0);return function(t){for(var r=[],o=0;o<t.length;o+=1){var i=t.charCodeAt(o);if(i<128)r.push(i);else{var a=e[t.charAt(o)];"number"==typeof a?(255&a)==a?r.push(a):(r.push(a>>>8),r.push(255&a)):r.push(n)}}return r}};var r,e,n,o,i,a=1,u=2,f=4,c=8,g={L:1,M:0,Q:3,H:2},l=0,h=1,s=2,v=3,d=4,w=5,p=6,y=7,B=(r=[[],[6,18],[6,22],[6,26],[6,30],[6,34],[6,22,38],[6,24,42],[6,26,46],[6,28,50],[6,30,54],[6,32,58],[6,34,62],[6,26,46,66],[6,26,48,70],[6,26,50,74],[6,30,54,78],[6,30,56,82],[6,30,58,86],[6,34,62,90],[6,28,50,72,94],[6,26,50,74,98],[6,30,54,78,102],[6,28,54,80,106],[6,32,58,84,110],[6,30,58,86,114],[6,34,62,90,118],[6,26,50,74,98,122],[6,30,54,78,102,126],[6,26,52,78,104,130],[6,30,56,82,108,134],[6,34,60,86,112,138],[6,30,58,86,114,142],[6,34,62,90,118,146],[6,30,54,78,102,126,150],[6,24,50,76,102,128,154],[6,28,54,80,106,132,158],[6,32,58,84,110,136,162],[6,26,54,82,110,138,166],[6,30,58,86,114,142,170]],e=1335,n=7973,i=function(t){for(var r=0;0!=t;)r+=1,t>>>=1;return r},(o={}).getBCHTypeInfo=function(t){for(var r=t<<10;i(r)-i(e)>=0;)r^=e<<i(r)-i(e);return 21522^(t<<10|r)},o.getBCHTypeNumber=function(t){for(var r=t<<12;i(r)-i(n)>=0;)r^=n<<i(r)-i(n);return t<<12|r},o.getPatternPosition=function(t){return r[t-1]},o.getMaskFunction=function(t){switch(t){case l:return function(t,r){return(t+r)%2==0};case h:return function(t,r){return t%2==0};case s:return function(t,r){return r%3==0};case v:return function(t,r){return(t+r)%3==0};case d:return function(t,r){return(Math.floor(t/2)+Math.floor(r/3))%2==0};case w:return function(t,r){return t*r%2+t*r%3==0};case p:return function(t,r){return(t*r%2+t*r%3)%2==0};case y:return function(t,r){return(t*r%3+(t+r)%2)%2==0};default:throw"bad maskPattern:"+t}},o.getErrorCorrectPolynomial=function(t){for(var r=k([1],0),e=0;e<t;e+=1)r=r.multiply(k([1,C.gexp(e)],0));return r},o.getLengthInBits=function(t,r){if(1<=r&&r<10)switch(t){case a:return 10;case u:return 9;case f:case c:return 8;default:throw"mode:"+t}else if(r<27)switch(t){case a:return 12;case u:return 11;case f:return 16;case c:return 10;default:throw"mode:"+t}else{if(!(r<41))throw"type:"+r;switch(t){case a:return 14;case u:return 13;case f:return 16;case c:return 12;default:throw"mode:"+t}}},o.getLostPoint=function(t){for(var r=t.getModuleCount(),e=0,n=0;n<r;n+=1)for(var o=0;o<r;o+=1){for(var i=0,a=t.isDark(n,o),u=-1;u<=1;u+=1)if(!(n+u<0||r<=n+u))for(var f=-1;f<=1;f+=1)o+f<0||r<=o+f||0==u&&0==f||a==t.isDark(n+u,o+f)&&(i+=1);i>5&&(e+=3+i-5)}for(n=0;n<r-1;n+=1)for(o=0;o<r-1;o+=1){var c=0;t.isDark(n,o)&&(c+=1),t.isDark(n+1,o)&&(c+=1),t.isDark(n,o+1)&&(c+=1),t.isDark(n+1,o+1)&&(c+=1),0!=c&&4!=c||(e+=3)}for(n=0;n<r;n+=1)for(o=0;o<r-6;o+=1)t.isDark(n,o)&&!t.isDark(n,o+1)&&t.isDark(n,o+2)&&t.isDark(n,o+3)&&t.isDark(n,o+4)&&!t.isDark(n,o+5)&&t.isDark(n,o+6)&&(e+=40);for(o=0;o<r;o+=1)for(n=0;n<r-6;n+=1)t.isDark(n,o)&&!t.isDark(n+1,o)&&t.isDark(n+2,o)&&t.isDark(n+3,o)&&t.isDark(n+4,o)&&!t.isDark(n+5,o)&&t.isDark(n+6,o)&&(e+=40);var g=0;for(o=0;o<r;o+=1)for(n=0;n<r;n+=1)t.isDark(n,o)&&(g+=1);return e+=Math.abs(100*g/r/r-50)/5*10},o),C=function(){for(var t=new Array(256),r=new Array(256),e=0;e<8;e+=1)t[e]=1<<e;for(e=8;e<256;e+=1)t[e]=t[e-4]^t[e-5]^t[e-6]^t[e-8];for(e=0;e<255;e+=1)r[t[e]]=e;var n={glog:function(t){if(t<1)throw"glog("+t+")";return r[t]},gexp:function(r){for(;r<0;)r+=255;for(;r>=256;)r-=255;return t[r]}};return n}();function k(t,r){if(void 0===t.length)throw t.length+"/"+r;var e=function(){for(var e=0;e<t.length&&0==t[e];)e+=1;for(var n=new Array(t.length-e+r),o=0;o<t.length-e;o+=1)n[o]=t[o+e];return n}(),n={getAt:function(t){return e[t]},getLength:function(){return e.length},multiply:function(t){for(var r=new Array(n.getLength()+t.getLength()-1),e=0;e<n.getLength();e+=1)for(var o=0;o<t.getLength();o+=1)r[e+o]^=C.gexp(C.glog(n.getAt(e))+C.glog(t.getAt(o)));return k(r,0)},mod:function(t){if(n.getLength()-t.getLength()<0)return n;for(var r=C.glog(n.getAt(0))-C.glog(t.getAt(0)),e=new Array(n.getLength()),o=0;o<n.getLength();o+=1)e[o]=n.getAt(o);for(o=0;o<t.getLength();o+=1)e[o]^=C.gexp(C.glog(t.getAt(o))+r);return k(e,0).mod(t)}};return n}var A=function(){var t=[[1,26,19],[1,26,16],[1,26,13],[1,26,9],[1,44,34],[1,44,28],[1,44,22],[1,44,16],[1,70,55],[1,70,44],[2,35,17],[2,35,13],[1,100,80],[2,50,32],[2,50,24],[4,25,9],[1,134,108],[2,67,43],[2,33,15,2,34,16],[2,33,11,2,34,12],[2,86,68],[4,43,27],[4,43,19],[4,43,15],[2,98,78],[4,49,31],[2,32,14,4,33,15],[4,39,13,1,40,14],[2,121,97],[2,60,38,2,61,39],[4,40,18,2,41,19],[4,40,14,2,41,15],[2,146,116],[3,58,36,2,59,37],[4,36,16,4,37,17],[4,36,12,4,37,13],[2,86,68,2,87,69],[4,69,43,1,70,44],[6,43,19,2,44,20],[6,43,15,2,44,16],[4,101,81],[1,80,50,4,81,51],[4,50,22,4,51,23],[3,36,12,8,37,13],[2,116,92,2,117,93],[6,58,36,2,59,37],[4,46,20,6,47,21],[7,42,14,4,43,15],[4,133,107],[8,59,37,1,60,38],[8,44,20,4,45,21],[12,33,11,4,34,12],[3,145,115,1,146,116],[4,64,40,5,65,41],[11,36,16,5,37,17],[11,36,12,5,37,13],[5,109,87,1,110,88],[5,65,41,5,66,42],[5,54,24,7,55,25],[11,36,12,7,37,13],[5,122,98,1,123,99],[7,73,45,3,74,46],[15,43,19,2,44,20],[3,45,15,13,46,16],[1,135,107,5,136,108],[10,74,46,1,75,47],[1,50,22,15,51,23],[2,42,14,17,43,15],[5,150,120,1,151,121],[9,69,43,4,70,44],[17,50,22,1,51,23],[2,42,14,19,43,15],[3,141,113,4,142,114],[3,70,44,11,71,45],[17,47,21,4,48,22],[9,39,13,16,40,14],[3,135,107,5,136,108],[3,67,41,13,68,42],[15,54,24,5,55,25],[15,43,15,10,44,16],[4,144,116,4,145,117],[17,68,42],[17,50,22,6,51,23],[19,46,16,6,47,17],[2,139,111,7,140,112],[17,74,46],[7,54,24,16,55,25],[34,37,13],[4,151,121,5,152,122],[4,75,47,14,76,48],[11,54,24,14,55,25],[16,45,15,14,46,16],[6,147,117,4,148,118],[6,73,45,14,74,46],[11,54,24,16,55,25],[30,46,16,2,47,17],[8,132,106,4,133,107],[8,75,47,13,76,48],[7,54,24,22,55,25],[22,45,15,13,46,16],[10,142,114,2,143,115],[19,74,46,4,75,47],[28,50,22,6,51,23],[33,46,16,4,47,17],[8,152,122,4,153,123],[22,73,45,3,74,46],[8,53,23,26,54,24],[12,45,15,28,46,16],[3,147,117,10,148,118],[3,73,45,23,74,46],[4,54,24,31,55,25],[11,45,15,31,46,16],[7,146,116,7,147,117],[21,73,45,7,74,46],[1,53,23,37,54,24],[19,45,15,26,46,16],[5,145,115,10,146,116],[19,75,47,10,76,48],[15,54,24,25,55,25],[23,45,15,25,46,16],[13,145,115,3,146,116],[2,74,46,29,75,47],[42,54,24,1,55,25],[23,45,15,28,46,16],[17,145,115],[10,74,46,23,75,47],[10,54,24,35,55,25],[19,45,15,35,46,16],[17,145,115,1,146,116],[14,74,46,21,75,47],[29,54,24,19,55,25],[11,45,15,46,46,16],[13,145,115,6,146,116],[14,74,46,23,75,47],[44,54,24,7,55,25],[59,46,16,1,47,17],[12,151,121,7,152,122],[12,75,47,26,76,48],[39,54,24,14,55,25],[22,45,15,41,46,16],[6,151,121,14,152,122],[6,75,47,34,76,48],[46,54,24,10,55,25],[2,45,15,64,46,16],[17,152,122,4,153,123],[29,74,46,14,75,47],[49,54,24,10,55,25],[24,45,15,46,46,16],[4,152,122,18,153,123],[13,74,46,32,75,47],[48,54,24,14,55,25],[42,45,15,32,46,16],[20,147,117,4,148,118],[40,75,47,7,76,48],[43,54,24,22,55,25],[10,45,15,67,46,16],[19,148,118,6,149,119],[18,75,47,31,76,48],[34,54,24,34,55,25],[20,45,15,61,46,16]],r=function(t,r){var e={};return e.totalCount=t,e.dataCount=r,e},e={};return e.getRSBlocks=function(e,n){var o=function(r,e){switch(e){case g.L:return t[4*(r-1)+0];case g.M:return t[4*(r-1)+1];case g.Q:return t[4*(r-1)+2];case g.H:return t[4*(r-1)+3];default:return}}(e,n);if(void 0===o)throw"bad rs block @ typeNumber:"+e+"/errorCorrectionLevel:"+n;for(var i=o.length/3,a=[],u=0;u<i;u+=1)for(var f=o[3*u+0],c=o[3*u+1],l=o[3*u+2],h=0;h<f;h+=1)a.push(r(c,l));return a},e}(),b=function(){var t=[],r=0,e={getBuffer:function(){return t},getAt:function(r){var e=Math.floor(r/8);return 1==(t[e]>>>7-r%8&1)},put:function(t,r){for(var n=0;n<r;n+=1)e.putBit(1==(t>>>r-n-1&1))},getLengthInBits:function(){return r},putBit:function(e){var n=Math.floor(r/8);t.length<=n&&t.push(0),e&&(t[n]|=128>>>r%8),r+=1}};return e},M=function(t){var r=a,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+2<r.length;)t.put(o(r.substring(n,n+3)),10),n+=3;n<r.length&&(r.length-n==1?t.put(o(r.substring(n,n+1)),4):r.length-n==2&&t.put(o(r.substring(n,n+2)),7))}},o=function(t){for(var r=0,e=0;e<t.length;e+=1)r=10*r+i(t.charAt(e));return r},i=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);throw"illegal char :"+t};return n},x=function(t){var r=u,e=t,n={getMode:function(){return r},getLength:function(t){return e.length},write:function(t){for(var r=e,n=0;n+1<r.length;)t.put(45*o(r.charAt(n))+o(r.charAt(n+1)),11),n+=2;n<r.length&&t.put(o(r.charAt(n)),6)}},o=function(t){if("0"<=t&&t<="9")return t.charCodeAt(0)-"0".charCodeAt(0);if("A"<=t&&t<="Z")return t.charCodeAt(0)-"A".charCodeAt(0)+10;switch(t){case" ":return 36;case"$":return 37;case"%":return 38;case"*":return 39;case"+":return 40;case"-":return 41;case".":return 42;case"/":return 43;case":":return 44;default:throw"illegal char :"+t}};return n},m=function(r){var e=f,n=t.stringToBytes(r),o={getMode:function(){return e},getLength:function(t){return n.length},write:function(t){for(var r=0;r<n.length;r+=1)t.put(n[r],8)}};return o},L=function(r){var e=c,n=t.stringToBytesFuncs.SJIS;if(!n)throw"sjis not supported.";!function(t,r){var e=n("友");if(2!=e.length||38726!=(e[0]<<8|e[1]))throw"sjis not supported."}();var o=n(r),i={getMode:function(){return e},getLength:function(t){return~~(o.length/2)},write:function(t){for(var r=o,e=0;e+1<r.length;){var n=(255&r[e])<<8|255&r[e+1];if(33088<=n&&n<=40956)n-=33088;else{if(!(57408<=n&&n<=60351))throw"illegal char at "+(e+1)+"/"+n;n-=49472}n=192*(n>>>8&255)+(255&n),t.put(n,13),e+=2}if(e<r.length)throw"illegal char at "+(e+1)}};return i},D=function(){var t=[],r={writeByte:function(r){t.push(255&r)},writeShort:function(t){r.writeByte(t),r.writeByte(t>>>8)},writeBytes:function(t,e,n){e=e||0,n=n||t.length;for(var o=0;o<n;o+=1)r.writeByte(t[o+e])},writeString:function(t){for(var e=0;e<t.length;e+=1)r.writeByte(t.charCodeAt(e))},toByteArray:function(){return t},toString:function(){var r="";r+="[";for(var e=0;e<t.length;e+=1)e>0&&(r+=","),r+=t[e];return r+="]"}};return r},S=function(t){var r=t,e=0,n=0,o=0,i={read:function(){for(;o<8;){if(e>=r.length){if(0==o)return-1;throw"unexpected end of file./"+o}var t=r.charAt(e);if(e+=1,"="==t)return o=0,-1;t.match(/^\s$/)||(n=n<<6|a(t.charCodeAt(0)),o+=6)}var i=n>>>o-8&255;return o-=8,i}},a=function(t){if(65<=t&&t<=90)return t-65;if(97<=t&&t<=122)return t-97+26;if(48<=t&&t<=57)return t-48+52;if(43==t)return 62;if(47==t)return 63;throw"c:"+t};return i},I=function(t,r,e){for(var n=function(t,r){var e=t,n=r,o=new Array(t*r),i={setPixel:function(t,r,n){o[r*e+t]=n},write:function(t){t.writeString("GIF87a"),t.writeShort(e),t.writeShort(n),t.writeByte(128),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(0),t.writeByte(255),t.writeByte(255),t.writeByte(255),t.writeString(","),t.writeShort(0),t.writeShort(0),t.writeShort(e),t.writeShort(n),t.writeByte(0);var r=a(2);t.writeByte(2);for(var o=0;r.length-o>255;)t.writeByte(255),t.writeBytes(r,o,255),o+=255;t.writeByte(r.length-o),t.writeBytes(r,o,r.length-o),t.writeByte(0),t.writeString(";")}},a=function(t){for(var r=1<<t,e=1+(1<<t),n=t+1,i=u(),a=0;a<r;a+=1)i.add(String.fromCharCode(a));i.add(String.fromCharCode(r)),i.add(String.fromCharCode(e));var f,c,g,l=D(),h=(f=l,c=0,g=0,{write:function(t,r){if(t>>>r!=0)throw"length over";for(;c+r>=8;)f.writeByte(255&(t<<c|g)),r-=8-c,t>>>=8-c,g=0,c=0;g|=t<<c,c+=r},flush:function(){c>0&&f.writeByte(g)}});h.write(r,n);var s=0,v=String.fromCharCode(o[s]);for(s+=1;s<o.length;){var d=String.fromCharCode(o[s]);s+=1,i.contains(v+d)?v+=d:(h.write(i.indexOf(v),n),i.size()<4095&&(i.size()==1<<n&&(n+=1),i.add(v+d)),v=d)}return h.write(i.indexOf(v),n),h.write(e,n),h.flush(),l.toByteArray()},u=function(){var t={},r=0,e={add:function(n){if(e.contains(n))throw"dup key:"+n;t[n]=r,r+=1},size:function(){return r},indexOf:function(r){return t[r]},contains:function(r){return void 0!==t[r]}};return e};return i}(t,r),o=0;o<r;o+=1)for(var i=0;i<t;i+=1)n.setPixel(i,o,e(i,o));var a=D();n.write(a);for(var u=function(){var t=0,r=0,e=0,n="",o={},i=function(t){n+=String.fromCharCode(a(63&t))},a=function(t){if(t<0);else{if(t<26)return 65+t;if(t<52)return t-26+97;if(t<62)return t-52+48;if(62==t)return 43;if(63==t)return 47}throw"n:"+t};return o.writeByte=function(n){for(t=t<<8|255&n,r+=8,e+=1;r>=6;)i(t>>>r-6),r-=6},o.flush=function(){if(r>0&&(i(t<<6-r),t=0,r=0),e%3!=0)for(var o=3-e%3,a=0;a<o;a+=1)n+="="},o.toString=function(){return n},o}(),f=a.toByteArray(),c=0;c<f.length;c+=1)u.writeByte(f[c]);return u.flush(),"data:image/gif;base64,"+u};return t}();qrcode.stringToBytesFuncs["UTF-8"]=function(t){return function(t){for(var r=[],e=0;e<t.length;e++){var n=t.charCodeAt(e);n<128?r.push(n):n<2048?r.push(192|n>>6,128|63&n):n<55296||n>=57344?r.push(224|n>>12,128|n>>6&63,128|63&n):(e++,n=65536+((1023&n)<<10|1023&t.charCodeAt(e)),r.push(240|n>>18,128|n>>12&63,128|n>>6&63,128|63&n))}return r}(t)},function(t){"function"==typeof define&&define.amd?define([],t):"object"==typeof exports&&(module.exports=t())}((function(){return qrcode}));
+</script>
+<script>
+/* ---------- helpers ---------- */
+const $=(s,r=document)=>r.querySelector(s);
+const $$=(s,r=document)=>[...r.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad=n=>String(n).padStart(2,'0');
+const isoOf=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const today=()=>isoOf(new Date());
+const fmtD=iso=>iso?iso.slice(8,10)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):'—';
+const fmtDT=iso=>{if(!iso)return'—';const d=new Date(iso);return pad(d.getDate())+'/'+pad(d.getMonth()+1)+'/'+d.getFullYear()+' '+pad(d.getHours())+':'+pad(d.getMinutes())};
+const addDays=(iso,n)=>{const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+Number(n));return isoOf(d)};
+const dayDiff=(a,b)=>Math.round((new Date(b+'T00:00:00')-new Date(a+'T00:00:00'))/86400000);
+const rm=n=>'RM '+Number(n||0).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+const num=v=>{const n=Number(v);return isFinite(n)?n:0};
+const byStr=k=>(a,b)=>String(a[1][k]||'').localeCompare(String(b[1][k]||''),undefined,{numeric:true});
+let toastT;function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3600)}
+
+/* ---------- state ---------- */
+const DEFAULTS={
+  categories:['Production machine','Production equipment','Hand tools & power tools','Material handling (forklift / reach truck)','Utilities & facility','Air-conditioning','Computer & IT','Office equipment','QC lab / measuring instrument'],
+  departments:['Production','Warehouse','QA / QC','Office / Admin','Facility / utilities'],
+  locList:[['Mixing room','Production'],['Packing area','Production'],['Raw material store','Warehouse'],['Finished goods store','Warehouse'],['QC lab','QA / QC'],['General office','Office / Admin'],['Meeting room','Office / Admin'],['Server / IT room','Office / Admin']].map(([name,dept])=>({name,dept})),
+  partCats:['Spare part','Consumable','Lubricant','Filter','Belt / seal / gasket','Electrical','IT accessory']
+};
+const ASSET_STATUS=['Active','Under repair','Standby','Out of service','Disposed'];
+const WO_TYPES=['Breakdown / repair','Preventive maintenance','Calibration','Inspection','Installation / modification'];
+const WO_STATUS=['Open','In progress','Waiting parts','Completed','Verified'];
+const PRIORITY=['Critical','High','Normal','Low'];
+const INTERVALS=[['','No schedule'],['7','Weekly'],['14','Every 2 weeks'],['30','Monthly'],['60','Every 2 months'],['90','Quarterly'],['180','Half-yearly'],['365','Yearly']];
+const S={assets:{},workorders:{},parts:{},suppliers:{},incidents:{},config:{},settings:{...DEFAULTS},view:'dash',f:{},detail:null,sel:new Set(),canWrite:false,canAdmin:false,me:null,seq:0,ready:false};
+/* ---------- Supabase connection ---------- */
+const CFG=window.GFB_CONFIG||{};
+let sb=null;
+function sbClient(){if(!sb){if(!window.supabase||!CFG.supabaseUrl||/YOUR-PROJECT|^\s*$/.test(CFG.supabaseUrl)||!CFG.supabaseAnonKey)return null;sb=window.supabase.createClient(CFG.supabaseUrl,CFG.supabaseAnonKey,{auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true}})}return sb}
+const ERR=(m,code,body)=>Object.assign(new Error(m),{code,body});
+function sbErr(e){const m=(e&&e.message)||String(e);if(/Failed to fetch|NetworkError|Load failed|network/i.test(m))return ERR('Cannot reach the database. Check your internet connection.','offline');if(/JWT expired|invalid JWT|not authenticated|PGRST301/i.test(m+(e&&e.code||'')))return ERR('Please sign in again.',401);return ERR(m,(e&&e.code)||'error')}
+async function rpc(fn,args){let res;try{res=await sb.rpc(fn,args)}catch(e){throw sbErr(e)}if(res.error){const x=sbErr(res.error);if(x.code===401){S.me=null;showLogin()}throw x}return res.data}
+async function api(method,path,body){
+  if(!sbClient())throw ERR('This copy is not connected to a database yet. Fill in config.js.','config');
+  let m;
+  if(path==='/api/status'){const {data:{session}}=await sb.auth.getSession();if(!session)return{user:null};let p;try{p=await rpc('my_profile',{})}catch(e){if(e.code===401)return{user:null};throw e}if(!p)return{user:null,orphan:true};
+    return{user:{id:p.id,name:p.name||p.email,username:p.email,role:p.role,active:p.active,incidents:p.role==='admin'||!!p.incident_access}}}
+  if(path==='/api/login'){const {error}=await sb.auth.signInWithPassword({email:String(body.username||'').trim(),password:body.password||''});if(error)throw ERR(/invalid login/i.test(error.message)?'Wrong email or password.':/not confirmed/i.test(error.message)?'Confirm your email first: open the link Supabase sent you.':error.message,401);return{ok:true}}
+  if(path==='/api/signup'){if(String(body.password||'').length<8)throw ERR('Use a password of at least 8 characters.',400);const {data,error}=await sb.auth.signUp({email:String(body.email||'').trim(),password:body.password,options:{data:{name:String(body.name||'').trim()},emailRedirectTo:location.origin+location.pathname}});if(error)throw ERR(error.message,400);return{ok:true,session:!!(data&&data.session)}}
+  if(path==='/api/forgot'){const {error}=await sb.auth.resetPasswordForEmail(String(body.email||'').trim(),{redirectTo:location.origin+location.pathname});if(error)throw ERR(error.message,400);return{ok:true}}
+  if(path==='/api/logout'){try{await sb.auth.signOut()}catch(e){}return{ok:true}}
+  if(path==='/api/password'){if(body.current){const {data:{user}}=await sb.auth.getUser();const {error:e1}=await sb.auth.signInWithPassword({email:user.email,password:body.current});if(e1)throw ERR('Your current password is wrong.',400)}
+    if(String(body.next||'').length<8)throw ERR('Use at least 8 characters.',400);const {error}=await sb.auth.updateUser({password:body.next});if(error)throw ERR(error.message,400);return{ok:true}}
+  if((m=path.match(/^\/api\/sync\?since=(\d+)/))){const since=+m[1];const docs=[];
+    for(let from=0;;from+=1000){const {data,error}=await sb.from('docs').select('coll,id,data,seq').gt('seq',since).order('seq').range(from,from+999);if(error)throw sbErr(error);docs.push(...data);if(data.length<1000)break}
+    let deleted=[];if(since){const {data,error}=await sb.from('tombstones').select('coll,id,seq').gt('seq',since);if(error)throw sbErr(error);deleted=data}
+    return{seq:Math.max(since,...docs.map(d=>+d.seq),...deleted.map(d=>+d.seq)),docs,deleted,full:!since}}
+  if((m=path.match(/^\/api\/docs\/([a-z]+)\/([A-Za-z0-9_\-]+)$/))){
+    if(method==='PUT'){const r=await rpc('save_doc',{p_coll:m[1],p_id:m[2],p_data:body.data,p_act:body.act,p_base:body.base??null});
+      if(r.conflict)throw ERR('Someone else changed this record while you were editing. Your copy has been refreshed; please re-enter your change.',409,{current:r.current});return{ok:true,doc:r.doc}}
+    if(method==='DELETE'){await rpc('delete_doc',{p_coll:m[1],p_id:m[2]});return{ok:true}}}
+  if((m=path.match(/^\/api\/stock\/([A-Za-z0-9_\-]+)$/))){const r=await rpc('stock_move',{p_id:m[1],p_type:body.type,p_delta:body.delta??0,p_count:body.count??null,p_date:body.date||'',p_ref:body.ref||'',p_note:body.note||'',p_unit_cost:(body.unitCost===''||body.unitCost==null)?null:Number(body.unitCost)});
+    if(r.error)throw ERR(r.error,400);if(r.conflict)throw ERR('Stock changed at the same moment. Try again.',409);return{ok:true,doc:r.doc}}
+  if(path==='/api/users'){const {data,error}=await sb.from('profiles').select('*').order('created_at');if(error)throw sbErr(error);return data}
+  if((m=path.match(/^\/api\/users\/([0-9a-f-]{36})$/))){await rpc('admin_update_user',{p_id:m[1],p_name:body.name,p_role:body.role,p_active:!!body.active,p_incidents:!!body.incidents});return{ok:true}}
+  if(path==='/api/import'){let n=0;for(let i=0;i<body.docs.length;i+=100){const r=await rpc('import_docs',{p_docs:body.docs.slice(i,i+100)});n+=r.imported}return{imported:n}}
+  throw ERR('Unknown request '+path,'404');
+}
+/* attachments live in the private 'attachments' bucket; links are signed and expire after an hour */
+const MIME={'.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png','.webp':'image/webp','.gif':'image/gif','.heic':'image/heic','.pdf':'application/pdf'};
+async function uploadFile(coll,id,file){
+  const ext=((file.name||'').match(/\.[A-Za-z0-9]+$/)||[''])[0].toLowerCase();
+  const ct=/^(image\/(jpeg|png|webp|gif|heic)|application\/pdf)$/.test(file.type)?file.type:(MIME[ext]||file.type||'');
+  if(!/^(image\/(jpeg|png|webp|gif|heic)|application\/pdf)$/.test(ct))throw ERR('Only PDF files and photos (JPG, PNG, WebP, HEIC) can be attached. Save Word or Excel reports as PDF first.',400);
+  if(file.size>25*1048576)throw ERR('The file is over 25 MB.',400);
+  const name=file.name||('photo-'+Date.now()+'.jpg');
+  const path=`${coll}/${id}/${Date.now().toString(36)}-${name.replace(/[^A-Za-z0-9._-]+/g,'_').slice(-80)}`;
+  const {error}=await sb.storage.from('attachments').upload(path,file,{contentType:ct,upsert:false});
+  if(error)throw ERR(/row-level security|not authorized|unauthorized/i.test(error.message)?'You do not have permission to upload here.':error.message,400);
+  return{id:path,name,ct,size:file.size};
+}
+async function fillFiles(root){const els=$$('[data-fp]',root);if(!els.length||!sbClient())return;
+  const paths=[...new Set(els.map(e=>e.dataset.fp))];const {data,error}=await sb.storage.from('attachments').createSignedUrls(paths,3600);if(error||!data)return;
+  const u={};data.forEach(d=>{if(d.signedUrl)u[d.path]=d.signedUrl});els.forEach(e=>{const x=u[e.dataset.fp];if(!x)return;if(e.tagName==='IMG')e.src=x;else e.href=x})}
+const COLLS=['assets','workorders','parts','suppliers','incidents'];
+
+/* ---------- derived ---------- */
+const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
+function normSettings(d){d=d||{};const pick=k=>Array.isArray(d[k])&&d[k].length?d[k]:DEFAULTS[k];
+  const locList=Array.isArray(d.locList)?d.locList.filter(l=>l&&l.name).map(l=>({name:String(l.name),dept:String(l.dept||'')})):(Array.isArray(d.locations)&&d.locations.length?d.locations.map(n=>({name:n,dept:''})):DEFAULTS.locList.map(l=>({...l})));
+  const dosh={reportDays:num(d.dosh&&d.dosh.reportDays)||7,perkesoHours:num(d.dosh&&d.dosh.perkesoHours)||48};
+  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh}}
+async function saveSettings(patch,act){
+  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,...patch};body.locations=body.locList.map(l=>l.name);
+  await put('config','settings',body,act||'Lists updated');
+  S.settings=normSettings(body);
+}
+async function addLocations(items){
+  const have=new Set(S.settings.locList.map(l=>l.name.toLowerCase()));const add=[];
+  items.forEach(({name,dept})=>{name=String(name||'').trim();if(name&&!have.has(name.toLowerCase())){have.add(name.toLowerCase());add.push({name,dept:dept||''})}});
+  if(add.length)await saveSettings({locList:[...S.settings.locList,...add]},'Locations added: '+add.map(l=>l.name).join(', '));
+}
+const place=a=>[a.dept,a.location].filter(Boolean).join(' · ');
+const locOpts=dept=>[...new Set(S.settings.locList.filter(l=>!dept||!l.dept||l.dept===dept).map(l=>l.name))].sort((x,y)=>x.localeCompare(y));
+const allLocs=()=>[...new Set([...S.settings.locList.map(l=>l.name),...Object.values(S.assets).map(a=>a.location).filter(Boolean)])].sort((x,y)=>x.localeCompare(y));
+function nextCode(code){const used=new Set(Object.values(S.assets).map(a=>String(a.code).toLowerCase()));const m=String(code).match(/^(.*?)(\d+)$/);let n,c;
+  if(!m){n=1;do{n++;c=code+'-'+n}while(used.has(c.toLowerCase()));return c}
+  n=parseInt(m[2],10);do{n++;c=m[1]+String(n).padStart(m[2].length,'0')}while(used.has(c.toLowerCase()));return c}
+function sameModel(id,a){if(!a.model)return[];const k=(String(a.manufacturer||'')+'|'+a.model).toLowerCase();return Object.entries(S.assets).filter(([i,b])=>i!==id&&b.status!=='Disposed'&&(String(b.manufacturer||'')+'|'+(b.model||'')).toLowerCase()===k).sort(byStr('code'))}
+const aLabel=id=>{const a=A(id);return a?(a.code+' · '+a.name):'(asset removed)'};
+function pmInfo(a){
+  if(!a||!a.pmInterval||['Disposed','Out of service'].includes(a.status))return null;
+  if(!a.lastPM)return{due:null,days:null,state:'unset'};
+  const due=addDays(a.lastPM,a.pmInterval),d=dayDiff(today(),due);
+  return{due,days:d,state:d<0?'overdue':d<=14?'soon':'ok'};
+}
+function dateWatch(iso,win=30){if(!iso)return null;const d=dayDiff(today(),iso);return{days:d,state:d<0?'overdue':d<=win?'soon':'ok'}}
+const partsCost=w=>(w.lines||[]).reduce((s,l)=>s+num(l.qty)*num(l.unitCost),0);
+const woCost=w=>num(w.invoiceAmount)+num(w.labourCost)+partsCost(w);
+const woDate=w=>w.completedDate||w.reportDate||'';
+const openWO=w=>!['Completed','Verified'].includes(w.status);
+const lowStock=p=>p.minQty!==''&&p.minQty!=null&&num(p.qty)<=num(p.minQty);
+function pmPill(i){if(!i)return'<span class="muted">—</span>';if(i.state==='unset')return'<span class="pill warn">Set last PM date</span>';
+  const t=i.days<0?Math.abs(i.days)+' d overdue':i.days===0?'Due today':'in '+i.days+' d';
+  return`<span class="pill ${i.state==='overdue'?'bad':i.state==='soon'?'warn':'ok'}">${fmtD(i.due)} · ${t}</span>`}
+function watchPill(w,label){if(!w)return'<span class="muted">—</span>';const t=w.days<0?'expired '+Math.abs(w.days)+' d ago':'in '+w.days+' d';return`<span class="pill ${w.state==='overdue'?'bad':w.state==='soon'?'warn':'ok'}">${label?label+' ':''}${t}</span>`}
+const statusPill=s=>`<span class="pill ${({'Active':'ok','Under repair':'bad','Standby':'info','Out of service':'warn','Disposed':''})[s]||''}">${esc(s||'—')}</span>`;
+const woPill=s=>`<span class="pill ${({'Open':'bad','In progress':'warn','Waiting parts':'warn','Completed':'info','Verified':'ok'})[s]||''}">${esc(s)}</span>`;
+const prPill=p=>`<span class="pill ${({'Critical':'bad','High':'warn'})[p]||''}">${esc(p||'Normal')}</span>`;
+
+/* ---------- people ---------- */
+function fillNames(){}
+const who=h=>h&&h.name?esc(h.name):'<span class="muted">—</span>';
+
+/* ---------- writes (every save appends to the record's own change log) ---------- */
+async function put(coll,id,data,act){
+  if(!S.canWrite){toast('Your account is view-only.');throw new Error('ro')}
+  const prev=S[coll][id];
+  try{const r=await api('PUT',`/api/docs/${coll}/${id}`,{data,act,base:prev?prev.updatedAt:null});S[coll][id]=r.doc;setTimeout(sync,300);return r.doc}
+  catch(e){
+    if(e.code===409){if(e.body&&e.body.current)S[coll][id]=e.body.current;renderList();if(!$('.sheet'))renderDetail()}
+    if(e.code!==401)toast(e.message);throw e}
+}
+const newId=coll=>({assets:'ast',workorders:'wo',parts:'prt',suppliers:'sup'}[coll]||'doc')+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+function diffAct(prev,next,fields){
+  if(!prev)return'Created';const ch=[];
+  fields.forEach(f=>{if(f.type==='sec')return;const a=prev[f.k]??'',b=next[f.k]??'';if(String(a)!==String(b)){ch.push(f.type==='check'?`${f.short||f.label}: ${b?'ticked':'unticked'}`:(f.k==='status'?`Status ${a||'—'} → ${b}`:(f.short||f.label)))}});
+  return ch.length?'Updated: '+ch.join('; '):'Saved (no field changes)';
+}
+
+/* ---------- forms ---------- */
+const opt=(o,v)=>{const [val,lab]=Array.isArray(o)?o:[o,o];return`<option value="${esc(val)}"${String(v??'')===String(val)?' selected':''}>${esc(lab)}</option>`};
+function locOptionsHTML(dept,cur){const names=locOpts(dept);if(cur&&!names.includes(cur))names.unshift(cur);
+  return'<option value="">—</option>'+names.map(n=>opt(n,cur)).join('')+(S.canWrite?'<option value="__new">＋ Add new location…</option>':'')}
+function bindLocSel(sh,f){const sel=$('#f_'+f.k,sh),nw=$('#f_'+f.k+'_new',sh),ds=$('#f_'+f.deptField,sh);if(!sel)return;
+  const refresh=()=>{const cur=sel.value==='__new'?'':sel.value;sel.innerHTML=locOptionsHTML(ds?ds.value:'',cur);nw.hidden=true};
+  refresh();if(ds)ds.addEventListener('change',refresh);
+  sel.onchange=()=>{nw.hidden=sel.value!=='__new';if(!nw.hidden)nw.focus()}}
+function fieldHTML(f,v){
+  if(f.type==='sec')return`<div class="sec">${esc(f.label)}</div>`;
+  const id='f_'+f.k,req=f.req?' <span class="req">*</span>':'',cls=f.full?' full':'';
+  if(f.type==='locsel')return`<div class="field${cls}"><label for="${id}">${esc(f.label)}${req}</label><select id="${id}">${locOptionsHTML('',v)}</select><input id="${id}_new" type="text" placeholder="Type the new location name" autocomplete="off" hidden></div>`;
+  if(f.type==='check')return`<label class="check${cls}" for="${id}"><input type="checkbox" id="${id}"${v?' checked':''}><span>${esc(f.label)}${f.hint?`<br><span class="muted" style="font-size:12px">${esc(f.hint)}</span>`:''}</span></label>`;
+  let ctl;
+  if(f.type==='select')ctl=`<select id="${id}">${(f.blank!==false?'<option value="">—</option>':'')}${(typeof f.opts==='function'?f.opts():f.opts).map(o=>opt(o,v)).join('')}</select>`;
+  else if(f.type==='textarea')ctl=`<textarea id="${id}" placeholder="${esc(f.ph||'')}">${esc(v)}</textarea>`;
+  else ctl=`<input id="${id}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph||'')}"${f.type==='number'?' step="any" inputmode="decimal"':''}${f.listOpts?` list="dl_${f.k}" autocomplete="off"`:''}>`+(f.listOpts?`<datalist id="dl_${f.k}">${f.listOpts().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:'');
+  return`<div class="field${cls}"><label for="${id}">${esc(f.label)}${req}</label>${ctl}</div>`;
+}
+function readForm(fields){const o={};fields.forEach(f=>{if(f.type==='sec')return;const el=$('#f_'+f.k);if(!el)return;if(f.type==='locsel'){o[f.k]=el.value==='__new'?($('#f_'+f.k+'_new').value.trim()||'__new'):el.value;return}o[f.k]=f.type==='check'?el.checked:f.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim()});return o}
+function closeLayer(kind){const l=$('#layer');$$(kind==='sheet'?'.sheet,.scrim.top':'.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());if(kind!=='sheet')S.detail=null}
+function openSheet({title,sub,body,saveLabel='Save',onSave,danger}){
+  closeLayer('sheet');
+  const l=$('#layer');
+  l.insertAdjacentHTML('beforeend',`<div class="scrim top"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
+    <div class="hd"><div><h2>${esc(title)}</h2>${sub?`<div class="muted" style="margin-top:2px">${sub}</div>`:''}</div><button class="x" type="button" data-close aria-label="Close">×</button></div>
+    <form novalidate>${body}<div class="err" id="ferr" hidden></div></form>
+    <div class="ft">${danger?`<button type="button" class="btn danger" id="fdanger" style="margin-right:auto">${esc(danger.label)}</button>`:''}<button type="button" class="btn" data-close>Cancel</button>${onSave?`<button type="button" class="btn pri" id="fsave">${esc(saveLabel)}</button>`:''}</div></div>`);
+  const sh=$('.sheet',l);
+  $$('[data-close]',sh).forEach(b=>b.onclick=()=>closeLayer('sheet'));
+  $('.scrim.top',l).onclick=()=>closeLayer('sheet');
+  $('form',sh).onsubmit=e=>e.preventDefault();
+  if(onSave)$('#fsave').onclick=async()=>{const err=$('#ferr');err.hidden=true;const b=$('#fsave');b.disabled=true;
+    try{const msg=await onSave();if(msg){err.textContent=msg;err.hidden=false}else closeLayer('sheet')}catch(e){if(e.message!=='ro'){err.textContent=e.message||'Could not save.';err.hidden=false}}finally{if(document.body.contains(b))b.disabled=false}};
+  if(danger)$('#fdanger').onclick=danger.onClick;
+  const first=$('input,select,textarea',sh);if(first)first.focus();
+  return sh;
+}
+function confirmBox(title,msg,label,onOk){openSheet({title,body:`<p style="margin:0">${msg}</p>`,saveLabel:label,onSave:async()=>{await onOk()}})}
+function formSheet({title,fields,data={},extra='',onSave,danger}){
+  const body=`<div class="fgrid">${fields.map(f=>fieldHTML(f,data[f.k])).join('')}</div>${extra}`;
+  const sh=openSheet({title,body,onSave:async()=>{
+    const v=readForm(fields);const miss=fields.filter(f=>f.req&&(v[f.k]===''||v[f.k]==null)).map(f=>f.label);
+    if(miss.length)return'Please fill in: '+miss.join(', ');
+    for(const f of fields)if(f.type==='locsel'&&v[f.k]){
+      if(v[f.k]==='__new')return'Type the name of the new location.';
+      const hit=S.settings.locList.find(l=>l.name.toLowerCase()===v[f.k].toLowerCase());
+      if(hit)v[f.k]=hit.name;else{try{await addLocations([{name:v[f.k],dept:v[f.deptField]||''}])}catch(e){}}
+    }
+    return onSave(v);
+  },danger});
+  fields.filter(f=>f.type==='locsel').forEach(f=>bindLocSel(sh,f));
+  return sh;
+}
+
+/* ---------- field specs ---------- */
+const supOpts=()=>Object.entries(S.suppliers).sort(byStr('name')).map(([id,s])=>[id,s.name]);
+const assetOpts=()=>Object.entries(S.assets).filter(([,a])=>a.status!=='Disposed').sort(byStr('code')).map(([id,a])=>[id,a.code+' · '+a.name]);
+const F_ASSET=[
+  {type:'sec',label:'Identification'},
+  {k:'code',label:'Asset code',req:true,ph:'e.g. PRD-MIX-001'},
+  {k:'name',label:'Asset name',req:true,ph:'e.g. Ribbon mixer 250 kg'},
+  {k:'faNo',label:'Fixed asset no. (accounts)',short:'Fixed asset no.',ph:'e.g. 6-6606-0052'},
+  {k:'category',label:'Category',type:'select',opts:()=>S.settings.categories,req:true},
+  {k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments,req:true},
+  {k:'location',label:'Location / room',type:'locsel',deptField:'dept'},
+  {k:'status',label:'Status',type:'select',opts:ASSET_STATUS,blank:false},
+  {k:'criticality',label:'Criticality',type:'select',opts:['High','Medium','Low']},
+  {k:'foodContact',label:'Food-contact equipment',short:'Food-contact',type:'check',hint:'Repairs need hygiene clearance before the line restarts',full:true},
+  {type:'sec',label:'Make & purchase'},
+  {k:'manufacturer',label:'Manufacturer / brand'},{k:'model',label:'Model'},{k:'serial',label:'Serial no.'},
+  {k:'supplierId',label:'Supplier / service contractor',type:'select',opts:supOpts},
+  {k:'purchaseDate',label:'Purchase date',type:'date'},
+  {k:'warrantyUntil',label:'Warranty until',type:'date'},
+  {k:'assignedTo',label:'Assigned to / user',ph:'For PCs, laptops, aircon room'},
+  {type:'sec',label:'Maintenance schedule'},
+  {k:'pmInterval',label:'Preventive maintenance',short:'PM frequency',type:'select',opts:INTERVALS,blank:false},
+  {k:'lastPM',label:'Last PM done',type:'date'},
+  {k:'calibInterval',label:'Calibration frequency',type:'select',opts:INTERVALS,blank:false},
+  {k:'calibDue',label:'Next calibration due',type:'date'},
+  {k:'pmTasks',label:'PM checklist / tasks',type:'textarea',full:true,ph:'One task per line, e.g. Grease bearings with food-grade H1 grease'},
+  {k:'notes',label:'Specs & notes',type:'textarea',full:true,ph:'Capacity, power rating, aircon HP, PC specs, IP address, licence…'}
+];
+const F_WO=[
+  {type:'sec',label:'Job'},
+  {k:'type',label:'Job type',type:'select',opts:WO_TYPES,req:true},
+  {k:'assetId',label:'Machine / item',type:'select',opts:assetOpts,req:true},
+  {k:'title',label:'Problem / reason',req:true,full:true,ph:'e.g. Plug points not working, powder inside socket'},
+  {k:'priority',label:'Priority',type:'select',opts:PRIORITY,blank:false},
+  {k:'status',label:'Status',type:'select',opts:WO_STATUS,blank:false},
+  {k:'reportDate',label:'Reported on',type:'date',req:true},{k:'reportedBy',label:'Reported by'},
+  {type:'sec',label:'Work done'},
+  {k:'performedBy',label:'Performed by',type:'select',opts:['Internal team','External contractor / vendor']},
+  {k:'supplierId',label:'Contractor / vendor',type:'select',opts:supOpts},
+  {k:'technician',label:'Technician name'},
+  {k:'startDate',label:'Work started',type:'date'},{k:'completedDate',label:'Work completed',type:'date'},
+  {k:'downtimeHrs',label:'Production downtime (hours)',type:'number'},
+  {k:'tasksDone',label:'Tasks completed',type:'textarea',full:true},
+  {type:'sec',label:'Food safety & compliance (F45 section 3)'},
+  {k:'chkHygiene',label:'Hygiene condition checked',short:'Hygiene check',type:'check'},
+  {k:'chkSafety',label:'Safety condition checked',short:'Safety check',type:'check'},
+  {k:'chkIsolated',label:'Work area isolated from production to prevent contamination',short:'Area isolated',type:'check'},
+  {k:'chkPPE',label:'Technicians wore appropriate PPE',short:'PPE worn',type:'check'},
+  {k:'chkTools',label:'All tools, screws and debris removed: no foreign matter left on line',short:'Tool / foreign-matter check',type:'check'},
+  {k:'chkClearance',label:'Area cleaned and hygiene clearance given before production restart',short:'Hygiene clearance',type:'check'},
+  {type:'sec',label:'Supplier report & invoice'},
+  {k:'supplierReportNo',label:'Supplier service report no.'},
+  {k:'invoiceNo',label:'Invoice no.'},{k:'invoiceDate',label:'Invoice date',type:'date'},
+  {k:'invoiceAmount',label:'Invoice amount (RM)',type:'number'},
+  {k:'labourCost',label:'Internal labour cost (RM)',type:'number'},
+  {k:'recommendations',label:'Recommendations',type:'textarea',full:true},
+  {type:'sec',label:'Verification'},
+  {k:'reportingPIC',label:'Reporting PIC (GFB)'},
+  {k:'verifiedBy',label:'Verified by (QA / HOD)'},{k:'verifiedDate',label:'Verified on',type:'date'}
+];
+const F_PART=[
+  {k:'code',label:'Part code',req:true,ph:'e.g. SP-BRG-6205'},
+  {k:'name',label:'Part / consumable name',req:true},
+  {k:'category',label:'Category',type:'select',opts:()=>S.settings.partCats},
+  {k:'unit',label:'Unit',ph:'pcs, roll, litre, box'},
+  {k:'minQty',label:'Re-order level',type:'number'},
+  {k:'store',label:'Store location / bin'},
+  {k:'supplierId',label:'Usual supplier',type:'select',opts:supOpts},
+  {k:'unitCost',label:'Unit cost (RM)',type:'number'},
+  {k:'foodGrade',label:'Food-grade (e.g. NSF H1 lubricant, food-safe seal)',short:'Food-grade',type:'check',full:true},
+  {k:'compatible',label:'Used on (asset codes)',full:true,ph:'e.g. PRD-MIX-001, PRD-PCK-002'},
+  {k:'notes',label:'Notes',type:'textarea',full:true}
+];
+const F_SUP=[
+  {k:'name',label:'Company name',req:true},
+  {k:'kind',label:'Type',type:'select',opts:['Contractor (service)','Vendor (parts / equipment)','Contractor & vendor']},
+  {k:'services',label:'Services / scope',full:true,ph:'e.g. Aircon servicing, electrical, forklift service'},
+  {k:'contact',label:'Contact person'},{k:'phone',label:'Phone',type:'tel'},{k:'email',label:'Email',type:'email'},
+  {k:'approval',label:'Approved supplier status',type:'select',opts:['Approved','Under evaluation','Not approved']},
+  {k:'evalDue',label:'Next supplier evaluation',type:'date'},
+  {k:'safetyBriefed',label:'Contractor safety instructions signed (Rev 2025-01)',short:'Safety briefing',type:'check',full:true},
+  {k:'notes',label:'Notes',type:'textarea',full:true}
+];
+
+/* ---------- shell / navigation ---------- */
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['assets','Asset register'],['parts','Spares & consumables'],['suppliers','Contractors'],['activity','Activity log'],['settings','Settings & locations'],['users','Users']];
+let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
+function counts(){
+  const as=Object.values(S.assets);
+  return{
+    overdue:as.filter(a=>pmInfo(a)?.state==='overdue').length,
+    open:Object.values(S.workorders).filter(openWO).length,
+    low:Object.values(S.parts).filter(lowStock).length
+  };
+}
+function renderTabs(){
+  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low};
+  $('#tabs').innerHTML=VIEWS.map(([k,l])=>`<button type="button" data-v="${k}" aria-current="${S.view===k}">${l}${badge[k]?`<span class="n">${badge[k]}</span>`:''}</button>`).join('');
+  $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
+}
+function go(v,filters){S.view=v;if(filters)S.f[v]={...(S.f[v]||{}),...filters};try{localStorage.setItem('gfb_view',v)}catch(e){}renderShell();window.scrollTo(0,0)}
+function renderShell(){
+  renderTabs();
+  const V=VIEW[S.view];
+  $('#main').innerHTML=(S.canWrite?'':'<div class="banner">Your account is view-only. Ask an admin to make you an Editor to add or update records.</div>')+V.shell();
+  if(V.bind)V.bind();renderList();
+}
+function renderList(){const el=$('#list');if(el){el.innerHTML=VIEW[S.view].list();if(S.view==='settings')bindLocations(el);if(S.view==='assets')bindBulk(el);bindRows(el);fillNames(el);
+  const d=$('#dAdd',el);if(d)d.onclick=()=>assetForm();
+  $$('[data-eu]',el).forEach(b=>b.onclick=()=>userForm(b.dataset.eu));
+  $$('[data-pm]',el).forEach(b=>b.onclick=e=>{e.stopPropagation();const a=A(b.dataset.pm);woForm(null,{assetId:b.dataset.pm,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a?.pmTasks||''})})}renderTabs()}
+function bindRows(root){$$('[data-open]',root).forEach(r=>r.onclick=e=>{if(e.target.closest('button,a,input'))return;const[k,id]=r.dataset.open.split(':');openDetail(k,id)});
+  $$('[data-go]',root).forEach(b=>b.onclick=()=>{const[v,f,val]=b.dataset.go.split('|');go(v,f?{[f]:val}:null)})}
+const W=fn=>S.canWrite?fn():'';
+const fval=(v,k,d='')=>(S.f[v]&&S.f[v][k])??d;
+function bindFilters(v){$$('[data-f]').forEach(el=>{const h=()=>{S.f[v]={...(S.f[v]||{}),[el.dataset.f]:el.value};renderList()};el.oninput=h;el.onchange=h})}
+const match=(q,...xs)=>!q||xs.join(' ').toLowerCase().includes(q.toLowerCase());
+const emptyRow=(cols,title,msg)=>`<tr><td colspan="${cols}"><div class="empty"><b>${title}</b>${msg}</div></td></tr>`;
+
+/* ---------- views ---------- */
+const VIEW={};
+VIEW.dash={shell:()=>'<div id="list"></div>',list(){
+  const as=Object.entries(S.assets),ws=Object.entries(S.workorders),ps=Object.entries(S.parts),ss=Object.entries(S.suppliers);
+  if(!as.length&&!ws.length){
+    return`<div class="panel" style="margin-top:22px"><div class="empty"><b>No assets registered yet</b>Start with your machine list. Add items one by one, or import a CSV (Asset register → Import CSV) for production machines, forklifts, office aircon units and computers.<div class="acts" style="justify-content:center;margin-top:14px">${W(()=>'<button class="btn pri" id="dAdd">Add first asset</button>')}<button class="btn" data-go="assets">Go to asset register</button></div></div></div>`;
+  }
+  const pm=as.map(([id,a])=>[id,a,pmInfo(a)]).filter(x=>x[2]);
+  const overdue=pm.filter(x=>x[2].state==='overdue'),soon=pm.filter(x=>x[2].state==='soon'),unset=pm.filter(x=>x[2].state==='unset');
+  const open=ws.filter(([,w])=>openWO(w)),toVerify=ws.filter(([,w])=>w.status==='Completed');
+  const low=ps.filter(([,p])=>lowStock(p));const down=as.filter(([,a])=>a.status==='Under repair');
+  const watch=[];
+  as.forEach(([id,a])=>{const w=dateWatch(a.warrantyUntil);if(w&&w.state!=='ok'&&w.days>-30)watch.push(['asset:'+id,a.code+' · '+a.name,'Warranty',w,a.warrantyUntil]);
+    const c=dateWatch(a.calibDue);if(c&&c.state!=='ok'&&a.status!=='Disposed')watch.push(['asset:'+id,a.code+' · '+a.name,'Calibration',c,a.calibDue])});
+  ss.forEach(([id,s])=>{const w=dateWatch(s.evalDue);if(w&&w.state!=='ok')watch.push(['supplier:'+id,s.name,'Supplier evaluation',w,s.evalDue])});
+  watch.sort((a,b)=>a[3].days-b[3].days);
+  const now=new Date();const months=[];for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push([d.getFullYear()+'-'+pad(d.getMonth()+1),d.toLocaleString('en-MY',{month:'short'})])}
+  const mcost=months.map(([k,l])=>[l,ws.filter(([,w])=>woDate(w).startsWith(k)).reduce((s,[,w])=>s+woCost(w),0)]);
+  const max=Math.max(1,...mcost.map(m=>m[1]));
+  const ytdStart=(now.getMonth()>=6?now.getFullYear():now.getFullYear()-1)+'-07-01';
+  const ytd=ws.filter(([,w])=>woDate(w)>=ytdStart).reduce((s,[,w])=>s+woCost(w),0);
+  const tile=(cls,n,l,go)=>`<button type="button" class="tile ${n?cls:'ok'}" data-go="${go}"><span class="lbl">${l}</span><b>${n}</b></button>`;
+  const sortedPM=[...overdue,...soon].sort((a,b)=>a[2].days-b[2].days).slice(0,8);
+  return`<div class="tiles">
+    ${tile('bad',overdue.length,'PM overdue','pm|state|overdue')}
+    ${tile('warn',soon.length,'PM due in 14 days','pm|state|soon')}
+    ${tile('bad',open.length,'Open work orders','wos|status|open')}
+    ${tile('warn',toVerify.length,'Awaiting QA verification','wos|status|Completed')}
+    ${tile('bad',down.length,'Machines under repair','assets|status|Under repair')}
+    ${tile('warn',low.length,'Spares at re-order level','parts|low|1')}
+    ${S.me&&S.me.incidents?tile('bad',Object.values(S.incidents).filter(i=>i.status!=='Closed').length,'Open incidents','incidents|status|open')+tile('bad',Object.values(S.incidents).filter(incPending).length,'DOSH / PERKESO reports due','incidents|status|due'):''}
+  </div>
+  <div class="grid2">
+    <div class="panel"><h3>Preventive maintenance due</h3>${sortedPM.length?`<div class="tbl-wrap"><table><thead><tr><th>Asset</th><th class="hs">Department · location</th><th>Due</th><th></th></tr></thead><tbody>${sortedPM.map(([id,a,i])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span><br>${esc(a.name)}${a.foodContact?'<span class="fc">FC</span>':''}</td><td class="hs">${esc(place(a)||'—')}</td><td>${pmPill(i)}</td><td class="r">${W(()=>`<button class="btn sm" data-pm="${id}">Log PM</button>`)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty"><b>Nothing due in the next 14 days</b>${unset.length?`${unset.length} scheduled asset(s) still need a last-PM date.`:'All scheduled assets are up to date.'}</div>`}</div>
+    <div class="panel"><h3>Open jobs</h3>${open.length?`<div class="tbl-wrap"><table><thead><tr><th>WO</th><th>Asset / problem</th><th>Status</th></tr></thead><tbody>${open.sort((a,b)=>PRIORITY.indexOf(a[1].priority)-PRIORITY.indexOf(b[1].priority)).slice(0,8).map(([id,w])=>`<tr data-open="wo:${id}"><td class="mono">${esc(w.no)}<br>${prPill(w.priority)}</td><td>${esc(aLabel(w.assetId))}<br><span class="muted">${esc(w.title)}</span></td><td>${woPill(w.status)}<br><span class="muted">${fmtD(w.reportDate)}</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><b>No open jobs</b>Breakdowns and requests you log will show here until QA verifies them.</div>'}</div>
+    <div class="panel"><h3>Maintenance spend</h3><div class="muted">Invoices + internal labour + spares issued. FY from 1 July: <b class="num" style="color:var(--ink)">${rm(ytd)}</b></div>
+      <div class="bars">${mcost.map(([l,v])=>`<div class="bar"><em>${v?Math.round(v).toLocaleString('en-MY'):''}</em><i style="height:${Math.max(1.5,v/max*100)}%"></i><span>${l}</span></div>`).join('')}</div></div>
+    <div class="panel"><h3>Watch list</h3>${watch.length||low.length?`<div class="tbl-wrap"><table><tbody>${watch.slice(0,8).map(([o,n,t,w,d])=>`<tr data-open="${o}"><td>${esc(n)}<br><span class="muted">${t} · ${fmtD(d)}</span></td><td class="r">${watchPill(w)}</td></tr>`).join('')}${low.slice(0,6).map(([id,p])=>`<tr data-open="part:${id}"><td>${esc(p.name)}<br><span class="muted">Spare · re-order level ${esc(p.minQty)} ${esc(p.unit||'')}</span></td><td class="r"><span class="pill ${num(p.qty)<=0?'bad':'warn'}">${num(p.qty)} ${esc(p.unit||'')} left</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty"><b>All clear</b>Warranty, calibration and supplier-evaluation dates within 30 days, and low spares, appear here.</div>'}</div>
+  </div>`;
+},};
+
+VIEW.assets={
+  shell:()=>`<h2>Asset register</h2><div class="toolbar">
+    <input class="grow" type="search" id="q_a" data-f="q" placeholder="Search code, name, serial, user…" value="${esc(fval('assets','q'))}">
+    <select data-f="cat" id="c_a" style="width:auto"><option value="">All categories</option>${S.settings.categories.map(c=>opt(c,fval('assets','cat'))).join('')}</select>
+    <select data-f="dept" id="d_a" style="width:auto"><option value="">All departments</option>${opt(['__none','No department yet'],fval('assets','dept'))}${S.settings.departments.map(c=>opt(c,fval('assets','dept'))).join('')}</select>
+    <select data-f="loc" id="l_a" style="width:auto"><option value="">All locations</option>${allLocs().map(c=>opt(c,fval('assets','loc'))).join('')}</select>
+    <select data-f="status" id="s_a" style="width:auto"><option value="">All statuses</option>${ASSET_STATUS.map(c=>opt(c,fval('assets','status'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addA">Add asset</button><button class="btn" id="impA">Import CSV</button>')}<button class="btn" id="expA">Export CSV</button><button class="btn" id="qrA">Print QR labels</button></div><div id="list"></div>`,
+  bind(){bindFilters('assets');const a=$('#addA');if(a)a.onclick=()=>assetForm();const i=$('#impA');if(i)i.onclick=importAssets;$('#expA').onclick=()=>exportCSV('assets');$('#qrA').onclick=()=>printLabels(filteredAssets().map(x=>x[0]))},
+  list(){
+    const rows=filteredAssets();
+    const ls=$('#l_a');if(ls){const cur=ls.value;ls.innerHTML='<option value="">All locations</option>'+allLocs().map(c=>opt(c,cur)).join('')}
+    return`${S.canWrite&&S.sel.size?`<div class="bulk"><b>${S.sel.size} selected</b><button class="btn pri sm" type="button" id="bulkSet">Set department &amp; location</button><button class="btn sm" type="button" id="bulkClear">Clear selection</button></div>`:''}<div class="tbl-wrap"><table><thead><tr>${S.canWrite?`<th class="ck"><input type="checkbox" id="selAll" aria-label="Select all shown"${rows.length&&rows.every(([id])=>S.sel.has(id))?' checked':''}></th>`:''}<th class="hs">Code</th><th>Asset</th><th class="hs">Category · department / location</th><th>Status</th><th>Next PM</th><th class="r hs">Jobs</th></tr></thead><tbody>${rows.length?rows.map(([id,a])=>{const n=Object.values(S.workorders).filter(w=>w.assetId===id).length;return`<tr data-open="asset:${id}">${S.canWrite?`<td class="ck"><input type="checkbox" data-sel="${id}" aria-label="Select ${esc(a.code)}"${S.sel.has(id)?' checked':''}></td>`:''}<td class="mono hs">${esc(a.code)}</td><td><span class="so mono muted">${esc(a.code)}<br></span>${esc(a.name)}${a.foodContact?'<span class="fc" title="Food-contact">FC</span>':''}<br><span class="muted">${esc([a.manufacturer,a.model].filter(Boolean).join(' '))}${a.assignedTo?' · '+esc(a.assignedTo):''}</span></td><td class="hs">${esc(a.category||'—')}<br><span class="muted">${esc(place(a))}</span></td><td>${statusPill(a.status)}</td><td>${pmPill(pmInfo(a))}</td><td class="r num hs">${n}</td></tr>`}).join(''):emptyRow(S.canWrite?7:6,Object.keys(S.assets).length?'No assets match':'No assets yet',Object.keys(S.assets).length?'Clear the search or filters.':'Add assets one by one or import your list from a CSV file.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} of ${Object.keys(S.assets).length} assets · FC = food-contact equipment</p>`;
+  }};
+
+VIEW.wos={
+  shell:()=>`<h2>Work orders</h2><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_w" placeholder="Search WO no., asset, problem, invoice no…" value="${esc(fval('wos','q'))}">
+    <select data-f="status" id="s_w" style="width:auto">${[['all','All statuses'],['open','Open (not completed)'],...WO_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('wos','status','all'))).join('')}</select>
+    <select data-f="type" id="t_w" style="width:auto"><option value="">All job types</option>${WO_TYPES.map(c=>opt(c,fval('wos','type'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addW">New work order</button>')}<button class="btn" id="expW">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('wos');const a=$('#addW');if(a)a.onclick=()=>woForm();$('#expW').onclick=()=>exportCSV('workorders')},
+  list(){
+    const q=fval('wos','q'),st=fval('wos','status','all'),t=fval('wos','type');
+    const rows=Object.entries(S.workorders).filter(([,w])=>(st==='all'||(st==='open'?openWO(w):w.status===st))&&(!t||w.type===t)&&match(q,w.no,aLabel(w.assetId),w.title,w.invoiceNo,w.supplierReportNo,sup(w.supplierId)?.name)).sort((a,b)=>String(b[1].reportDate).localeCompare(String(a[1].reportDate))||String(b[1].no).localeCompare(String(a[1].no)));
+    return`<div class="tbl-wrap"><table><thead><tr><th>WO no.</th><th>Asset · problem</th><th class="hs">Type</th><th class="hs">Contractor</th><th>Status</th><th class="r">Cost</th></tr></thead><tbody>${rows.length?rows.map(([id,w])=>`<tr data-open="wo:${id}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(aLabel(w.assetId))}<br><span class="muted">${esc(w.title)}</span></td><td class="hs">${esc(w.type)}<br>${prPill(w.priority)}</td><td class="hs">${esc(sup(w.supplierId)?.name||w.performedBy||'—')}${(w.files||[]).length?`<br><span class="muted">${(w.files||[]).length} file(s)</span>`:''}</td><td>${woPill(w.status)}</td><td class="r num">${woCost(w)?rm(woCost(w)):'—'}</td></tr>`).join(''):emptyRow(6,'No work orders here','Log a breakdown, repair or PM job with “New work order”.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} work order(s) · total ${rm(rows.reduce((s,[,w])=>s+woCost(w),0))}</p>`;
+  }};
+
+VIEW.pm={
+  shell:()=>`<h2>PM &amp; calibration schedule</h2><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_p" placeholder="Search asset…" value="${esc(fval('pm','q'))}">
+    <select data-f="state" id="s_p" style="width:auto">${[['','All scheduled'],['overdue','Overdue'],['soon','Due in 14 days'],['unset','Missing last-PM date']].map(o=>opt(o,fval('pm','state'))).join('')}</select></div><div id="list"></div>`,
+  bind(){bindFilters('pm')},
+  list(){
+    const q=fval('pm','q'),st=fval('pm','state');
+    const rows=Object.entries(S.assets).map(([id,a])=>[id,a,pmInfo(a)]).filter(([,a,i])=>i&&(!st||i.state===st)&&match(q,a.code,a.name,a.dept,a.location)).sort((x,y)=>(x[2].days??-9999)-(y[2].days??-9999));
+    const cal=Object.entries(S.assets).filter(([,a])=>a.calibDue&&a.status!=='Disposed'&&match(q,a.code,a.name)).sort(byStr('calibDue'));
+    const iv=v=>(INTERVALS.find(x=>x[0]===String(v))||['',v+' days'])[1];
+    return`<div class="tbl-wrap"><table><thead><tr><th>Asset</th><th class="hs">Frequency</th><th class="hs">Last PM</th><th>Next due</th><th></th></tr></thead><tbody>${rows.length?rows.map(([id,a,i])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span> ${esc(a.name)}${a.foodContact?'<span class="fc">FC</span>':''}<br><span class="muted">${esc(place(a))}</span></td><td class="hs">${iv(a.pmInterval)}</td><td class="hs">${fmtD(a.lastPM)}</td><td>${pmPill(i)}</td><td class="r">${W(()=>`<button class="btn sm" data-pm="${id}">Log PM</button>`)}</td></tr>`).join(''):emptyRow(5,'No PM schedules here','Set a preventive-maintenance frequency on an asset to schedule it.')}</tbody></table></div>
+    <h2>Calibration due</h2><div class="tbl-wrap"><table><thead><tr><th>Instrument / asset</th><th>Frequency</th><th>Next calibration</th></tr></thead><tbody>${cal.length?cal.map(([id,a])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span> ${esc(a.name)}</td><td>${a.calibInterval?iv(a.calibInterval):'—'}</td><td>${fmtD(a.calibDue)} ${watchPill(dateWatch(a.calibDue))}</td></tr>`).join(''):emptyRow(3,'No calibration dates set','Weighing scales, thermometers, moisture analysers and metal detectors belong here. Set “Next calibration due” on the asset.')}</tbody></table></div>`;
+  }};
+
+VIEW.parts={
+  shell:()=>`<h2>Spare parts &amp; consumables</h2><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_s" placeholder="Search part code, name, asset…" value="${esc(fval('parts','q'))}">
+    <select data-f="cat" id="c_s" style="width:auto"><option value="">All categories</option>${S.settings.partCats.map(c=>opt(c,fval('parts','cat'))).join('')}</select>
+    <select data-f="low" id="l_s" style="width:auto">${[['','All stock'],['1','At / below re-order level']].map(o=>opt(o,fval('parts','low'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addP">Add part</button>')}<button class="btn" id="expP">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('parts');const a=$('#addP');if(a)a.onclick=()=>partForm();$('#expP').onclick=()=>exportCSV('parts')},
+  list(){
+    const q=fval('parts','q'),c=fval('parts','cat'),lo=fval('parts','low');
+    const rows=Object.entries(S.parts).filter(([,p])=>(!c||p.category===c)&&(!lo||lowStock(p))&&match(q,p.code,p.name,p.compatible,p.store)).sort(byStr('code'));
+    const val=rows.reduce((s,[,p])=>s+num(p.qty)*num(p.unitCost),0);
+    return`<div class="tbl-wrap"><table><thead><tr><th class="hs">Code</th><th>Item</th><th class="hs">Category · store</th><th class="r">On hand</th><th class="r hs">Re-order at</th><th class="r hs">Value</th></tr></thead><tbody>${rows.length?rows.map(([id,p])=>`<tr data-open="part:${id}"><td class="mono hs">${esc(p.code)}</td><td><span class="so mono muted">${esc(p.code)}<br></span>${esc(p.name)}${p.foodGrade?'<span class="fc">FOOD-GRADE</span>':''}<br><span class="muted">${esc(p.compatible||'')}</span></td><td class="hs">${esc(p.category||'—')}<br><span class="muted">${esc(p.store||'')}</span></td><td class="r num"><span class="dot ${lowStock(p)?(num(p.qty)<=0?'bad':'warn'):'ok'}"></span>${num(p.qty)} ${esc(p.unit||'')}</td><td class="r num hs">${p.minQty===''||p.minQty==null?'—':esc(p.minQty)}</td><td class="r num hs">${rm(num(p.qty)*num(p.unitCost))}</td></tr>`).join(''):emptyRow(6,'No spares or consumables','Add parts you keep in store: bearings, belts, seals, filters, food-grade grease, fuses, toner.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} item(s) · stock value ${rm(val)}</p>`;
+  }};
+
+VIEW.suppliers={
+  shell:()=>`<h2>Contractors &amp; vendors</h2><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_c" placeholder="Search company, service…" value="${esc(fval('suppliers','q'))}">
+    ${W(()=>'<button class="btn pri" id="addS">Add contractor / vendor</button>')}<button class="btn" id="expS">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('suppliers');const a=$('#addS');if(a)a.onclick=()=>supForm();$('#expS').onclick=()=>exportCSV('suppliers')},
+  list(){
+    const q=fval('suppliers','q');
+    const rows=Object.entries(S.suppliers).filter(([,s])=>match(q,s.name,s.services,s.contact)).sort(byStr('name'));
+    return`<div class="tbl-wrap"><table><thead><tr><th>Company</th><th class="hs">Services</th><th class="hs">Contact</th><th>Approval</th><th class="r">Jobs · spend</th></tr></thead><tbody>${rows.length?rows.map(([id,s])=>{const ws=Object.values(S.workorders).filter(w=>w.supplierId===id);const ev=dateWatch(s.evalDue);return`<tr data-open="supplier:${id}"><td>${esc(s.name)}<br><span class="muted">${esc(s.kind||'')}</span></td><td class="hs">${esc(s.services||'—')}</td><td class="hs">${esc(s.contact||'—')}<br><span class="muted">${esc(s.phone||'')}</span></td><td><span class="pill ${({'Approved':'ok','Under evaluation':'warn','Not approved':'bad'})[s.approval]||''}">${esc(s.approval||'Not set')}</span>${ev&&ev.state!=='ok'?'<br>'+watchPill(ev,'Eval'):''}</td><td class="r num">${ws.length}<br><span class="muted">${rm(ws.reduce((t,w)=>t+num(w.invoiceAmount),0))}</span></td></tr>`}).join(''):emptyRow(5,'No contractors yet','Add service contractors and parts vendors to link them to jobs and invoices.')}</tbody></table></div>`;
+  }};
+
+VIEW.activity={
+  shell:()=>`<h2>Activity log</h2><p class="muted" style="margin-top:-4px">Every create and change, with who did it and when. Each record keeps its last 60 changes.</p><div class="toolbar"><input class="grow" type="search" data-f="q" id="q_l" placeholder="Search…" value="${esc(fval('activity','q'))}"></div><div id="list"></div>`,
+  bind(){bindFilters('activity')},
+  list(){
+    const q=fval('activity','q');const ev=[];
+    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>r.no+' · '+aLabel(r.assetId)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>r.no+' · '+r.title]};
+    COLLS.forEach(c=>Object.entries(S[c]).forEach(([id,r])=>(r.history||[]).forEach(h=>ev.push([h,c,id,lab[c][1](r)]))));
+    const rows=ev.filter(([h,,,n])=>match(q,h.act,n)).sort((a,b)=>String(b[0].at).localeCompare(String(a[0].at))).slice(0,300);
+    const kind={assets:'Asset',workorders:'Work order',parts:'Spare',suppliers:'Contractor',incidents:'Incident'};
+    return`<div class="tbl-wrap"><table><thead><tr><th>When</th><th>Who</th><th class="hs">Record</th><th>Change</th></tr></thead><tbody>${rows.length?rows.map(([h,c,id,n])=>`<tr data-open="${lab[c][0]}:${id}"><td class="num" style="white-space:nowrap">${fmtDT(h.at)}</td><td>${who(h)}</td><td class="hs"><span class="pill">${kind[c]}</span><br>${esc(n)}</td><td>${esc(h.act)}<span class="muted" style="display:block">${esc(n)}</span></td></tr>`).join(''):emptyRow(4,'No activity yet','Changes appear here as your team records them.')}</tbody></table></div>`;
+  }};
+
+VIEW.settings={
+  shell:()=>`<div id="list"></div><h2>Lists used in forms</h2><p class="muted" style="margin-top:-4px">One item per line. Renaming an item does not change records already saved.${S.canAdmin?'':' Only an admin can change these lists.'}</p>
+   <div class="grid2">${[['categories','Asset categories'],['departments','Departments'],['partCats','Spare-part categories']].map(([k,l])=>`<div class="panel"><div class="field"><label for="set_${k}">${l}</label><textarea id="set_${k}" style="min-height:200px"${S.canAdmin?'':' readonly'}>${esc((S.settings[k]||[]).join('\n'))}</textarea></div></div>`).join('')}</div>
+   ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn pri" id="saveSet">Save lists</button></div>':''}
+   <h2>Reporting deadlines</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Used by the incident register. The DOSH written report is 7 days under the NADOPOD Regulations 2004. Confirm the PERKESO Borang 34 deadline with PERKESO or your HR SOP.</p>
+     <div class="fgrid"><div class="field"><label for="set_doshDays">DOSH written report due (days after incident)</label><input id="set_doshDays" type="number" value="${esc(S.settings.dosh.reportDays)}"${S.canAdmin?'':' readonly'}></div><div class="field"><label for="set_perkesoH">PERKESO Borang 34 due (hours after incident)</label><input id="set_perkesoH" type="number" value="${esc(S.settings.dosh.perkesoHours)}"${S.canAdmin?'':' readonly'}></div></div>
+     ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="saveDosh">Save deadlines</button></div>':''}</div>
+   <h2>Data &amp; backups</h2><div class="panel"><p style="margin:0 0 10px">Records are stored in your Supabase project${CFG.supabaseUrl?` (<span class="mono">${esc(CFG.supabaseUrl.replace(/^https?:\/\//,''))}</span>)`:''}. Download a full copy every month and keep it with your ISO 22000 records. Attachments stay in Supabase Storage.</p>
+     <div class="acts"><button class="btn pri" id="bkDl">Download full data copy (.json)</button>${S.canAdmin?'<label class="btn" for="bkImp" style="cursor:pointer">Import data file</label><input id="bkImp" type="file" accept=".json,application/json" hidden>':''}</div><div id="bkMsg" class="muted" style="margin-top:8px"></div></div>`,
+  bind(){
+    const b=$('#saveSet');if(b)b.onclick=async()=>{const v={};['categories','departments','partCats'].forEach(k=>v[k]=$('#set_'+k).value.split('\n').map(s=>s.trim()).filter(Boolean));
+      try{await saveSettings(v,'Lists updated');toast('Lists saved')}catch(e){}};
+    const sd=$('#saveDosh');if(sd)sd.onclick=async()=>{const d={reportDays:num($('#set_doshDays').value)||7,perkesoHours:num($('#set_perkesoH').value)||48};try{await saveSettings({dosh:d},'Reporting deadlines: DOSH '+d.reportDays+' days, PERKESO '+d.perkesoHours+' hours');toast('Deadlines saved')}catch(e){}};
+    $('#bkDl').onclick=()=>{const docs=[];COLLS.concat('config').forEach(c=>Object.entries(S[c]||{}).forEach(([id,data])=>docs.push({coll:c,id,data})));
+      save(`GFB_Asset_Maintenance_backup_${today()}.json`,JSON.stringify({app:'GFB Asset & Maintenance',exported:new Date().toISOString(),docs},null,1))};
+    const imp=$('#bkImp');if(imp)imp.onchange=async()=>{const f=imp.files[0];imp.value='';if(!f)return;const msg=$('#bkMsg');
+      try{const j=JSON.parse(await f.text());const docs=(j.docs||[]).filter(d=>d&&d.coll&&d.id&&d.data);if(!docs.length){msg.textContent='No records found in that file.';return}
+        msg.textContent=`Importing ${docs.length} records…`;const r=await api('POST','/api/import',{docs});msg.textContent=`${r.imported} records imported.`;S.seq=0;await sync();toast(r.imported+' records imported')}
+      catch(e){msg.textContent='Import failed: '+e.message}};
+  },
+  list:()=>locationsHTML()};
+
+VIEW.users={
+  shell:()=>`<h2>Users</h2><p class="muted" style="margin-top:-4px"><b>Admin</b>: everything, including users, deleting records and backups. <b>Editor</b>: add and update records and attachments. <b>Viewer</b>: read only. <b>Incident access</b> lets a person see the incident register, which holds injury and health details.</p>
+  <div class="panel" style="margin-bottom:12px"><b>Adding a person:</b> send them this page's link. They tap <b>Request access</b> on the sign-in screen and create a password. They then appear below as <b>Waiting for approval</b>; edit them to choose a role and activate. To reset someone's password, ask them to use <b>Forgot password</b>.</div><div id="list"><div class="empty">Loading users…</div></div>`,
+  bind(){loadUsers()},
+  list:()=>usersHTML()};
+let USERS=[];
+async function loadUsers(){try{USERS=await api('GET','/api/users');renderList()}catch(e){toast(e.message)}}
+function usersHTML(){const L=USERS.slice().sort((a,b)=>(a.active===b.active?0:a.active?1:-1)||String(a.name).localeCompare(String(b.name)));
+  return`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th class="hs">Email</th><th>Role</th><th class="hs">Joined</th><th></th></tr></thead><tbody>${L.map(u=>`<tr><td>${esc(u.name||u.email)}${u.id===S.me.id?' <span class="pill acc">You</span>':''}</td><td class="hs">${esc(u.email)}</td><td>${u.active?`<span class="pill ${u.role==='admin'?'acc':u.role==='editor'?'info':''}">${esc(u.role)}</span>${u.role==='admin'||u.incident_access?' <span class="pill warn">Incidents</span>':''}`:'<span class="pill bad">Waiting for approval</span>'}</td><td class="hs">${fmtD(String(u.created_at).slice(0,10))}</td><td class="r"><button class="btn sm" data-eu="${esc(u.id)}">${u.active?'Edit':'Review'}</button></td></tr>`).join('')||emptyRow(5,'No users','')}</tbody></table></div>`}
+function userForm(id){
+  const u=USERS.find(x=>x.id===id);if(!u)return;
+  const fields=[{k:'name',label:'Full name',req:true},{k:'role',label:'Role',type:'select',opts:[['editor','Editor – add and update records'],['viewer','Viewer – read only'],['admin','Admin – everything']],blank:false},
+    {k:'active',label:'Account active (can sign in and see records)',type:'check',full:true},{k:'incidents',label:'Incident access (sees injury and health details in the incident register)',type:'check',full:true}];
+  formSheet({title:(u.active?'Edit ':'Approve ')+(u.name||u.email),fields,data:{name:u.name,role:u.active?u.role:'editor',active:true,incidents:!!u.incident_access},onSave:async v=>{
+    try{await api('PUT','/api/users/'+u.id,v);toast('Saved');loadUsers()}catch(e){return e.message}}});
+}
+
+/* ---------- detail drawer ---------- */
+function openDetail(kind,id){S.detail={kind,id};renderDetail()}
+function renderDetail(){
+  if(!S.detail)return;const{kind,id}=S.detail;const l=$('#layer');
+  const coll={asset:'assets',wo:'workorders',part:'parts',supplier:'suppliers',incident:'incidents'}[kind];const r=S[coll][id];
+  $$('.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());
+  if(!r){S.detail=null;return}
+  const scrollY=l.dataset.sy||0;
+  const html=DETAIL[kind](id,r);
+  l.insertAdjacentHTML('afterbegin',`<div class="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-label="${esc(html.title)}"><div class="hd"><div style="min-width:0"><div class="lbl">${html.eyebrow}</div><h2>${esc(html.title)}</h2><div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">${html.pills||''}</div></div><button class="x" type="button" aria-label="Close">×</button></div><div class="bd">${html.body}
+    ${filesBlock(coll,id,r)}
+    <div><h3>Change history</h3><div class="hist">${(r.history||[]).slice().reverse().map(h=>`<div><span class="muted num">${fmtDT(h.at)}</span><span>${esc(h.act)} · ${who(h)}</span></div>`).join('')||'<span class="muted">No changes recorded.</span>'}</div></div></div></aside>`);
+  const d=$('.drawer',l);$('.x',d).onclick=()=>closeLayer('drawer');$('.scrim:not(.top)',l).onclick=()=>closeLayer('drawer');
+  bindRows(d);bindFiles(coll,id,d);fillFiles(d);if(html.bind)html.bind(d);fillNames(d);
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){if($('.sheet'))closeLayer('sheet');else if($('.drawer'))closeLayer('drawer')}});
+const kv=(pairs)=>`<div class="kv">${pairs.filter(Boolean).map(([k,v])=>`<div><span class="lbl">${k}</span>${v===''||v==null?'<span class="muted">—</span>':v}</div>`).join('')}</div>`;
+const DETAIL={
+  asset(id,a){
+    const ws=Object.entries(S.workorders).filter(([,w])=>w.assetId===id).sort((x,y)=>String(y[1].reportDate).localeCompare(String(x[1].reportDate)));
+    const total=ws.reduce((s,[,w])=>s+woCost(w),0),down=ws.reduce((s,[,w])=>s+num(w.downtimeHrs),0);
+    const usedParts=Object.values(S.parts).filter(p=>String(p.compatible||'').toLowerCase().includes(String(a.code).toLowerCase()));
+    return{eyebrow:esc(a.code)+' · '+esc(a.category||''),title:a.name,
+      pills:statusPill(a.status)+(a.foodContact?'<span class="pill acc">Food-contact</span>':'')+(a.criticality?`<span class="pill">${esc(a.criticality)} criticality</span>`:''),
+      body:`<div class="acts">${W(()=>`<button class="btn pri" id="dNewWO">Report problem / new job</button>${a.pmInterval?'<button class="btn" id="dPM">Log PM</button>':''}<button class="btn" id="dEdit">Edit asset</button><button class="btn" id="dMove">Move location</button><button class="btn" id="dDup">Add another unit</button>`)}<button class="btn" id="dQR">QR label</button></div>
+      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],['Calibration due',a.calibDue?fmtD(a.calibDue)+' '+watchPill(dateWatch(a.calibDue)):'']])}
+      ${a.pmTasks?`<div><h3>PM checklist</h3><ul style="margin:0;padding-left:20px">${a.pmTasks.split('\n').filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`:''}
+      ${a.notes?`<div><h3>Specs &amp; notes</h3><div style="white-space:pre-wrap">${esc(a.notes)}</div></div>`:''}
+      ${(a.moves||[]).length?`<div><h3>Location history</h3><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>From → to</th><th class="hs">Reason</th></tr></thead><tbody>${a.moves.slice().reverse().map(m=>`<tr><td class="num" style="white-space:nowrap">${fmtD(m.date)}</td><td>${esc([m.fromDept,m.fromLoc].filter(Boolean).join(' · ')||'—')} → <b>${esc([m.toDept,m.toLoc].filter(Boolean).join(' · ')||'—')}</b>${m.fromUser!==m.toUser?`<br><span class="muted">User: ${esc(m.fromUser||'—')} → ${esc(m.toUser||'—')}</span>`:''}<br><span class="muted">${who(m)}</span></td><td class="hs">${esc(m.reason||'')}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+      ${(()=>{const sib=sameModel(id,a);return sib.length?`<div><h3>Same model elsewhere</h3><p class="muted" style="margin:0 0 8px">${sib.length} other unit(s) of ${esc([a.manufacturer,a.model].filter(Boolean).join(' '))}</p><div class="tbl-wrap"><table style="min-width:0"><tbody>${sib.map(([sid,b])=>`<tr data-open="asset:${sid}"><td class="mono">${esc(b.code)}</td><td>${esc(place(b)||'—')}${b.assignedTo?'<br><span class="muted">'+esc(b.assignedTo)+'</span>':''}</td><td>${statusPill(b.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
+      <div><h3>Maintenance history</h3><p class="muted" style="margin:0 0 8px">${ws.length} job(s) · ${rm(total)} · ${down} h downtime</p>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(w.type)}</span></td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs logged for this asset yet.</span>'}</div>
+      ${S.me&&S.me.incidents?(()=>{const inc=Object.entries(S.incidents).filter(([,i])=>i.assetId===id);return inc.length?`<div><h3>Incidents involving this asset</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${inc.map(([iid,i])=>`<tr data-open="incident:${iid}"><td class="mono">${esc(i.no)}<br><span class="muted">${fmtD(i.incDate)}</span></td><td>${esc(i.title)}</td><td>${incStatusPill(i.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})():''}
+      ${usedParts.length?`<div><h3>Spares for this asset</h3>${usedParts.map(p=>`<div>${esc(p.code)} · ${esc(p.name)} — <b class="num">${num(p.qty)} ${esc(p.unit||'')}</b> in store</div>`).join('')}</div>`:''}`,
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)})}};
+  },
+  wo(id,w){
+    const chk=[['chkHygiene','Hygiene condition checked'],['chkSafety','Safety condition checked'],['chkIsolated','Work area isolated from production'],['chkPPE','Technicians wore PPE'],['chkTools','No foreign matter / tools left on line'],['chkClearance','Hygiene clearance before restart']];
+    return{eyebrow:'Work order · '+esc(w.no),title:w.title,pills:woPill(w.status)+prPill(w.priority)+`<span class="pill">${esc(w.type)}</span>`,
+      body:`<div class="acts">${W(()=>`<button class="btn pri" id="dEdit">Update job</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button></div>
+      ${kv([['Machine / item',`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
+      ${w.tasksDone?`<div><h3>Tasks completed</h3><div style="white-space:pre-wrap">${esc(w.tasksDone)}</div></div>`:''}
+      <div><h3>Compliance checks</h3><div style="display:grid;gap:4px">${chk.map(([k,l])=>`<div><span class="dot ${w[k]?'ok':'bad'}"></span>${l}${w[k]?'':' <span class="muted">— not confirmed</span>'}</div>`).join('')}</div></div>
+      <div><h3>Costs</h3>${(w.lines||[]).length?`<div class="tbl-wrap" style="margin-bottom:8px"><table style="min-width:0"><tbody>${w.lines.map(l=>`<tr data-open="part:${l.partId}"><td>${esc(S.parts[l.partId]?.name||l.name||'Part')}</td><td class="r num">${esc(l.qty)} × ${rm(l.unitCost)}</td><td class="r num">${rm(num(l.qty)*num(l.unitCost))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin:0 0 6px">${w.partsPosted?'Spares deducted from store stock.':'Spares are deducted from store stock when the job is marked Completed.'}</p>`:''}
+      ${kv([['Invoice',w.invoiceNo?`<span class="mono">${esc(w.invoiceNo)}</span>${w.invoiceDate?' · '+fmtD(w.invoiceDate):''}`:''],['Invoice amount',w.invoiceAmount!==''&&w.invoiceAmount!=null?rm(w.invoiceAmount):''],['Internal labour',w.labourCost?rm(w.labourCost):''],['Spares from store',partsCost(w)?rm(partsCost(w)):''],['Total cost',`<b class="num">${rm(woCost(w))}</b>`]])}</div>
+      ${w.recommendations?`<div><h3>Recommendations</h3><div style="white-space:pre-wrap">${esc(w.recommendations)}</div></div>`:''}
+      <div><h3>Verification</h3>${kv([['Reporting PIC',esc(w.reportingPIC)],['Verified by',esc(w.verifiedBy)],['Verified on',fmtD(w.verifiedDate)]])}</div>`,
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>woForm(id);const v=$('#dVerify',d);if(v)v.onclick=()=>verifyForm(id);$('#dF45',d).onclick=()=>downloadF45(id);$('#dF45p',d).onclick=()=>downloadF45(id,true);
+        $$('[data-asset]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)})}};
+  },
+  part(id,p){
+    const mv=(p.moves||[]).slice().reverse();
+    return{eyebrow:esc(p.code)+' · '+esc(p.category||'Spare'),title:p.name,pills:`<span class="pill ${lowStock(p)?(num(p.qty)<=0?'bad':'warn'):'ok'}">${num(p.qty)} ${esc(p.unit||'')} on hand</span>`+(p.foodGrade?'<span class="pill acc">Food-grade</span>':''),
+      body:`<div class="acts">${W(()=>'<button class="btn pri" data-mv="Receive">Receive stock</button><button class="btn" data-mv="Issue">Issue / use</button><button class="btn" data-mv="Adjust">Stock count</button><button class="btn" id="dEdit">Edit part</button>')}</div>
+      ${kv([['Re-order level',p.minQty===''||p.minQty==null?'':esc(p.minQty)+' '+esc(p.unit||'')],['Store / bin',esc(p.store)],['Unit cost',p.unitCost!==''&&p.unitCost!=null?rm(p.unitCost):''],['Stock value',rm(num(p.qty)*num(p.unitCost))],['Usual supplier',esc(sup(p.supplierId)?.name||'')],['Used on',esc(p.compatible)]])}
+      ${p.notes?`<div style="white-space:pre-wrap">${esc(p.notes)}</div>`:''}
+      <div><h3>Stock movements</h3>${mv.length?`<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>Movement</th><th class="r">Qty</th><th class="r">Balance</th></tr></thead><tbody>${mv.map(m=>`<tr><td class="num">${fmtD(m.date)}</td><td>${esc(m.type)}${m.ref?' · <span class="mono">'+esc(m.ref)+'</span>':''}${m.note?'<br><span class="muted">'+esc(m.note)+'</span>':''}<br><span class="muted">${who(m)}</span></td><td class="r num" style="color:${m.qty<0?'var(--bad)':'var(--ok)'}">${m.qty>0?'+':''}${esc(m.qty)}</td><td class="r num">${esc(m.bal)}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No movements yet. Receive stock when parts arrive and issue them when used.</span>'}</div>`,
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>partForm(id);$$('[data-mv]',d).forEach(b=>b.onclick=()=>moveForm(id,b.dataset.mv))}};
+  },
+  supplier(id,s){
+    const ws=Object.entries(S.workorders).filter(([,w])=>w.supplierId===id).sort((x,y)=>String(y[1].reportDate).localeCompare(String(x[1].reportDate)));
+    return{eyebrow:esc(s.kind||'Contractor / vendor'),title:s.name,pills:`<span class="pill ${({'Approved':'ok','Under evaluation':'warn','Not approved':'bad'})[s.approval]||''}">${esc(s.approval||'Approval not set')}</span>`+(s.safetyBriefed?'<span class="pill acc">Safety briefing signed</span>':''),
+      body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Edit</button>')}</div>
+      ${kv([['Services',esc(s.services)],['Contact',esc(s.contact)],['Phone',s.phone?`<span class="mono" style="user-select:all">${esc(s.phone)}</span>`:''],['Email',s.email?`<span style="user-select:all">${esc(s.email)}</span>`:''],['Next evaluation',s.evalDue?fmtD(s.evalDue)+' '+watchPill(dateWatch(s.evalDue)):''],['Invoiced to date',rm(ws.reduce((t,[,w])=>t+num(w.invoiceAmount),0))]])}
+      ${s.notes?`<div style="white-space:pre-wrap">${esc(s.notes)}</div>`:''}
+      <div><h3>Jobs done</h3>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(aLabel(w.assetId))}<br><span class="muted">${esc(w.title)}</span></td><td class="r num">${w.invoiceNo?esc(w.invoiceNo)+'<br>':''}${rm(w.invoiceAmount)}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs linked yet.</span>'}</div>`,
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>supForm(id)}};
+  }
+};
+
+/* ---------- attachments (supplier reports, invoices, photos) ---------- */
+const FILE_KINDS={incidents:['Photo','Medical certificate (MC)','JKKP 6 / JKKP 7 copy','Borang 34 copy','Police report','Investigation report','Other'],assets:['Photo','Manual','Warranty / certificate','Purchase invoice','Other'],workorders:['Supplier service report','Invoice','Photo – before','Photo – after','Quotation','Other'],parts:['Photo','Delivery order','Invoice','Spec / food-grade certificate','Other'],suppliers:['Certificate / licence','Supplier evaluation','Agreement','Safety briefing form','Other']};
+function filesBlock(coll,id,r){
+  const fs=r.files||[];
+  return`<div><h3>Attachments</h3>${fs.length?`<div class="files">${fs.map((f,i)=>{const img=String(f.ct).startsWith('image/');return`<div class="file"><a class="th" data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${img?`<img data-fp="${esc(f.id)}" alt="${esc(f.name)}" loading="lazy">`:'PDF'}</a><div class="m"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${esc(f.name)}</a><span class="muted">${esc(f.kind)} · ${fmtD((f.at||'').slice(0,10))}</span>${S.canWrite?`<button class="btn sm danger" data-rmf="${i}" type="button">Remove</button>`:''}</div></div>`}).join('')}</div>`:'<span class="muted">No files attached.</span>'}
+  ${S.canWrite?`<div class="toolbar" style="margin-bottom:0"><select id="fkind" style="width:auto" aria-label="Attachment type">${FILE_KINDS[coll].map(k=>opt(k)).join('')}</select><label class="btn" for="fcam" style="cursor:pointer">Take photo</label><input id="fcam" class="fin" type="file" accept="image/*" capture="environment" hidden><label class="btn" for="fup" style="cursor:pointer">Attach PDF or photo</label><input id="fup" class="fin" type="file" multiple accept="image/*,application/pdf" hidden></div><p class="muted" style="margin:6px 0 0;font-size:12px">PDF or photos up to 25 MB. Save Word or Excel reports as PDF first. File links stay valid for an hour; reopen the record for fresh ones.</p>`:''}</div>`;
+}
+function bindFiles(coll,id,root){
+  $$('.fin',root).forEach(up=>up.onchange=async()=>{
+    const kind=$('#fkind',root).value;const list=[...up.files];up.value='';
+    for(const f of list){
+      toast('Uploading '+f.name+'…');
+      try{const res=await uploadFile(coll,id,f);const r=S[coll][id];
+        await put(coll,id,{...r,files:[...(r.files||[]),{id:res.id,name:res.name,kind,ct:res.ct,size:res.size,at:new Date().toISOString(),by:S.me.name}]},'Attached '+kind+': '+res.name);
+        toast('Attached '+res.name);renderDetail();
+      }catch(e){if(e.message!=='ro'&&e.code!==409)toast(f.name+': '+e.message)}
+    }
+  });
+  $$('[data-rmf]',root).forEach(b=>b.onclick=()=>{const i=+b.dataset.rmf;const r=S[coll][id];const f=(r.files||[])[i];if(!f)return;
+    confirmBox('Remove attachment?',`“${esc(f.name)}” will be removed from this record and deleted from the server. This cannot be undone.`,'Remove file',async()=>{
+      const files=r.files.filter((_,j)=>j!==i);await put(coll,id,{...r,files},'Removed '+f.kind+': '+f.name);try{await sb.storage.from('attachments').remove([f.id])}catch(e){}renderDetail()})});
+}
+/* ---------- create / edit flows ---------- */
+/* ---------- bulk department / location ---------- */
+function bindBulk(el){
+  $$('[data-sel]',el).forEach(c=>c.onchange=()=>{c.checked?S.sel.add(c.dataset.sel):S.sel.delete(c.dataset.sel);renderList()});
+  const all=$('#selAll',el);if(all)all.onchange=()=>{const ids=filteredAssets().map(x=>x[0]);if(all.checked)ids.forEach(i=>S.sel.add(i));else ids.forEach(i=>S.sel.delete(i));renderList()};
+  const c=$('#bulkClear',el);if(c)c.onclick=()=>{S.sel.clear();renderList()};
+  const b=$('#bulkSet',el);if(b)b.onclick=bulkSet;
+}
+function bulkSet(){
+  const ids=[...S.sel].filter(i=>S.assets[i]);if(!ids.length)return;
+  const fields=[{k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments,req:true},{k:'location',label:'Location / room',type:'locsel',deptField:'dept'},{k:'date',label:'Date',type:'date',req:true}];
+  formSheet({title:`Set department & location · ${ids.length} asset(s)`,fields,data:{date:today()},extra:`<p class="muted" style="margin:0">Assets that already had a department or location get a location-history entry. Leave location blank to keep each asset's current room.</p>`,onSave:async v=>{
+    let done=0;const err=$('#ferr');
+    for(const id of ids){const a=S.assets[id];if(!a)continue;
+      const toLoc=v.location||a.location||'';
+      if(a.dept===v.dept&&(a.location||'')===toLoc){done++;continue}
+      const had=a.dept||a.location;const next={...a,dept:v.dept,location:toLoc};
+      if(had)next.moves=[...(a.moves||[]),{date:v.date,fromDept:a.dept||'',fromLoc:a.location||'',toDept:v.dept,toLoc,fromUser:a.assignedTo||'',toUser:a.assignedTo||'',reason:'Bulk update',at:new Date().toISOString(),...({by:S.me.id,name:S.me.name})}].slice(-100);
+      try{await put('assets',id,next,(had?'Moved ':'Department / location set: ')+(had?[a.dept,a.location].filter(Boolean).join(' · ')+' → ':'')+[v.dept,toLoc].filter(Boolean).join(' · ')+' (bulk)')}
+      catch(e){return`Stopped after ${done} of ${ids.length}: ${e.message||'save failed'}. Press Save to continue with the rest.`}
+      done++;S.sel.delete(id);if(done%10===0&&err){err.hidden=false;err.style.color='var(--muted)';err.textContent=`Saving… ${done} of ${ids.length}`}
+    }
+    S.sel.clear();toast(`${done} asset(s) updated`);renderList();
+  }});
+}
+/* ---------- locations manager ---------- */
+const inLoc=name=>Object.entries(S.assets).filter(([,a])=>a.location===name);
+function locationsHTML(){
+  const L=S.settings.locList.map((l,i)=>({...l,i})).sort((a,b)=>(a.dept||'~').localeCompare(b.dept||'~')||a.name.localeCompare(b.name));
+  const listed=new Set(L.map(l=>l.name.toLowerCase()));
+  const extra=[...new Set(Object.values(S.assets).map(a=>a.location).filter(n=>n&&!listed.has(n.toLowerCase())))];
+  return`<h2>Locations</h2><p class="muted" style="margin-top:-4px">Rooms and areas where assets sit. Link each one to a department so the asset form only offers that department’s rooms.</p>
+  ${S.canWrite?'<div class="toolbar"><span class="grow"></span><button class="btn pri" type="button" id="addLoc">Add location</button></div>':''}
+  <div class="tbl-wrap"><table><thead><tr><th>Location / room</th><th>Department</th><th class="r">Assets here</th><th></th></tr></thead><tbody>
+  ${L.map(l=>`<tr><td>${esc(l.name)}</td><td>${l.dept?esc(l.dept):'<span class="muted">Any department</span>'}</td><td class="r num">${inLoc(l.name).length}</td><td class="r" style="white-space:nowrap">${S.canWrite?`<button class="btn sm" type="button" data-le="${l.i}">Edit</button> <button class="btn sm danger" type="button" data-ld="${l.i}">Delete</button>`:''}</td></tr>`).join('')||`<tr><td colspan="4"><div class="empty"><b>No locations yet</b>Add the rooms and areas in your factory and office.</div></td></tr>`}
+  ${extra.map(n=>`<tr><td>${esc(n)} <span class="pill warn">Not in list</span></td><td class="muted">Used by assets</td><td class="r num">${inLoc(n).length}</td><td class="r">${S.canWrite?`<button class="btn sm" type="button" data-la="${esc(n)}">Add to list</button>`:''}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+function bindLocations(el){
+  const a=$('#addLoc',el);if(a)a.onclick=()=>locForm();
+  $$('[data-le]',el).forEach(b=>b.onclick=()=>locForm(+b.dataset.le));
+  $$('[data-ld]',el).forEach(b=>b.onclick=()=>locDelete(+b.dataset.ld));
+  $$('[data-la]',el).forEach(b=>b.onclick=async()=>{const n=b.dataset.la;const d=(inLoc(n)[0]||[,{}])[1].dept||'';try{await addLocations([{name:n,dept:d}]);renderList();toast('Added '+n)}catch(e){toast('Could not save: '+(e.message||''))}});
+}
+function locForm(i){
+  const cur=i==null?null:S.settings.locList[i];const n=cur?inLoc(cur.name).length:0;
+  const fields=[{k:'name',label:'Location / room name',req:true,ph:'e.g. Director room, Level 1'},{k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments}];
+  const extra=cur&&n?`<label class="check" for="f_cascade"><input type="checkbox" id="f_cascade" checked><span>Also update the ${n} asset(s) in this location if the name changes</span></label>`:'';
+  formSheet({title:cur?'Edit location':'Add location',fields,data:cur||{},extra,onSave:async v=>{
+    const L=S.settings.locList;const dup=L.find((l,j)=>j!==i&&l.name.toLowerCase()===v.name.toLowerCase());if(dup)return'“'+dup.name+'” is already in the list.';
+    const next=L.map(l=>({...l}));if(cur)next[i]={name:v.name,dept:v.dept};else next.push({name:v.name,dept:v.dept});
+    try{await saveSettings({locList:next},(cur?'Location edited: ':'Location added: ')+v.name)}catch(e){return'Could not save: '+(e.message||'')}
+    if(cur&&cur.name!==v.name&&n&&$('#f_cascade')?.checked){
+      for(const [aid,a] of inLoc(cur.name)){try{await put('assets',aid,{...a,location:v.name},`Location renamed: ${cur.name} → ${v.name}`)}catch(e){return'Some assets could not be updated: '+(e.message||'')}}
+    }
+    toast(cur?'Location updated':'Location added');renderList();
+  }});
+}
+function locDelete(i){
+  const cur=S.settings.locList[i];if(!cur)return;const users=inLoc(cur.name);
+  if(!users.length){confirmBox('Delete location?',`Remove “${esc(cur.name)}” from the list? No assets are in this location.`,'Delete',async()=>{await saveSettings({locList:S.settings.locList.filter((_,j)=>j!==i)},'Location deleted: '+cur.name);toast('Location deleted');renderList()});return}
+  const others=S.settings.locList.filter((_,j)=>j!==i).map(l=>l.name).sort((x,y)=>x.localeCompare(y));
+  const fields=[{k:'to',label:`Move its ${users.length} asset(s) to`,type:'select',opts:others,req:true},{k:'date',label:'Date',type:'date',req:true}];
+  formSheet({title:'Delete “'+cur.name+'”',fields,data:{date:today()},extra:`<p class="muted" style="margin:0">${users.length} asset(s) are in this location: ${users.slice(0,6).map(([,a])=>esc(a.code)).join(', ')}${users.length>6?'…':''}. Choose where they are now. Each one gets a location-history entry.</p>`,onSave:async v=>{
+    const dest=S.settings.locList.find(l=>l.name===v.to);
+    for(const [aid,a] of users){
+      const toDept=dest&&dest.dept?dest.dept:(a.dept||'');
+      const mv={date:v.date,fromDept:a.dept||'',fromLoc:a.location||'',toDept,toLoc:v.to,fromUser:a.assignedTo||'',toUser:a.assignedTo||'',reason:'Location “'+cur.name+'” removed from list',at:new Date().toISOString(),...({by:S.me.id,name:S.me.name})};
+      try{await put('assets',aid,{...a,dept:toDept,location:v.to,moves:[...(a.moves||[]),mv].slice(-100)},`Moved ${cur.name} → ${v.to} (old location removed from list)`)}catch(e){return'Some assets could not be moved: '+(e.message||'')}
+    }
+    try{await saveSettings({locList:S.settings.locList.filter(l=>l.name!==cur.name)},'Location deleted: '+cur.name)}catch(e){return'Could not save: '+(e.message||'')}
+    toast('Location deleted and '+users.length+' asset(s) moved');renderList();
+  }});
+}
+function moveAsset(id){
+  const a=S.assets[id];if(!a)return;
+  const fields=[{k:'dept',label:'Move to department',type:'select',opts:()=>S.settings.departments,req:true},
+    {k:'location',label:'Move to location / room',type:'locsel',deptField:'dept'},
+    {k:'assignedTo',label:'Assigned to / user',ph:'Change if the user changes too'},
+    {k:'date',label:'Date moved',type:'date',req:true},
+    {k:'reason',label:'Reason',full:true,ph:'e.g. Staff moved desk, replacing faulty unit, new room set-up'}];
+  const sh=formSheet({title:'Move '+a.code,fields,data:{dept:a.dept||'',location:'',assignedTo:a.assignedTo||'',date:today()},onSave:async v=>{
+    const cur=S.assets[id];
+    if(v.dept===(cur.dept||'')&&v.location===(cur.location||'')&&v.assignedTo===(cur.assignedTo||''))return'Nothing changed. Choose the new department, location or user.';
+    const from=[cur.dept,cur.location].filter(Boolean).join(' · ')||'—',to=[v.dept,v.location].filter(Boolean).join(' · ')||'—';
+    const mv={date:v.date,fromDept:cur.dept||'',fromLoc:cur.location||'',toDept:v.dept,toLoc:v.location,fromUser:cur.assignedTo||'',toUser:v.assignedTo,reason:v.reason,at:new Date().toISOString(),...({by:S.me.id,name:S.me.name})};
+    const next={...cur,dept:v.dept,location:v.location,assignedTo:v.assignedTo,moves:[...(cur.moves||[]),mv].slice(-100)};
+    await put('assets',id,next,`Moved ${from} → ${to}`+(mv.fromUser!==mv.toUser?`; user ${mv.fromUser||'—'} → ${mv.toUser||'—'}`:'')+(v.reason?` (${v.reason})`:''));
+    toast(a.code+' moved to '+to);renderList();renderDetail();
+  }});
+  if(sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent='Now at: '+([a.dept,a.location].filter(Boolean).join(' · ')||'no location set')+(a.assignedTo?' · user '+a.assignedTo:'');$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
+}
+function copyOf(src){const {history,files,moves,createdAt,createdBy,updatedAt,updatedBy,...rest}=src;return{...rest,code:nextCode(src.code),serial:'',faNo:'',location:'',assignedTo:'',lastPM:'',status:'Active'}}
+function assetForm(id,copyFrom){
+  const prev=id?S.assets[id]:null;const src=!prev&&copyFrom?S.assets[copyFrom]:null;
+  const data=prev||(src?copyOf(src):{status:'Active',pmInterval:'',calibInterval:''});
+  const sh=formSheet({title:prev?'Edit asset':src?'Add another unit':'Add asset',fields:F_ASSET,data,
+    danger:prev&&S.canAdmin?{label:'Delete asset',onClick:()=>confirmBox('Delete this asset?','For traceability, set the status to <b>Disposed</b> instead. Deleting removes the asset record; its work orders stay but lose the link.','Delete permanently',async()=>{await api('DELETE','/api/docs/assets/'+id);delete S.assets[id];closeLayer('drawer');renderList();toast('Asset deleted')})}:null,
+    onSave:async v=>{
+      const dup=Object.entries(S.assets).find(([k,a])=>k!==id&&String(a.code).toLowerCase()===v.code.toLowerCase());if(dup)return'Asset code '+v.code+' is already used by '+dup[1].name+'.';
+      const key=id||newId('assets');const next={...(prev||{}),...v};
+      await put('assets',key,next,src?'Created as another unit of '+src.code:diffAct(prev,next,F_ASSET));toast(prev?'Asset updated':'Asset added');renderList();if(prev)renderDetail();else openDetail('asset',key);
+    }});
+  if(src&&sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent=`Copied from ${src.code}. Check the asset code, then enter the serial no., department and location of this unit.`;$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
+}
+function supForm(id){
+  const prev=id?S.suppliers[id]:null;
+  formSheet({title:prev?'Edit contractor / vendor':'Add contractor / vendor',fields:F_SUP,data:prev||{approval:'Under evaluation'},
+    danger:prev&&S.canAdmin?{label:'Delete',onClick:()=>confirmBox('Delete this contractor?','Jobs linked to this company keep their invoice details but lose the company link.','Delete',async()=>{await api('DELETE','/api/docs/suppliers/'+id);delete S.suppliers[id];closeLayer('drawer');renderList()})}:null,
+    onSave:async v=>{const key=id||newId('suppliers');const next={...(prev||{}),...v};await put('suppliers',key,next,diffAct(prev,next,F_SUP));toast('Saved');renderList();if(prev)renderDetail()}});
+}
+function partForm(id){
+  const prev=id?S.parts[id]:null;
+  const fields=prev?F_PART:[...F_PART.slice(0,4),{k:'qty',label:'Opening stock',type:'number'},...F_PART.slice(4)];
+  formSheet({title:prev?'Edit part':'Add spare / consumable',fields,data:prev||{qty:0},
+    danger:prev&&S.canAdmin?{label:'Delete part',onClick:()=>confirmBox('Delete this part?','Its stock movement history will be deleted with it.','Delete',async()=>{await api('DELETE','/api/docs/parts/'+id);delete S.parts[id];closeLayer('drawer');renderList()})}:null,
+    onSave:async v=>{
+      const dup=Object.entries(S.parts).find(([k,p])=>k!==id&&String(p.code).toLowerCase()===v.code.toLowerCase());if(dup)return'Part code '+v.code+' already exists.';
+      const key=id||newId('parts');let next={...(prev||{}),...v};
+      if(!prev){next.qty=num(v.qty);next.moves=next.qty?[{date:today(),type:'Opening stock',qty:next.qty,bal:next.qty,by:S.me.id,name:S.me.name,at:new Date().toISOString()}]:[]}
+      await put('parts',key,next,diffAct(prev,next,F_PART));toast('Saved');renderList();if(prev)renderDetail();else openDetail('part',key);
+    }});
+}
+function moveForm(id,type){
+  const p=S.parts[id];
+  const fields=[{k:'date',label:'Date',type:'date',req:true},
+    type==='Adjust'?{k:'qty',label:'Counted quantity on shelf',type:'number',req:true}:{k:'qty',label:'Quantity ('+(p.unit||'units')+')',type:'number',req:true},
+    type==='Receive'?{k:'ref',label:'DO / invoice no.'}:type==='Issue'?{k:'assetId',label:'Used on asset',type:'select',opts:assetOpts}:null,
+    type==='Receive'?{k:'unitCost',label:'Unit cost (RM)',type:'number'}:null,
+    type==='Receive'?{k:'supplierId',label:'Supplier',type:'select',opts:supOpts}:null,
+    {k:'note',label:'Note',full:true}].filter(Boolean);
+  formSheet({title:({Receive:'Receive stock',Issue:'Issue / use stock',Adjust:'Stock count adjustment'})[type]+' · '+p.name,fields,data:{date:today(),unitCost:p.unitCost,supplierId:p.supplierId},
+    onSave:async v=>{
+      const cur=num(S.parts[id].qty);let q=num(v.qty);
+      if(type!=='Adjust'&&q<=0)return'Enter a quantity above zero.';
+      if(type==='Issue'){if(q>cur)return'Only '+cur+' '+(p.unit||'')+' in store.';q=-q}
+      const ref=type==='Issue'?(v.assetId?A(v.assetId)?.code:''):v.ref;
+      try{const r=await api('POST','/api/stock/'+id,{type:type==='Adjust'?'Stock count':type,delta:q,count:type==='Adjust'?num(v.qty):undefined,date:v.date,ref:ref||'',note:[v.note,type==='Receive'&&v.supplierId?sup(v.supplierId)?.name:''].filter(Boolean).join(' · '),unitCost:type==='Receive'?v.unitCost:undefined});
+        S.parts[id]=r.doc;toast('Stock updated: '+r.doc.qty+' '+(p.unit||''));renderList();renderDetail();}
+      catch(e){return e.message}
+    }});
+}
+function nextWONo(){
+  const d=new Date();const pre='WO-'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+'-';
+  const max=Object.values(S.workorders).filter(w=>String(w.no).startsWith(pre)).reduce((m,w)=>Math.max(m,parseInt(String(w.no).slice(pre.length))||0),0);
+  return pre+String(max+1).padStart(3,'0');
+}
+function lineRow(l){
+  const partOpts=Object.entries(S.parts).sort(byStr('code'));
+  return`<div class="line"><select class="lp" aria-label="Part"><option value="">Choose part…</option>${partOpts.map(([pid,p])=>`<option value="${pid}"${l.partId===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (${num(p.qty)} ${esc(p.unit||'')})</option>`).join('')}</select><input class="lq" type="number" step="any" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><span class="lc num muted">${l.partId?rm(num(l.qty)*num(l.unitCost)):''}</span><button type="button" class="btn sm lx" aria-label="Remove line">×</button></div>`;
+}
+function linesEditor(lines){
+  return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div>${Object.keys(S.parts).length?'<div><button type="button" class="btn sm" id="addLine">Add spare part</button></div>':'<p class="muted" style="margin:0">Add parts under Spares &amp; consumables to record what each job uses.</p>'}`;
+}
+function readLines(){return $$('#lines .line').map(r=>{const pid=$('.lp',r).value;const p=S.parts[pid];return pid?{partId:pid,name:p?.name||'',qty:num($('.lq',r).value),unitCost:num(p?.unitCost)}:null}).filter(l=>l&&l.qty>0)}
+function woForm(id,preset={}){
+  const prev=id?S.workorders[id]:null;
+  const data=prev||{type:'Breakdown / repair',status:'Open',priority:'Normal',reportDate:today(),performedBy:'',...preset};
+  let lines=(prev?.lines||[]).map(l=>({...l}));
+  const extra=()=>linesEditor(lines.length?lines:[])+(prev?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
+  const sh=formSheet({title:prev?'Update '+prev.no:'New work order',fields:F_WO,data,extra:extra(),
+    danger:prev&&S.canAdmin?{label:'Delete job',onClick:()=>confirmBox('Delete '+prev.no+'?','The job, its compliance record and links to attachments will be removed. Spares already deducted are not returned to stock.','Delete',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList()})}:null,
+    onSave:async v=>{
+      lines=readLines();
+      if(['Completed','Verified'].includes(v.status)&&!v.completedDate)return'Enter the date the work was completed.';
+      if(v.status==='Verified'){
+        const a=A(v.assetId);
+        if(!v.verifiedBy)return'Enter who verified the job (QA / HOD).';
+        if(a&&a.foodContact&&!(v.chkClearance&&v.chkTools))return'This is food-contact equipment. Confirm the foreign-matter check and hygiene clearance before verifying.';
+        if(!v.verifiedDate)v.verifiedDate=today();
+      }
+      if(v.status==='Completed'&&!prev?.partsPosted){for(const l of lines){const p=S.parts[l.partId];if(p&&num(l.qty)>num(p.qty))return`Only ${num(p.qty)} ${p.unit||''} of ${p.name} in store.`}}
+      const key=id||newId('workorders');
+      const next={...(prev||{}),...v,lines,no:prev?.no||nextWONo()};
+      const finishing=['Completed','Verified'].includes(next.status);
+      // deduct spares once, when the job is first completed
+      if(finishing&&!next.partsPosted&&lines.length){
+        for(const l of lines){if(!S.parts[l.partId])continue;
+          const r=await api('POST','/api/stock/'+l.partId,{type:'Issue',delta:-num(l.qty),date:next.completedDate||today(),ref:next.no,note:A(next.assetId)?.code||''});S.parts[l.partId]=r.doc}
+        next.partsPosted=true;
+      }
+      const act=prev?diffAct(prev,next,F_WO)+((JSON.stringify(prev.lines||[])!==JSON.stringify(lines))?'; spares list':''):'Created '+next.no+' ('+next.type+')';
+      await put('workorders',key,next,act);
+      // asset side effects
+      const a=A(next.assetId);
+      if(a){const upd={};const why=[];
+        if(!prev&&next.type==='Breakdown / repair'&&$('#f_markRepair')?.checked!==false&&a.status==='Active'&&!finishing){upd.status='Under repair';why.push('Status Active → Under repair')}
+        if(finishing&&!(prev&&['Completed','Verified'].includes(prev.status))){
+          if(a.status==='Under repair'){upd.status='Active';why.push('Status Under repair → Active')}
+          if(next.type==='Preventive maintenance'&&next.completedDate&&(!a.lastPM||next.completedDate>a.lastPM)){upd.lastPM=next.completedDate;why.push('Last PM '+fmtD(next.completedDate))}
+          if(next.type==='Calibration'&&next.completedDate&&a.calibInterval){upd.calibDue=addDays(next.completedDate,a.calibInterval);why.push('Calibration due '+fmtD(upd.calibDue))}
+        }
+        if(why.length)await put('assets',next.assetId,{...a,...upd},'From '+next.no+': '+why.join('; '));
+      }
+      toast(prev?next.no+' updated':next.no+' created');renderList();if(prev)renderDetail();else openDetail('wo',key);
+    }});
+  const bindLines=()=>{
+    $$('#lines .lx',sh).forEach(b=>b.onclick=()=>{b.closest('.line').remove()});
+    $$('#lines .lp,#lines .lq',sh).forEach(el=>el.oninput=()=>{const r=el.closest('.line');const p=S.parts[$('.lp',r).value];$('.lc',r).textContent=p?rm(num($('.lq',r).value)*num(p.unitCost)):''});
+  };
+  const al=$('#addLine',sh);if(al)al.onclick=()=>{$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:'',qty:1,unitCost:0}));bindLines()};
+  bindLines();
+  // suggest contractor's name when contractor chosen
+  const ps=$('#f_supplierId',sh),pb=$('#f_performedBy',sh);if(ps&&pb)ps.onchange=()=>{if(ps.value&&!pb.value)pb.value='External contractor / vendor'};
+}
+function verifyForm(id){
+  const w=S.workorders[id];const a=A(w.assetId);
+  const fields=[{k:'chkTools',label:'All tools, screws and debris removed: no foreign matter left on line',type:'check',full:true},{k:'chkClearance',label:'Area cleaned and hygiene clearance given before production restart',type:'check',full:true},{k:'verifiedBy',label:'Verified by (QA / HOD)',req:true},{k:'verifiedDate',label:'Verified on',type:'date',req:true}];
+  formSheet({title:'QA verification · '+w.no,fields,data:{...w,verifiedDate:w.verifiedDate||today()},onSave:async v=>{
+    if(a&&a.foodContact&&!(v.chkTools&&v.chkClearance))return'Food-contact equipment: both checks must be confirmed before verifying.';
+    await put('workorders',id,{...w,...v,status:'Verified'},'QA verified by '+v.verifiedBy);toast(w.no+' verified');renderList();renderDetail();
+  }});
+}
+
+/* ---------- exports ---------- */
+const csvCell=v=>{const s=String(v??'');return /[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+async function save(filename,data){
+  const type=filename.endsWith('.csv')?'text/csv;charset=utf-8':filename.endsWith('.html')?'text/html;charset=utf-8':'application/octet-stream';
+  const url=URL.createObjectURL(data instanceof Blob?data:new Blob([data],{type}));
+  const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),5000);
+}
+function exportCSV(coll){
+  const spec={
+    assets:[['Asset code','code'],['Fixed asset no','faNo'],['Name','name'],['Category','category'],['Department','dept'],['Location','location'],['Status','status'],['Criticality','criticality'],['Food contact',a=>a.foodContact?'Yes':'No'],['Manufacturer','manufacturer'],['Model','model'],['Serial no','serial'],['Supplier',a=>sup(a.supplierId)?.name||''],['Purchase date','purchaseDate'],['Warranty until','warrantyUntil'],['Assigned to','assignedTo'],['PM every (days)','pmInterval'],['Last PM','lastPM'],['Next PM',a=>pmInfo(a)?.due||''],['Calibration due','calibDue'],['Notes','notes']],
+    workorders:[['WO no','no'],['Report date','reportDate'],['Type','type'],['Asset code',w=>A(w.assetId)?.code||''],['Asset',w=>A(w.assetId)?.name||''],['Problem','title'],['Priority','priority'],['Status','status'],['Reported by','reportedBy'],['Performed by','performedBy'],['Contractor',w=>sup(w.supplierId)?.name||''],['Technician','technician'],['Start','startDate'],['Completed','completedDate'],['Downtime (h)','downtimeHrs'],['Tasks done','tasksDone'],['Hygiene check',w=>w.chkHygiene?'Y':'N'],['Safety check',w=>w.chkSafety?'Y':'N'],['Area isolated',w=>w.chkIsolated?'Y':'N'],['PPE',w=>w.chkPPE?'Y':'N'],['Foreign matter check',w=>w.chkTools?'Y':'N'],['Hygiene clearance',w=>w.chkClearance?'Y':'N'],['Supplier report no','supplierReportNo'],['Invoice no','invoiceNo'],['Invoice date','invoiceDate'],['Invoice (RM)','invoiceAmount'],['Labour (RM)','labourCost'],['Spares (RM)',w=>partsCost(w).toFixed(2)],['Total (RM)',w=>woCost(w).toFixed(2)],['Verified by','verifiedBy'],['Verified on','verifiedDate'],['Attachments',w=>(w.files||[]).length]],
+    parts:[['Part code','code'],['Name','name'],['Category','category'],['Unit','unit'],['On hand','qty'],['Re-order level','minQty'],['Store','store'],['Unit cost (RM)','unitCost'],['Value (RM)',p=>(num(p.qty)*num(p.unitCost)).toFixed(2)],['Food grade',p=>p.foodGrade?'Yes':'No'],['Supplier',p=>sup(p.supplierId)?.name||''],['Used on','compatible']],
+    suppliers:[['Company','name'],['Type','kind'],['Services','services'],['Contact','contact'],['Phone','phone'],['Email','email'],['Approval','approval'],['Next evaluation','evalDue'],['Safety briefing',s=>s.safetyBriefed?'Yes':'No'],['Jobs',s=>Object.values(S.workorders).filter(w=>w.supplierId===s._id).length]]
+  }[coll];
+  const rows=Object.entries(S[coll]).map(([id,r])=>({...r,_id:id}));
+  const csv='﻿'+[spec.map(c=>c[0]).join(','),...rows.map(r=>spec.map(([,k])=>csvCell(typeof k==='function'?k(r):r[k])).join(','))].join('\r\n');
+  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors'})[coll]}_${today()}.csv`,csv);
+}
+function downloadF45(id,print){
+  const w=S.workorders[id],a=A(w.assetId)||{},s=sup(w.supplierId)||{};
+  const yn=b=>b?'Yes':'No';const r=(k,v)=>`<tr><th>${k}</th><td>${esc(v)||'&nbsp;'}</td></tr>`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(w.no)} Machine Maintenance Upkeep Report</title><style>body{font:12px Arial,sans-serif;margin:28px;color:#111}h1{font-size:16px;margin:0}h2{font-size:13px;margin:18px 0 6px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #444;padding:5px 7px;text-align:left;vertical-align:top}th{background:#eee;width:36%}.hd{display:flex;justify-content:space-between;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}.sig td{height:60px}</style></head><body>
+<div class="hd"><div>Form No: F45<br>Revision: 03</div><div style="text-align:center"><h1>GFB FOOD SDN BHD</h1><b>Machine Maintenance Upkeep Report</b></div><div>Effective Date: 17 July 2025</div></div>
+<table>${r('Report Ref No',w.no)}${r('Internal Ref No (supplier report)',w.supplierReportNo)}${r('Report Date',fmtD(w.reportDate))}${r('Report Prepared by',w.reportingPIC||w.reportedBy)}${r('Dept. Location',place(a))}</table>
+<h2>1. Machine / Item Details</h2><table>${r('Manufacturer / Supplier',[a.manufacturer,s.name].filter(Boolean).join(' / '))}${r('Machine ID, Model',[a.code,a.model].filter(Boolean).join(', '))}${r('Machine / Item Name',a.name)}${r('Serial No',a.serial)}${r('Date of Last Maintenance',fmtD(a.lastPM))}${r('Next Maintenance Due / Plan',pmInfo(a)?.due?fmtD(pmInfo(a).due):'')}</table>
+<h2>2. Maintenance Performed</h2><table>${r('Maintenance Date',(w.startDate?fmtD(w.startDate)+' – ':'')+fmtD(w.completedDate))}${r('Performed by',[s.name||w.performedBy,w.technician].filter(Boolean).join(' – '))}${r('Reason',w.title)}${r('Tasks Details',w.tasksDone)}${r('Spares used',(w.lines||[]).map(l=>(S.parts[l.partId]?.name||l.name)+' x'+l.qty).join('; '))}${r('Invoice',[w.invoiceNo,w.invoiceDate&&fmtD(w.invoiceDate),w.invoiceAmount!==''&&w.invoiceAmount!=null?rm(w.invoiceAmount):''].filter(Boolean).join(' · '))}</table>
+<h2>3. Compliance</h2><table><tr><th style="width:6%">Sq</th><th style="width:64%">Task</th><th>Checked</th></tr>
+<tr><td>1</td><td>Hygiene Condition Checks</td><td>${yn(w.chkHygiene)}</td></tr><tr><td>2</td><td>Safety Condition Checks</td><td>${yn(w.chkSafety)}</td></tr><tr><td>3</td><td>Maintenance work areas were isolated from production zones to prevent contamination</td><td>${yn(w.chkIsolated)}</td></tr><tr><td>4</td><td>Technicians wore appropriate PPE during maintenance</td><td>${yn(w.chkPPE)}</td></tr><tr><td>5</td><td>No tools, screws or debris left on line (foreign matter check)</td><td>${yn(w.chkTools)}</td></tr><tr><td>6</td><td>Hygiene clearance given before production restart</td><td>${yn(w.chkClearance)}</td></tr></table>
+<h2>4. Recommendations</h2><table><tr><td style="height:50px">${esc(w.recommendations)||'&nbsp;'}</td></tr></table>
+<h2>5. Checked &amp; Verified by</h2><table class="sig"><tr><th style="width:33%">Handling by (Contractor / Vendor)</th><th style="width:33%">Reporting by (PIC GFB Food SB)</th><th>Verify By</th></tr><tr><td>${esc(w.technician)}</td><td>${esc(w.reportingPIC)}</td><td>${esc(w.verifiedBy)}</td></tr><tr><td>Date: ${fmtD(w.completedDate)}</td><td>Date: ${fmtD(w.reportDate)}</td><td>Date: ${fmtD(w.verifiedDate)}</td></tr></table>
+<p style="margin-top:14px;color:#555">Appendix: ${(w.files||[]).length} attachment(s) held in GFB Asset &amp; Maintenance (${(w.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}). Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+  if(print){const win=window.open('','_blank');if(!win){toast('Allow pop-ups for this site to print.');return}win.document.write(html.replace('</body>','<script>setTimeout(function(){window.print()},300)<\/script></body>'));win.document.close();return}
+  save(`${w.no}_F45_Maintenance_Report.html`,html);
+}
+
+/* ---------- CSV import (assets) ---------- */
+function parseCSV(t){const rows=[];let row=[],f='',q=false;t=t.replace(/^﻿/,'');for(let i=0;i<t.length;i++){const c=t[i];if(q){if(c==='"'){if(t[i+1]==='"'){f+='"';i++}else q=false}else f+=c}else if(c==='"')q=true;else if(c===','){row.push(f);f=''}else if(c==='\n'||c==='\r'){if(c==='\r'&&t[i+1]==='\n')i++;row.push(f);rows.push(row);row=[];f=''}else f+=c}if(f!==''||row.length){row.push(f);rows.push(row)}return rows.filter(r=>r.some(x=>x.trim()))}
+const toISO=s=>{s=String(s||'').trim();if(!s)return'';let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);if(m)return m[1]+'-'+pad(m[2])+'-'+pad(m[3]);m=s.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})$/);if(m)return m[3]+'-'+pad(m[2])+'-'+pad(m[1]);return''};
+const IMPORT_COLS=['code','name','category','department','location','status','criticality','food_contact','manufacturer','model','serial','purchase_date','warranty_until','assigned_to','pm_interval_days','last_pm','notes'];
+function importAssets(){
+  openSheet({title:'Import assets from CSV',body:`<p style="margin:0">Use one row per asset with these column headings (any order). Dates as DD/MM/YYYY. Existing asset codes are skipped.</p>
+  <div class="mono" style="background:var(--surface-2);padding:10px;border-radius:7px;overflow-x:auto;white-space:nowrap">${IMPORT_COLS.join(',')}</div>
+  <div class="acts"><button type="button" class="btn" id="tpl">Download template</button><label class="btn pri" for="csvf" style="cursor:pointer">Choose CSV file</label><input type="file" id="csvf" accept=".csv,text/csv" hidden></div><div id="imp"></div>`});
+  $('#tpl').onclick=()=>save('GFB_Asset_Import_Template.csv','﻿'+IMPORT_COLS.join(',')+'\r\n');
+  $('#csvf').onchange=async e=>{
+    const file=e.target.files[0];if(!file)return;const rows=parseCSV(await file.text());if(rows.length<2){$('#imp').innerHTML='<p class="err">No data rows found.</p>';return}
+    const h=rows[0].map(x=>x.trim().toLowerCase().replace(/\s+/g,'_'));const ix=k=>h.indexOf(k);
+    if(ix('code')<0||ix('name')<0){$('#imp').innerHTML='<p class="err">The file needs at least “code” and “name” columns.</p>';return}
+    const g=(r,k)=>ix(k)>=0?String(r[ix(k)]||'').trim():'';
+    const have=new Set(Object.values(S.assets).map(a=>String(a.code).toLowerCase()));let added=0,skipped=0;
+    $('#imp').innerHTML='<p class="muted">Importing…</p>';
+    for(const r of rows.slice(1)){
+      const code=g(r,'code'),name=g(r,'name');if(!code||!name||have.has(code.toLowerCase())){skipped++;continue}
+      const iv=g(r,'pm_interval_days');
+      const a={code,name,category:g(r,'category'),dept:g(r,'department'),location:g(r,'location'),status:ASSET_STATUS.includes(g(r,'status'))?g(r,'status'):'Active',criticality:g(r,'criticality'),foodContact:/^(y|yes|true|1)$/i.test(g(r,'food_contact')),manufacturer:g(r,'manufacturer'),model:g(r,'model'),serial:g(r,'serial'),purchaseDate:toISO(g(r,'purchase_date')),warrantyUntil:toISO(g(r,'warranty_until')),assignedTo:g(r,'assigned_to'),pmInterval:iv?String(parseInt(iv)||''):'',lastPM:toISO(g(r,'last_pm')),calibInterval:'',notes:g(r,'notes')};
+      try{await put('assets',newId('assets'),a,'Imported from CSV');have.add(code.toLowerCase());added++}catch(err){break}
+    }
+    try{await addLocations(Object.values(S.assets).filter(a=>a.location).map(a=>({name:a.location,dept:a.dept})))}catch(e){}
+    $('#imp').innerHTML=`<p><b>${added}</b> asset(s) imported${skipped?`, ${skipped} row(s) skipped (blank or code already exists)`:''}.</p>`;renderList();
+  };
+}
+
+/* ---------- incidents & accidents (NADOPOD Regulations 2004 / PERKESO) ---------- */
+const INC_CATS=['Accident – injury','Dangerous occurrence','Occupational poisoning','Occupational disease','Near miss','Property / equipment damage only'];
+const INC_SEV=['Fatal','Serious bodily injury (Schedule 1)','Lost time – more than 4 days','Lost time – 4 days or less','Medical treatment, no lost time','First aid only','No injury'];
+const INC_STATUS=['Reported','Under investigation','Action pending','Closed'];
+const PERSON_TYPES=['Employee','Foreign worker (employee)','Contractor','Visitor','Self-employed'];
+const hasPerson=i=>['Accident – injury','Occupational poisoning','Occupational disease'].includes(i.category);
+const lostTime=i=>i.category==='Accident – injury'&&(i.severity==='Fatal'||!!i.deathDate||i.severity==='Serious bodily injury (Schedule 1)'||i.severity==='Lost time – more than 4 days'||i.severity==='Lost time – 4 days or less'||num(i.daysLost)>0);
+function doshInfo(i){
+  const c=i.category,s=i.severity,acc=c==='Accident – injury';
+  const immediate=c==='Dangerous occurrence'||(acc&&(s==='Fatal'||s==='Serious bodily injury (Schedule 1)'));
+  const written=immediate||(acc&&!!i.deathDate)||(acc&&s==='Lost time – more than 4 days')||c==='Occupational poisoning'||c==='Occupational disease';
+  const form=(c==='Occupational poisoning'||c==='Occupational disease')?'JKKP 7':'JKKP 6';
+  const days=num(S.settings.dosh&&S.settings.dosh.reportDays)||7;
+  return{immediate,written,form,days,due:written&&i.incDate?addDays(i.incDate,days):''};
+}
+function perkesoInfo(i){
+  const need=hasPerson(i)&&['Employee','Foreign worker (employee)'].includes(i.personType)&&!!i.severity&&i.severity!=='No injury';
+  const hrs=num(S.settings.dosh&&S.settings.dosh.perkesoHours)||48;
+  let dueAt='';if(need&&i.incDate){const d=new Date(i.incDate+'T'+(i.incTime||'00:00'));d.setHours(d.getHours()+hrs);dueAt=d.toISOString()}
+  return{need,hrs,dueAt};
+}
+function doshPill(i){const d=doshInfo(i);if(!d.written)return'<span class="pill">Not notifiable to DOSH</span>';
+  if(i.doshReportDate)return`<span class="pill ok">${d.form} sent ${fmtD(i.doshReportDate)}</span>`;
+  const left=dayDiff(today(),d.due);return`<span class="pill ${left<0?'bad':left<=2?'warn':'info'}">${d.form} ${left<0?Math.abs(left)+' d overdue':'due '+fmtD(d.due)}</span>`}
+function perkesoPill(i){const p=perkesoInfo(i);if(!p.need)return'';if(i.perkesoDate)return`<span class="pill ok">Borang 34 sent ${fmtD(i.perkesoDate)}</span>`;
+  const late=Date.now()>new Date(p.dueAt).getTime();return`<span class="pill ${late?'bad':'warn'}">Borang 34 ${late?'overdue':'due '+fmtDT(p.dueAt)}</span>`}
+const incPending=i=>i.status!=='Closed'&&((doshInfo(i).immediate&&!i.doshNotifiedAt)||(doshInfo(i).written&&!i.doshReportDate)||(perkesoInfo(i).need&&!i.perkesoDate));
+const sevPill=i=>hasPerson(i)?`<span class="pill ${({'Fatal':'bad','Serious bodily injury (Schedule 1)':'bad','Lost time – more than 4 days':'bad','Lost time – 4 days or less':'warn','Medical treatment, no lost time':'warn'})[i.severity]||''}">${esc(i.severity||'Severity not set')}</span>`:`<span class="pill ${i.category==='Dangerous occurrence'?'bad':''}">${esc(i.category)}</span>`;
+const incStatusPill=s=>`<span class="pill ${({'Reported':'bad','Under investigation':'warn','Action pending':'warn','Closed':'ok'})[s]||''}">${esc(s||'Reported')}</span>`;
+const incWhen=i=>fmtD(i.incDate)+(i.incTime?' '+i.incTime:'');
+
+const F_INC=[
+  {type:'sec',label:'What happened'},
+  {k:'category',label:'Type',type:'select',opts:INC_CATS,req:true,blank:false},
+  {k:'incDate',label:'Date',type:'date',req:true},{k:'incTime',label:'Time',type:'time'},
+  {k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments},
+  {k:'location',label:'Location / room',type:'locsel',deptField:'dept'},
+  {k:'assetId',label:'Machine / equipment involved',type:'select',opts:()=>Object.entries(S.assets).sort(byStr('code')).map(([id,a])=>[id,a.code+' · '+a.name])},
+  {k:'title',label:'Short title',req:true,full:true,ph:'e.g. Hand cut by heat-sealer blade at packing line'},
+  {k:'activity',label:'What the person was doing at the time',type:'textarea',full:true},
+  {k:'description',label:'Description of what happened',type:'textarea',full:true,req:true},
+  {k:'reportedBy',label:'Reported by'},{k:'witnesses',label:'Witnesses'},
+  {k:'sceneKept',label:'Scene left undisturbed until authorised (needed after a death, serious injury or serious damage, NADOPOD reg. 9)',short:'Scene preserved',type:'check',full:true},
+  {type:'sec',label:'Person involved (accident, poisoning or disease)'},
+  {k:'personName',label:'Full name'},{k:'personType',label:'Employment type',type:'select',opts:PERSON_TYPES},
+  {k:'personEmployer',label:'Employer (if contractor)'},{k:'personIdNo',label:'IC / passport no. (for DOSH and PERKESO forms)'},
+  {k:'nationality',label:'Nationality'},{k:'gender',label:'Gender',type:'select',opts:['Male','Female']},
+  {k:'age',label:'Age',type:'number'},{k:'occupation',label:'Occupation / job title'},
+  {type:'sec',label:'Injury'},
+  {k:'severity',label:'Severity',type:'select',opts:INC_SEV},
+  {k:'injuryNature',label:'Nature of injury',ph:'e.g. cut, burn, fracture, sprain'},{k:'bodyPart',label:'Part of body'},
+  {k:'treatedAt',label:'Treated at (clinic / hospital)'},
+  {k:'daysLost',label:'Days lost (calendar days, counted from the day after)',type:'number'},
+  {k:'deathDate',label:'Date of death, if the person died later (within 1 year)',type:'date'},
+  {type:'sec',label:'Food safety'},
+  {k:'foodImpact',label:'Possible product or line contamination (blood, glass, metal, chemical)',short:'Food safety impact',type:'check',full:true},
+  {k:'foodAction',label:'Product held / line cleaned / batch numbers',full:true},
+  {type:'sec',label:'DOSH notification'},
+  {k:'doshNotifiedAt',label:'Nearest DOSH office notified (date & time)',type:'datetime-local'},
+  {k:'doshNotifyMethod',label:'How notified',type:'select',opts:['Phone','Email','Online portal','Fax','In person']},
+  {k:'doshNotifiedBy',label:'Notified by'},
+  {k:'doshReportDate',label:'Written report (JKKP 6 / JKKP 7) submitted on',type:'date'},
+  {k:'doshRef',label:'DOSH reference no.'},
+  {type:'sec',label:'PERKESO (employees)'},
+  {k:'perkesoDate',label:'Borang 34 submitted on',type:'date'},{k:'perkesoRef',label:'PERKESO reference no.'},
+  {type:'sec',label:'Investigation'},
+  {k:'immediateAction',label:'Immediate action taken',type:'textarea',full:true},
+  {k:'immediateCause',label:'Immediate cause',type:'textarea',full:true},
+  {k:'rootCause',label:'Root cause',type:'textarea',full:true},
+  {k:'investigatedBy',label:'Investigated by'},{k:'investigationDate',label:'Investigation date',type:'date'},
+  {k:'hirarcReviewed',label:'HIRARC reviewed and updated for this activity',short:'HIRARC reviewed',type:'check',full:true},
+  {type:'sec',label:'Status'},
+  {k:'status',label:'Status',type:'select',opts:INC_STATUS,blank:false},
+  {k:'closedBy',label:'Closed / verified by'},{k:'closedDate',label:'Closed on',type:'date'}
+];
+function nextIncNo(){
+  const d=new Date();const pre='INC-'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+'-';
+  const max=Object.values(S.incidents).filter(i=>String(i.no).startsWith(pre)).reduce((m,i)=>Math.max(m,parseInt(String(i.no).slice(pre.length))||0),0);
+  return pre+String(max+1).padStart(3,'0');
+}
+function capaRow(c){return`<div class="capa"><input class="ca-a" type="text" aria-label="Action" placeholder="Corrective / preventive action" value="${esc(c.action)}"><input class="ca-o" type="text" aria-label="Owner" placeholder="Owner" value="${esc(c.owner)}"><input class="ca-d" type="date" aria-label="Due date" value="${esc(c.due)}"><select class="ca-s" aria-label="Status">${opt('Open',c.status||'Open')}${opt('Done',c.status)}</select><button type="button" class="btn sm ca-x" aria-label="Remove action">×</button></div>`}
+function capaEditor(list){return`<div class="fgrid"><div class="sec">Corrective &amp; preventive actions (CAPA)</div></div><div class="lines" id="capa">${list.map(capaRow).join('')}</div><div><button type="button" class="btn sm" id="addCapa">Add action</button></div>`}
+function readCapa(prev){return $$('#capa .capa').map((r,ix)=>{const s=$('.ca-s',r).value;const p=(prev||[])[ix]||{};return{action:$('.ca-a',r).value.trim(),owner:$('.ca-o',r).value.trim(),due:$('.ca-d',r).value,status:s,doneDate:s==='Done'?(p.status==='Done'&&p.doneDate?p.doneDate:today()):''}}).filter(c=>c.action)}
+
+function incForm(id,preset={}){
+  const prev=id?S.incidents[id]:null;
+  const data=prev||{category:'Accident – injury',incDate:today(),status:'Reported',reportedBy:S.me.name,...preset};
+  const sh=formSheet({title:prev?'Update '+prev.no:'Report incident / accident',fields:F_INC,data,extra:capaEditor((prev&&prev.capa)||[]),
+    danger:prev&&S.canAdmin?{label:'Delete record',onClick:()=>confirmBox('Delete '+prev.no+'?','DOSH requires every register entry to be kept for at least 5 years (NADOPOD Regulations 2004, reg. 10). Delete only a record entered by mistake.','Delete',async()=>{await api('DELETE','/api/docs/incidents/'+id);delete S.incidents[id];closeLayer('drawer');renderList()})}:null,
+    onSave:async v=>{
+      const caps=readCapa(prev&&prev.capa);
+      if(hasPerson(v)&&!v.personName)return'Enter the name of the person involved.';
+      if(v.category==='Accident – injury'&&!v.severity)return'Choose the severity of the injury.';
+      const d=doshInfo(v),p=perkesoInfo(v);
+      if(v.status==='Closed'){
+        if(!v.investigatedBy)return'Enter who investigated before closing.';
+        if(caps.some(c=>c.status!=='Done'))return'Complete all corrective actions before closing.';
+        if(d.immediate&&!v.doshNotifiedAt)return'Record when the DOSH office was notified before closing.';
+        if(d.written&&!v.doshReportDate)return`Record the date the ${d.form} report was submitted before closing.`;
+        if(p.need&&!v.perkesoDate)return'Record the Borang 34 (PERKESO) submission before closing.';
+        if(!v.closedDate)v.closedDate=today();
+      }
+      const key=id||('inc-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
+      const next={...(prev||{}),...v,capa:caps,no:(prev&&prev.no)||nextIncNo()};
+      const act=prev?diffAct(prev,next,F_INC)+(JSON.stringify(prev.capa||[])!==JSON.stringify(caps)?'; actions (CAPA)':''):'Reported '+next.no+' ('+next.category+(next.severity&&hasPerson(next)?', '+next.severity:'')+')';
+      await put('incidents',key,next,act);
+      toast(d.immediate&&!next.doshNotifiedAt?'Saved. Notify the nearest DOSH office now by phone or email.':(prev?next.no+' updated':next.no+' recorded'));
+      renderList();if(prev)renderDetail();else openDetail('incident',key);
+    }});
+  if(!sh)return;
+  const bindCapa=()=>$$('#capa .ca-x',sh).forEach(b=>b.onclick=()=>b.closest('.capa').remove());
+  $('#addCapa',sh).onclick=()=>{$('#capa',sh).insertAdjacentHTML('beforeend',capaRow({status:'Open'}));bindCapa()};bindCapa();
+}
+
+DETAIL.incident=(id,i)=>{
+  const d=doshInfo(i),p=perkesoInfo(i),a=i.assetId&&A(i.assetId);
+  const alert=i.status!=='Closed'&&d.immediate&&!i.doshNotifiedAt?`<div class="banner" style="margin:0;background:var(--bad-soft)"><b>Notify DOSH now.</b> This ${i.category==='Dangerous occurrence'?'dangerous occurrence':'injury'} must be reported to the nearest DOSH office immediately by the quickest means (phone or email), then in writing on ${d.form} within ${d.days} days (by ${fmtD(d.due)}).</div>`:'';
+  return{eyebrow:'Incident · '+esc(i.no),title:i.title,pills:incStatusPill(i.status)+sevPill(i)+doshPill(i)+perkesoPill(i)+(i.foodImpact?'<span class="pill warn">Food safety impact</span>':''),
+    body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Update record</button>')}<button class="btn" id="dPrint">Print report</button><button class="btn" id="dDl">Download report</button></div>${alert}
+    ${kv([['Type',esc(i.category)],['Date & time',incWhen(i)],['Where',esc(place(i)||'')],['Equipment',a?`<a href="#" data-asset="${i.assetId}">${esc(a.code+' · '+a.name)}</a>`:''],['Reported by',esc(i.reportedBy)],['Witnesses',esc(i.witnesses)]])}
+    <div><h3>What happened</h3>${i.activity?`<p style="margin:0 0 6px"><b>Activity:</b> ${esc(i.activity)}</p>`:''}<div style="white-space:pre-wrap">${esc(i.description)}</div></div>
+    ${hasPerson(i)?`<div><h3>Person involved</h3>${kv([['Name',esc(i.personName)],['Employment',esc([i.personType,i.personEmployer].filter(Boolean).join(' · '))],['IC / passport',esc(i.personIdNo)],['Nationality',esc(i.nationality)],['Gender · age',esc([i.gender,i.age].filter(x=>x!==''&&x!=null).join(' · '))],['Occupation',esc(i.occupation)]])}</div>
+    <div><h3>Injury</h3>${kv([['Severity',esc(i.severity)],['Nature of injury',esc(i.injuryNature)],['Part of body',esc(i.bodyPart)],['Treated at',esc(i.treatedAt)],['Days lost',i.daysLost!==''&&i.daysLost!=null?esc(i.daysLost):''],['Date of death',i.deathDate?fmtD(i.deathDate):'']])}</div>`:''}
+    ${i.foodImpact||i.foodAction?`<div><h3>Food safety</h3><div>${i.foodImpact?'Possible product / line contamination. ':''}${esc(i.foodAction||'')}</div></div>`:''}
+    <div><h3>DOSH</h3>${kv([['Notifiable',d.written?(d.immediate?'Yes: immediate notice, then '+d.form+' within '+d.days+' days':'Yes: '+d.form+' within '+d.days+' days'):'No (keep in register)'],['Written report due',d.written?fmtD(d.due):''],['Office notified',i.doshNotifiedAt?fmtDT(i.doshNotifiedAt)+(i.doshNotifyMethod?' · '+esc(i.doshNotifyMethod):'')+(i.doshNotifiedBy?' · '+esc(i.doshNotifiedBy):''):''],['Report submitted',i.doshReportDate?fmtD(i.doshReportDate):''],['DOSH ref',esc(i.doshRef)]])}</div>
+    ${p.need?`<div><h3>PERKESO</h3>${kv([['Borang 34 due',fmtDT(p.dueAt)+` <span class="muted">(${p.hrs} h setting)</span>`],['Submitted',i.perkesoDate?fmtD(i.perkesoDate):''],['Reference',esc(i.perkesoRef)]])}</div>`:''}
+    <div><h3>Investigation</h3>${kv([['Investigated by',esc(i.investigatedBy)],['Date',fmtD(i.investigationDate)],['HIRARC reviewed',i.hirarcReviewed?'Yes':'Not yet'],['Scene preserved',i.sceneKept?'Yes':'']])}
+      ${['immediateAction','immediateCause','rootCause'].map(k=>i[k]?`<p style="margin:8px 0 0"><b>${({immediateAction:'Immediate action',immediateCause:'Immediate cause',rootCause:'Root cause'})[k]}:</b> ${esc(i[k])}</p>`:'').join('')}</div>
+    <div><h3>Corrective &amp; preventive actions</h3>${(i.capa||[]).length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${i.capa.map(c=>`<tr><td>${esc(c.action)}<br><span class="muted">${esc(c.owner||'')}</span></td><td class="num">${c.due?'Due '+fmtD(c.due):''}</td><td>${c.status==='Done'?`<span class="pill ok">Done ${fmtD(c.doneDate)}</span>`:`<span class="pill ${c.due&&c.due<today()?'bad':'warn'}">Open</span>`}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No actions recorded yet.</span>'}</div>
+    ${i.status==='Closed'?`<div><h3>Closed</h3>${kv([['Closed by',esc(i.closedBy)],['Closed on',fmtD(i.closedDate)]])}</div>`:''}`,
+    bind(dr){const e=$('#dEdit',dr);if(e)e.onclick=()=>incForm(id);$('#dPrint',dr).onclick=()=>incReport(id,true);$('#dDl',dr).onclick=()=>incReport(id,false);
+      $$('[data-asset]',dr).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)})}};
+};
+
+VIEW.incidents={
+  shell:()=>{const years=[...new Set(Object.values(S.incidents).map(i=>String(i.incDate||'').slice(0,4)).filter(Boolean).concat(String(new Date().getFullYear())))].sort().reverse();
+    return`<h2>Incidents &amp; accidents</h2><p class="muted" style="margin-top:-4px">Register under the NADOPOD Regulations 2004. Every accident, dangerous occurrence, occupational poisoning and disease goes in, whether or not it is notifiable. Keep entries at least 5 years; send the year's register extract to DOSH before 31 January.</p>
+    <div class="toolbar"><input class="grow" type="search" data-f="q" id="q_i" placeholder="Search ref, name, title, location…" value="${esc(fval('incidents','q'))}">
+    <select data-f="year" id="y_i" style="width:auto"><option value="">All years</option>${years.map(y=>opt(y,fval('incidents','year'))).join('')}</select>
+    <select data-f="cat" id="c_i" style="width:auto"><option value="">All types</option>${INC_CATS.map(c=>opt(c,fval('incidents','cat'))).join('')}</select>
+    <select data-f="status" id="s_i" style="width:auto">${[['','All statuses'],['open','Not closed'],['due','DOSH / PERKESO report due'],...INC_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('incidents','status'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addI">Report incident</button>')}<button class="btn" id="repI">Reports</button></div><div id="list"></div>`},
+  bind(){bindFilters('incidents');const a=$('#addI');if(a)a.onclick=()=>incForm();$('#repI').onclick=reportsSheet},
+  list(){
+    const q=fval('incidents','q'),y=fval('incidents','year'),c=fval('incidents','cat'),st=fval('incidents','status');
+    const rows=Object.entries(S.incidents).filter(([,i])=>(!y||String(i.incDate||'').startsWith(y))&&(!c||i.category===c)&&(!st||(st==='open'?i.status!=='Closed':st==='due'?incPending(i):i.status===st))&&match(q,i.no,i.title,i.personName,i.location,i.dept,i.description)).sort((a,b)=>String(b[1].incDate).localeCompare(String(a[1].incDate))||String(b[1].no).localeCompare(String(a[1].no)));
+    return`<div class="tbl-wrap"><table><thead><tr><th>Ref · date</th><th>What happened</th><th class="hs">Person</th><th>Type · severity</th><th>DOSH / PERKESO</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(([id,i])=>`<tr data-open="incident:${id}"><td class="mono">${esc(i.no)}<br><span class="muted">${incWhen(i)}</span></td><td>${esc(i.title)}<br><span class="muted">${esc(place(i))}</span></td><td class="hs">${esc(i.personName||'—')}${i.personType?'<br><span class="muted">'+esc(i.personType)+'</span>':''}</td><td>${sevPill(i)}</td><td>${doshPill(i)}${perkesoPill(i)?'<br>'+perkesoPill(i):''}</td><td>${incStatusPill(i.status)}</td></tr>`).join(''):emptyRow(6,Object.keys(S.incidents).length?'No records match':'No incidents recorded','Record every accident, dangerous occurrence, near miss and occupational illness here, including minor ones.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} record(s)</p>`;
+  }};
+
+/* ---------- reports ---------- */
+const REG_COLS=[['Ref no','no'],['Date',i=>fmtD(i.incDate)],['Time','incTime'],['Type','category'],['Severity','severity'],['Name','personName'],['IC / passport','personIdNo'],['Employment type','personType'],['Employer','personEmployer'],['Occupation','occupation'],['Nationality','nationality'],['Gender','gender'],['Age','age'],['Nature of injury','injuryNature'],['Part of body','bodyPart'],['Days lost','daysLost'],['Department','dept'],['Location','location'],['Equipment',i=>i.assetId&&A(i.assetId)?A(i.assetId).code+' '+A(i.assetId).name:''],['What happened',i=>[i.title,i.description].filter(Boolean).join(': ')],['DOSH notified',i=>i.doshNotifiedAt?fmtDT(i.doshNotifiedAt):''],['Written report',i=>{const d=doshInfo(i);return i.doshReportDate?d.form+' '+fmtD(i.doshReportDate):(d.written?'Due '+fmtD(d.due):'Not notifiable')}],['DOSH ref','doshRef'],['Borang 34',i=>i.perkesoDate?fmtD(i.perkesoDate):(perkesoInfo(i).need?'Pending':'')],['Root cause','rootCause'],['Status','status']];
+const cell=(i,k)=>typeof k==='function'?k(i):(i[k]??'');
+function incRows(year){return Object.values(S.incidents).filter(i=>!year||String(i.incDate||'').startsWith(year)).sort((a,b)=>String(a.incDate).localeCompare(String(b.incDate))||String(a.no).localeCompare(String(b.no)))}
+const CO=()=>esc((window.GFB_CONFIG&&window.GFB_CONFIG.companyName)||'GFB Food Sdn Bhd');
+const RPT_CSS='body{font:11px Arial,sans-serif;margin:24px;color:#111}h1{font-size:16px;margin:0 0 2px}h2{font-size:13px;margin:16px 0 6px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}.note{color:#444;margin-top:12px}.sig td{height:54px}@page{margin:12mm}';
+function outputDoc(html,filename,print){
+  if(print){const w=window.open('','_blank');if(!w){toast('Allow pop-ups for this site to print.');return}w.document.write(html.replace('</body>','<script>setTimeout(function(){window.print()},300)<\/script></body>'));w.document.close();return}
+  save(filename,html);
+}
+function incReport(id,print){
+  const i=S.incidents[id];const d=doshInfo(i),p=perkesoInfo(i),a=i.assetId&&A(i.assetId);
+  const r=(k,v)=>`<tr><th style="width:34%">${k}</th><td>${esc(v)||'&nbsp;'}</td></tr>`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(i.no)} Incident report</title><style>${RPT_CSS}</style></head><body>
+<div class="hd"><div><h1>${CO()}</h1><b>Incident &amp; Accident Investigation Report</b></div><div>Ref: <b>${esc(i.no)}</b><br>Status: ${esc(i.status||'Reported')}</div></div>
+<h2>1. Incident</h2><table>${r('Type',i.category)}${r('Date & time',incWhen(i))}${r('Department / location',place(i))}${r('Machine / equipment',a?a.code+' · '+a.name:'')}${r('Title',i.title)}${r('Activity at the time',i.activity)}${r('Description',i.description)}${r('Reported by',i.reportedBy)}${r('Witnesses',i.witnesses)}${r('Scene preserved (reg. 9)',i.sceneKept?'Yes':'')}</table>
+${hasPerson(i)?`<h2>2. Person involved</h2><table>${r('Name',i.personName)}${r('IC / passport no.',i.personIdNo)}${r('Employment type',i.personType)}${r('Employer (contractor)',i.personEmployer)}${r('Occupation',i.occupation)}${r('Nationality',i.nationality)}${r('Gender / age',[i.gender,i.age].filter(x=>x!==''&&x!=null).join(' / '))}</table>
+<h2>3. Injury</h2><table>${r('Severity',i.severity)}${r('Nature of injury',i.injuryNature)}${r('Part of body',i.bodyPart)}${r('Treated at',i.treatedAt)}${r('Days lost',i.daysLost)}${r('Date of death',i.deathDate?fmtD(i.deathDate):'')}</table>`:''}
+<h2>${hasPerson(i)?4:2}. Notifications</h2><table>${r('Notifiable to DOSH',d.written?(d.immediate?'Yes – immediate notice + '+d.form+' within '+d.days+' days':'Yes – '+d.form+' within '+d.days+' days'):'No – register entry only')}${r('DOSH office notified',i.doshNotifiedAt?fmtDT(i.doshNotifiedAt)+' '+(i.doshNotifyMethod||'')+' '+(i.doshNotifiedBy?'by '+i.doshNotifiedBy:''):'')}${r('Written report submitted',i.doshReportDate?d.form+' on '+fmtD(i.doshReportDate):(d.written?'Due '+fmtD(d.due):''))}${r('DOSH reference',i.doshRef)}${p.need?r('PERKESO Borang 34',i.perkesoDate?'Submitted '+fmtD(i.perkesoDate)+(i.perkesoRef?' · ref '+i.perkesoRef:''):'Pending (due '+fmtDT(p.dueAt)+')'):''}${r('Food safety impact',(i.foodImpact?'Yes. ':'')+(i.foodAction||''))}</table>
+<h2>${hasPerson(i)?5:3}. Investigation</h2><table>${r('Immediate action',i.immediateAction)}${r('Immediate cause',i.immediateCause)}${r('Root cause',i.rootCause)}${r('Investigated by / date',[i.investigatedBy,i.investigationDate&&fmtD(i.investigationDate)].filter(Boolean).join(' · '))}${r('HIRARC reviewed',i.hirarcReviewed?'Yes':'No')}</table>
+<h2>${hasPerson(i)?6:4}. Corrective &amp; preventive actions</h2><table><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>${(i.capa||[]).map(c=>`<tr><td>${esc(c.action)}</td><td>${esc(c.owner)}</td><td>${fmtD(c.due)}</td><td>${esc(c.status)}${c.doneDate?' '+fmtD(c.doneDate):''}</td></tr>`).join('')||'<tr><td colspan="4">None recorded</td></tr>'}</table>
+<h2>${hasPerson(i)?7:5}. Sign-off</h2><table class="sig"><tr><th>Reported by</th><th>Investigated by</th><th>Safety &amp; health officer / HOD</th><th>Management</th></tr><tr><td>${esc(i.reportedBy)}</td><td>${esc(i.investigatedBy)}</td><td></td><td>${esc(i.closedBy)}</td></tr><tr><td>Date:</td><td>Date: ${fmtD(i.investigationDate)}</td><td>Date:</td><td>Date: ${fmtD(i.closedDate)}</td></tr></table>
+<p class="note">Internal record. Notifiable accidents and dangerous occurrences must be notified to the nearest DOSH office immediately and reported in writing on the approved form (JKKP 6, or JKKP 7 for occupational poisoning / disease) within 7 days, under the OSH (NADOPOD) Regulations 2004. Attachments held in GFB Asset &amp; Maintenance: ${(i.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+  outputDoc(html,`${i.no}_Incident_Report.html`,print);
+}
+function registerDoc(year){
+  const rows=incRows(year);
+  return`<!doctype html><html><head><meta charset="utf-8"><title>Accident register ${esc(year)}</title><style>${RPT_CSS}@page{size:A4 landscape;margin:10mm}td,th{font-size:9.5px}</style></head><body>
+<div class="hd"><div><h1>${CO()}</h1><b>Register of Accidents, Dangerous Occurrences, Occupational Poisoning and Occupational Diseases · ${esc(year||'All years')}</b></div><div>${rows.length} entr${rows.length===1?'y':'ies'}</div></div>
+<table><tr>${REG_COLS.map(c=>`<th>${c[0]}</th>`).join('')}</tr>${rows.map(i=>`<tr>${REG_COLS.map(([,k])=>`<td>${esc(cell(i,k))}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${REG_COLS.length}">No entries</td></tr>`}</table>
+<p class="note">Kept under regulation 10 of the OSH (NADOPOD) Regulations 2004: every entry is kept at least 5 years, and the extract for the 12 months ending 31 December is sent to DOSH before 31 January. Use DOSH's approved form or system for the official submission. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+}
+function registerCSV(year){
+  const rows=incRows(year);
+  const csv='﻿'+[REG_COLS.map(c=>c[0]).join(','),...rows.map(i=>REG_COLS.map(([,k])=>csvCell(cell(i,k))).join(','))].join('\r\n');
+  save(`GFB_Accident_Register_${year||'all'}.csv`,csv);
+}
+function summaryDoc(year,workers,hours){
+  const rows=incRows(year);const acc=rows.filter(i=>i.category==='Accident – injury');
+  const cnt=f=>rows.filter(f).length;
+  const fatal=acc.filter(i=>i.severity==='Fatal'||i.deathDate).length;
+  const lt=acc.filter(i=>lostTime(i)&&!(i.severity==='Fatal'||i.deathDate)).length;
+  const nolt=acc.length-fatal-lt;
+  const days=acc.reduce((s,i)=>s+num(i.daysLost),0);
+  const ltAll=fatal+lt;
+  const rate=(n,d,m)=>d>0?(n/d*m).toFixed(2):'—';
+  const byType={};acc.forEach(i=>{const t=i.personType||'Not stated';byType[t]=(byType[t]||0)+1});
+  const tr=(a,b)=>`<tr><td>${a}</td><td style="text-align:right">${b}</td></tr>`;
+  return`<!doctype html><html><head><meta charset="utf-8"><title>OSH annual summary ${esc(year)}</title><style>${RPT_CSS}td:last-child{width:18%}</style></head><body>
+<div class="hd"><div><h1>${CO()}</h1><b>Occupational Safety &amp; Health · Annual Summary ${esc(year)}</b></div><div>Period 1 Jan – 31 Dec ${esc(year)}</div></div>
+<h2>Accidents</h2><table>${tr('Fatal accidents',fatal)}${tr('Non-fatal accidents with lost time',lt)}${tr('Accidents without lost time (medical treatment, first aid, no injury)',nolt)}${tr('<b>Total accidents</b>','<b>'+acc.length+'</b>')}${tr('Total days lost',days)}</table>
+<h2>Other events</h2><table>${tr('Dangerous occurrences',cnt(i=>i.category==='Dangerous occurrence'))}${tr('Occupational poisoning',cnt(i=>i.category==='Occupational poisoning'))}${tr('Occupational disease',cnt(i=>i.category==='Occupational disease'))}${tr('Near misses',cnt(i=>i.category==='Near miss'))}${tr('Property / equipment damage only',cnt(i=>i.category==='Property / equipment damage only'))}</table>
+<h2>Persons injured by employment type</h2><table>${Object.entries(byType).map(([k,v])=>tr(esc(k),v)).join('')||tr('None',0)}</table>
+<h2>Rates</h2><table>${tr('Average number of workers',workers||'not entered')}${tr('Total hours worked',hours?Number(hours).toLocaleString('en-MY'):'not entered')}${tr('Accident rate per 1,000 workers = (fatal + lost-time accidents) ÷ workers × 1,000',rate(ltAll,num(workers),1000))}${tr('Frequency rate = (fatal + lost-time accidents) ÷ hours worked × 1,000,000',rate(ltAll,num(hours),1e6))}${tr('Severity rate = days lost ÷ hours worked × 1,000,000',rate(days,num(hours),1e6))}</table>
+<h2>DOSH notifications in the year</h2><table>${tr('Notifiable events',rows.filter(i=>doshInfo(i).written).length)}${tr('Written reports submitted',rows.filter(i=>doshInfo(i).written&&i.doshReportDate).length)}${tr('Still outstanding',rows.filter(i=>doshInfo(i).written&&!i.doshReportDate).length)}</table>
+<p class="note">Prepared from the GFB accident register. The register extract for ${esc(year)} must reach DOSH before 31 January ${Number(year)+1} (NADOPOD Regulations 2004, reg. 10). Rate formulas are shown in each row so they can be checked. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+}
+function reportsSheet(){
+  const y=String(new Date().getFullYear());
+  const fields=[{k:'report',label:'Report',type:'select',blank:false,opts:[['register','Accident register (all entries)'],['summary','Annual summary with rates']]},{k:'year',label:'Year',req:true},{k:'workers',label:'Average no. of workers (annual summary)',type:'number'},{k:'hours',label:'Total hours worked (annual summary)',type:'number'}];
+  const sh=formSheet({title:'Incident reports',fields,data:{report:'register',year:fval('incidents','year')||y},
+    extra:`<div class="acts"><button type="button" class="btn pri" id="rPrint">Print / save as PDF</button><button type="button" class="btn" id="rHtml">Download (.html)</button><button type="button" class="btn" id="rCsv">Download register (.csv)</button></div><p class="muted" style="margin:0">The register lists every entry for the year. Send DOSH the extract for the year before 31 January.</p>`});
+  if(!sh)return;
+  $('#fsave',sh)?.remove();
+  const go2=(mode)=>{const v=readForm(fields);if(!/^\d{4}$/.test(v.year)){toast('Enter a 4-digit year.');return}
+    if(mode==='csv')return registerCSV(v.year);
+    const html=v.report==='summary'?summaryDoc(v.year,v.workers,v.hours):registerDoc(v.year);
+    outputDoc(html,v.report==='summary'?`GFB_OSH_Annual_Summary_${v.year}.html`:`GFB_Accident_Register_${v.year}.html`,mode==='print')};
+  $('#rPrint',sh).onclick=()=>go2('print');$('#rHtml',sh).onclick=()=>go2('html');$('#rCsv',sh).onclick=()=>go2('csv');
+}
+
+/* ---------- assets filter + QR labels ---------- */
+function filteredAssets(){
+  const q=fval('assets','q'),c=fval('assets','cat'),l=fval('assets','loc'),dp=fval('assets','dept'),st=fval('assets','status');
+  return Object.entries(S.assets).filter(([,a])=>(!c||a.category===c)&&(!l||a.location===l)&&(!dp||(dp==='__none'?!a.dept:a.dept===dp))&&(!st||a.status===st)&&match(q,a.code,a.faNo,a.name,a.dept,a.location,a.serial,a.model,a.manufacturer,a.assignedTo,a.notes)).sort(byStr('code'));
+}
+function qrSVG(text){const q=qrcode(0,'M');q.addData(text);q.make();return q.createSvgTag({cellSize:4,margin:2,scalable:true})}
+function printLabels(ids){
+  if(!ids.length){toast('No assets to print.');return}
+  const labels=ids.map(id=>{const a=A(id);return a?`<div class="lab"><div class="q">${qrSVG(location.origin+location.pathname+'#asset-'+id)}</div><div class="t"><b>${esc(a.code)}</b><span>${esc(a.name)}</span><small>${esc(place(a))}</small><em>Scan to view history or report a problem</em><small>GFB Food Sdn Bhd</small></div></div>`:''}).join('');
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>GFB asset QR labels</title><style>@page{margin:10mm}body{font:11px Arial,sans-serif;margin:0}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:4mm}.lab{border:1px dashed #999;padding:3mm;display:flex;gap:3mm;align-items:center;break-inside:avoid;height:32mm}.q{width:26mm;height:26mm;flex:none}.q svg{width:100%;height:100%}.t{display:flex;flex-direction:column;gap:1mm;min-width:0}.t b{font-size:14px}.t em{font-style:normal;color:#444}small{color:#555}</style></head><body><div class="g">${labels}</div><script>setTimeout(function(){window.print()},300)<\/script></body></html>`;
+  const w=window.open('','_blank');if(!w){toast('Allow pop-ups for this site to print labels.');return}w.document.write(html);w.document.close();
+}
+function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
+window.addEventListener('hashchange',routeHash);
+
+/* ---------- sign-in ---------- */
+function authCard(inner){closeLayer('sheet');closeLayer('drawer');$('#tabs').innerHTML='';$('#me').innerHTML='';$('#main').innerHTML=`<div class="login">${inner}</div>`}
+function showLogin(mode){
+  mode=mode||'signin';
+  const f=(id,label,type,ac)=>`<div class="field"><label for="${id}">${label}</label><input id="${id}" type="${type}" autocomplete="${ac}"${type==='email'?' autocapitalize="none" spellcheck="false"':''}></div>`;
+  const body={signin:`<h2>Sign in</h2>${f('l_user','Email','email','username')}${f('l_pass','Password','password','current-password')}<div class="err" id="lerr" hidden></div><button class="btn pri" type="submit">Sign in</button>
+      <p class="muted" style="margin:0;font-size:13px"><a href="#" data-m="signup">Request access</a> · <a href="#" data-m="forgot">Forgot password</a></p>`,
+    signup:`<h2>Request access</h2><p class="muted" style="margin:0">Create your account. An admin approves it before you can see records. The very first account becomes the admin.</p>${f('l_name','Full name','text','name')}${f('l_user','Work email','email','username')}${f('l_pass','Password (8+ characters)','password','new-password')}<div class="err" id="lerr" hidden></div><button class="btn pri" type="submit">Create account</button><p class="muted" style="margin:0;font-size:13px"><a href="#" data-m="signin">Back to sign in</a></p>`,
+    forgot:`<h2>Reset password</h2><p class="muted" style="margin:0">We'll email you a link to set a new password.</p>${f('l_user','Email','email','username')}<div class="err" id="lerr" hidden></div><button class="btn pri" type="submit">Send reset link</button><p class="muted" style="margin:0;font-size:13px"><a href="#" data-m="signin">Back to sign in</a></p>`,
+    newpw:`<h2>Set a new password</h2>${f('l_pass','New password (8+ characters)','password','new-password')}<div class="err" id="lerr" hidden></div><button class="btn pri" type="submit">Save password</button>`}[mode];
+  authCard(`<form id="lf" novalidate style="display:flex;flex-direction:column;gap:14px">${body}</form>`);
+  $$('[data-m]').forEach(a=>a.onclick=e=>{e.preventDefault();showLogin(a.dataset.m)});
+  $('#lf').onsubmit=async e=>{e.preventDefault();const er=$('#lerr');er.hidden=true;const v=id=>($('#'+id)||{}).value||'';
+    try{
+      if(mode==='signin'){await api('POST','/api/login',{username:v('l_user'),password:v('l_pass')});start()}
+      else if(mode==='signup'){if(!v('l_name').trim())throw ERR('Enter your full name.',400);const r=await api('POST','/api/signup',{name:v('l_name'),email:v('l_user'),password:v('l_pass')});
+        if(r.session)start();else authCard(`<h2>Check your email</h2><p style="margin:0">Open the confirmation link sent to <b>${esc(v('l_user'))}</b>, then come back and sign in. An admin then approves your access.</p><button class="btn" id="back">Back to sign in</button>`),$('#back').onclick=()=>showLogin()}
+      else if(mode==='forgot'){await api('POST','/api/forgot',{email:v('l_user')});authCard(`<h2>Check your email</h2><p style="margin:0">If <b>${esc(v('l_user'))}</b> has an account, a reset link is on its way.</p><button class="btn" id="back">Back to sign in</button>`);$('#back').onclick=()=>showLogin()}
+      else if(mode==='newpw'){await api('POST','/api/password',{next:v('l_pass')});history.replaceState(null,'',location.pathname);toast('Password saved');start()}
+    }catch(x){er.textContent=x.message;er.hidden=false}};
+  const first=$('#lf input');if(first)first.focus();
+}
+function renderMe(){
+  const me=S.me;const ini=me.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
+  $('#me').innerHTML=`<button type="button" id="meb" aria-haspopup="true"><span class="av">${esc(ini)}</span><span>${esc(me.name)}</span></button><div class="pop" id="mep" hidden><div class="muted" style="padding:6px 10px;font-size:12px">${esc(me.username)} · ${esc(me.role)}</div><button type="button" id="mpw">Change password</button><button type="button" id="mout">Sign out</button></div>`;
+  $('#meb').onclick=e=>{e.stopPropagation();$('#mep').hidden=!$('#mep').hidden};
+  document.addEventListener('click',()=>{const p=$('#mep');if(p)p.hidden=true});
+  $('#mout').onclick=async()=>{await api('POST','/api/logout');location.reload()};
+  $('#mpw').onclick=()=>{const fields=[{k:'current',label:'Current password',req:true},{k:'next',label:'New password (8+ characters)',req:true}];
+    const sh=formSheet({title:'Change password',fields,onSave:async v=>{try{await api('POST','/api/password',v);toast('Password changed')}catch(e){return e.message}}});$$('input',sh).forEach(i=>i.type='password')};
+}
+function applySettings(){const d=S.config.settings||{};S.settings=normSettings(d)}
+
+/* ---------- sync with Supabase (every 10 s while the app is open) ---------- */
+let syncing=false,syncT=null;
+async function sync(){
+  if(syncing||!S.me)return;syncing=true;
+  try{
+    const r=await api('GET','/api/sync?since='+S.seq);
+    if(r.full)COLLS.concat('config').forEach(c=>S[c]={});
+    r.docs.forEach(d=>{(S[d.coll]||(S[d.coll]={}))[d.id]=d.data});
+    (r.deleted||[]).forEach(d=>{if(S[d.coll])delete S[d.coll][d.id]});
+    const changed=r.docs.length||(r.deleted||[]).length;S.seq=r.seq;
+    if(r.full||r.docs.some(d=>d.coll==='config'))applySettings();
+    if(!S.ready){S.ready=true;renderShell();routeHash()}
+    else if(changed){const ae=document.activeElement;if(!(S.view==='settings'&&ae&&ae.tagName==='TEXTAREA'))renderList();if(!$('.sheet'))renderDetail()}
+    $('#offline')?.remove();
+  }catch(e){if(e.code==='offline'&&!$('#offline'))document.body.insertAdjacentHTML('beforeend','<div id="offline" class="toast">No internet connection. Changes can’t be saved until it is back.</div>')}
+  finally{syncing=false}
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});
+
+async function start(){
+  if(!sbClient()){authCard(`<h2>Not connected yet</h2><p style="margin:0">This copy of GFB Asset &amp; Maintenance has no database settings. Open <span class="mono">config.js</span> and paste your Supabase project URL and anon key, as described in the setup guide.</p>`);return}
+  if(/type=recovery/.test(location.hash)){showLogin('newpw');return}
+  let st;try{st=await api('GET','/api/status')}catch(e){authCard(`<h2>Can’t reach the database</h2><p style="margin:0">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Try again</button>`);return}
+  if(!st.user){showLogin();return}
+  if(!st.user.active){authCard(`<h2>Waiting for approval</h2><p style="margin:0">You're signed in as <b>${esc(st.user.username)}</b>. An admin needs to approve your account before you can see records. Ask them to open <b>Users</b> and activate you.</p><div class="acts"><button class="btn pri" onclick="location.reload()">Check again</button><button class="btn" id="so">Sign out</button></div>`);$('#so').onclick=async()=>{await api('POST','/api/logout');location.reload()};return}
+  S.me=st.user;S.canWrite=['admin','editor'].includes(st.user.role);S.canAdmin=st.user.role==='admin';
+  VIEWS=ALLVIEWS.filter(v=>(v[0]!=='users'||S.canAdmin)&&(v[0]!=='incidents'||S.me.incidents));
+  try{const v=localStorage.getItem('gfb_view');if(v&&VIEWS.some(x=>x[0]===v))S.view=v}catch(e){}
+  renderMe();S.ready=false;S.seq=0;await sync();
+  clearInterval(syncT);syncT=setInterval(()=>{if(document.visibilityState==='visible')sync()},10000);
+}
+if(sbClient())sb.auth.onAuthStateChange(ev=>{if(ev==='PASSWORD_RECOVERY')showLogin('newpw')});
+start();
+</script>
+</body></html>
