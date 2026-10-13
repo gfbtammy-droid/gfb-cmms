@@ -145,8 +145,11 @@ a{color:var(--accent)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
-.capa{display:grid;grid-template-columns:2fr 1fr 150px 90px 34px;gap:6px;align-items:center}
-@media (max-width:640px){.capa{grid-template-columns:1fr 1fr;padding-bottom:8px;border-bottom:1px dashed var(--line)}.capa .ca-a{grid-column:1/-1}}
+.capa{display:grid;grid-template-columns:2fr 1fr 150px 90px auto 34px;gap:6px;align-items:center}
+.capa .ca-ev{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}.capa .ca-ev:empty{display:none}
+.evc{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;max-width:100%}.evc a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}.evc button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;color:inherit}.evc.up{opacity:.6;padding-right:10px}
+.ev-list{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+@media (max-width:640px){.capa{grid-template-columns:1fr 1fr auto;padding-bottom:8px;border-bottom:1px dashed var(--line)}.capa .ca-a{grid-column:1/-1}.capa .ca-d{grid-column:2/-1}}
 td.mono,td .mono{white-space:nowrap}
 .qrgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
 @media (max-width:640px){table{min-width:0}.hs{display:none}.so{display:inline}.pill{white-space:normal}.kv{grid-template-columns:repeat(2,minmax(0,1fr))}td{padding:9px 10px}.btn{padding:10px 14px}.tiles{grid-template-columns:repeat(2,1fr)}.brand .sub{display:none}.drawer .hd h2,.sheet .hd h2{font-size:20px}}
@@ -1100,16 +1103,19 @@ function nextIncNo(){
   const max=Object.values(S.incidents).filter(i=>String(i.no).startsWith(pre)).reduce((m,i)=>Math.max(m,parseInt(String(i.no).slice(pre.length))||0),0);
   return pre+String(max+1).padStart(3,'0');
 }
-function capaRow(c){return`<div class="capa"><input class="ca-a" type="text" aria-label="Action" placeholder="Corrective / preventive action" value="${esc(c.action)}"><input class="ca-o" type="text" aria-label="Owner" placeholder="Owner" value="${esc(c.owner)}"><input class="ca-d" type="date" aria-label="Due date" value="${esc(c.due)}"><select class="ca-s" aria-label="Status">${opt('Open',c.status||'Open')}${opt('Done',c.status)}</select><button type="button" class="btn sm ca-x" aria-label="Remove action">×</button></div>`}
-function capaEditor(list){return`<div class="fgrid"><div class="sec">Corrective &amp; preventive actions (CAPA)</div></div><div class="lines" id="capa">${list.map(capaRow).join('')}</div><div><button type="button" class="btn sm" id="addCapa">Add action</button></div>`}
-function readCapa(prev){return $$('#capa .capa').map((r,ix)=>{const s=$('.ca-s',r).value;const p=(prev||[])[ix]||{};return{action:$('.ca-a',r).value.trim(),owner:$('.ca-o',r).value.trim(),due:$('.ca-d',r).value,status:s,doneDate:s==='Done'?(p.status==='Done'&&p.doneDate?p.doneDate:today()):''}}).filter(c=>c.action)}
+function evChips(ev,edit){return(ev||[]).map((f,i)=>`<span class="evc"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener" title="${esc(f.name)}">${String(f.ct).startsWith('image/')?'Photo':'PDF'}: ${esc(f.name)}</a>${edit?`<button type="button" class="ev-x" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button>`:''}</span>`).join('')}
+function capaRow(c){return`<div class="capa" data-ev="${esc(JSON.stringify(c.evidence||[]))}"><input class="ca-a" type="text" aria-label="Action" placeholder="Corrective / preventive action" value="${esc(c.action)}"><input class="ca-o" type="text" aria-label="Owner" placeholder="Owner" value="${esc(c.owner)}"><input class="ca-d" type="date" aria-label="Due date" value="${esc(c.due)}"><select class="ca-s" aria-label="Status">${opt('Open',c.status||'Open')}${opt('Done',c.status)}</select><label class="btn sm ca-f" style="cursor:pointer" title="Attach photo or PDF as evidence (optional)">Attach<input class="ca-in" type="file" multiple accept="image/*,application/pdf" hidden aria-label="Attach evidence"></label><button type="button" class="btn sm ca-x" aria-label="Remove action">×</button><div class="ca-ev">${evChips(c.evidence,true)}</div></div>`}
+function capaEditor(list){return`<div class="fgrid"><div class="sec">Corrective &amp; preventive actions (CAPA)</div></div><div class="lines" id="capa">${list.map(capaRow).join('')}</div><div><button type="button" class="btn sm" id="addCapa">Add action</button> <span class="muted" style="font-size:12px">Evidence (photo or PDF) is optional. Use Attach on each action.</span></div>`}
+function readCapa(prev){return $$('#capa .capa').map((r,ix)=>{const s=$('.ca-s',r).value;const p=(prev||[])[ix]||{};return{action:$('.ca-a',r).value.trim(),owner:$('.ca-o',r).value.trim(),due:$('.ca-d',r).value,status:s,evidence:JSON.parse(r.dataset.ev||'[]'),doneDate:s==='Done'?(p.status==='Done'&&p.doneDate?p.doneDate:today()):''}}).filter(c=>c.action)}
 
 function incForm(id,preset={}){
   const prev=id?S.incidents[id]:null;
   const data=prev||{category:'Accident – injury',incDate:today(),status:'Reported',reportedBy:S.me.name,...preset};
+  const key=id||('inc-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));let evPending=0;
   const sh=formSheet({title:prev?'Update '+prev.no:'Report incident / accident',fields:F_INC,data,extra:capaEditor((prev&&prev.capa)||[]),
     danger:prev&&S.canAdmin?{label:'Delete record',onClick:()=>confirmBox('Delete '+prev.no+'?','DOSH requires every register entry to be kept for at least 5 years (NADOPOD Regulations 2004, reg. 10). Delete only a record entered by mistake.','Delete',async()=>{await api('DELETE','/api/docs/incidents/'+id);delete S.incidents[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{
+      if(evPending)return'Please wait for the evidence upload to finish.';
       const caps=readCapa(prev&&prev.capa);
       if(hasPerson(v)&&!v.personName)return'Enter the name of the person involved.';
       if(v.category==='Accident – injury'&&!v.severity)return'Choose the severity of the injury.';
@@ -1122,7 +1128,6 @@ function incForm(id,preset={}){
         if(p.need&&!v.perkesoDate)return'Record the Borang 34 (PERKESO) submission before closing.';
         if(!v.closedDate)v.closedDate=today();
       }
-      const key=id||('inc-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));
       const next={...(prev||{}),...v,capa:caps,no:(prev&&prev.no)||nextIncNo()};
       const act=prev?diffAct(prev,next,F_INC)+(JSON.stringify(prev.capa||[])!==JSON.stringify(caps)?'; actions (CAPA)':''):'Reported '+next.no+' ('+next.category+(next.severity&&hasPerson(next)?', '+next.severity:'')+')';
       await put('incidents',key,next,act);
@@ -1130,8 +1135,17 @@ function incForm(id,preset={}){
       renderList();if(prev)renderDetail();else openDetail('incident',key);
     }});
   if(!sh)return;
-  const bindCapa=()=>$$('#capa .ca-x',sh).forEach(b=>b.onclick=()=>b.closest('.capa').remove());
-  $('#addCapa',sh).onclick=()=>{$('#capa',sh).insertAdjacentHTML('beforeend',capaRow({status:'Open'}));bindCapa()};bindCapa();
+  const box=$('#capa',sh);
+  const redraw=row=>{const ev=JSON.parse(row.dataset.ev||'[]');$('.ca-ev',row).innerHTML=evChips(ev,true)+(row._up?`<span class="evc up">Uploading ${row._up}…</span>`:'');fillFiles(row)};
+  box.addEventListener('click',e=>{const x=e.target.closest('.ca-x');if(x){x.closest('.capa').remove();return}
+    const r=e.target.closest('.ev-x');if(r){const row=r.closest('.capa');const ev=JSON.parse(row.dataset.ev||'[]');ev.splice(+r.dataset.i,1);row.dataset.ev=JSON.stringify(ev);redraw(row)}});
+  box.addEventListener('change',async e=>{const inp=e.target.closest('.ca-in');if(!inp)return;const row=inp.closest('.capa');const list=[...inp.files];inp.value='';
+    for(const f of list){evPending++;row._up=f.name;redraw(row);
+      try{const res=await uploadFile('incidents',key,f);const ev=JSON.parse(row.dataset.ev||'[]');ev.push({id:res.id,name:res.name,ct:res.ct,size:res.size,at:new Date().toISOString(),by:S.me.name});row.dataset.ev=JSON.stringify(ev)}
+      catch(err){toast(f.name+': '+err.message)}
+      finally{evPending--;row._up='';redraw(row)}}});
+  $('#addCapa',sh).onclick=()=>box.insertAdjacentHTML('beforeend',capaRow({status:'Open'}));
+  fillFiles(box);
 }
 
 DETAIL.incident=(id,i)=>{
@@ -1148,7 +1162,7 @@ DETAIL.incident=(id,i)=>{
     ${p.need?`<div><h3>PERKESO</h3>${kv([['Borang 34 due',fmtDT(p.dueAt)+` <span class="muted">(${p.hrs} h setting)</span>`],['Submitted',i.perkesoDate?fmtD(i.perkesoDate):''],['Reference',esc(i.perkesoRef)]])}</div>`:''}
     <div><h3>Investigation</h3>${kv([['Investigated by',esc(i.investigatedBy)],['Date',fmtD(i.investigationDate)],['HIRARC reviewed',i.hirarcReviewed?'Yes':'Not yet'],['Scene preserved',i.sceneKept?'Yes':'']])}
       ${['immediateAction','immediateCause','rootCause'].map(k=>i[k]?`<p style="margin:8px 0 0"><b>${({immediateAction:'Immediate action',immediateCause:'Immediate cause',rootCause:'Root cause'})[k]}:</b> ${esc(i[k])}</p>`:'').join('')}</div>
-    <div><h3>Corrective &amp; preventive actions</h3>${(i.capa||[]).length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${i.capa.map(c=>`<tr><td>${esc(c.action)}<br><span class="muted">${esc(c.owner||'')}</span></td><td class="num">${c.due?'Due '+fmtD(c.due):''}</td><td>${c.status==='Done'?`<span class="pill ok">Done ${fmtD(c.doneDate)}</span>`:`<span class="pill ${c.due&&c.due<today()?'bad':'warn'}">Open</span>`}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No actions recorded yet.</span>'}</div>
+    <div><h3>Corrective &amp; preventive actions</h3>${(i.capa||[]).length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${i.capa.map(c=>`<tr><td>${esc(c.action)}<br><span class="muted">${esc(c.owner||'')}</span>${(c.evidence||[]).length?`<div class="ev-list">${evChips(c.evidence,false)}</div>`:''}</td><td class="num">${c.due?'Due '+fmtD(c.due):''}</td><td>${c.status==='Done'?`<span class="pill ok">Done ${fmtD(c.doneDate)}</span>`:`<span class="pill ${c.due&&c.due<today()?'bad':'warn'}">Open</span>`}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No actions recorded yet.</span>'}</div>
     ${i.status==='Closed'?`<div><h3>Closed</h3>${kv([['Closed by',esc(i.closedBy)],['Closed on',fmtD(i.closedDate)]])}</div>`:''}`,
     bind(dr){const e=$('#dEdit',dr);if(e)e.onclick=()=>incForm(id);$('#dPrint',dr).onclick=()=>incReport(id,true);$('#dDl',dr).onclick=()=>incReport(id,false);
       $$('[data-asset]',dr).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)})}};
@@ -1189,7 +1203,7 @@ ${hasPerson(i)?`<h2>2. Person involved</h2><table>${r('Name',i.personName)}${r('
 <h2>3. Injury</h2><table>${r('Severity',i.severity)}${r('Nature of injury',i.injuryNature)}${r('Part of body',i.bodyPart)}${r('Treated at',i.treatedAt)}${r('Days lost',i.daysLost)}${r('Date of death',i.deathDate?fmtD(i.deathDate):'')}</table>`:''}
 <h2>${hasPerson(i)?4:2}. Notifications</h2><table>${r('Notifiable to DOSH',d.written?(d.immediate?'Yes – immediate notice + '+d.form+' within '+d.days+' days':'Yes – '+d.form+' within '+d.days+' days'):'No – register entry only')}${r('DOSH office notified',i.doshNotifiedAt?fmtDT(i.doshNotifiedAt)+' '+(i.doshNotifyMethod||'')+' '+(i.doshNotifiedBy?'by '+i.doshNotifiedBy:''):'')}${r('Written report submitted',i.doshReportDate?d.form+' on '+fmtD(i.doshReportDate):(d.written?'Due '+fmtD(d.due):''))}${r('DOSH reference',i.doshRef)}${p.need?r('PERKESO Borang 34',i.perkesoDate?'Submitted '+fmtD(i.perkesoDate)+(i.perkesoRef?' · ref '+i.perkesoRef:''):'Pending (due '+fmtDT(p.dueAt)+')'):''}${r('Food safety impact',(i.foodImpact?'Yes. ':'')+(i.foodAction||''))}</table>
 <h2>${hasPerson(i)?5:3}. Investigation</h2><table>${r('Immediate action',i.immediateAction)}${r('Immediate cause',i.immediateCause)}${r('Root cause',i.rootCause)}${r('Investigated by / date',[i.investigatedBy,i.investigationDate&&fmtD(i.investigationDate)].filter(Boolean).join(' · '))}${r('HIRARC reviewed',i.hirarcReviewed?'Yes':'No')}</table>
-<h2>${hasPerson(i)?6:4}. Corrective &amp; preventive actions</h2><table><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>${(i.capa||[]).map(c=>`<tr><td>${esc(c.action)}</td><td>${esc(c.owner)}</td><td>${fmtD(c.due)}</td><td>${esc(c.status)}${c.doneDate?' '+fmtD(c.doneDate):''}</td></tr>`).join('')||'<tr><td colspan="4">None recorded</td></tr>'}</table>
+<h2>${hasPerson(i)?6:4}. Corrective &amp; preventive actions</h2><table><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>${(i.capa||[]).map(c=>`<tr><td>${esc(c.action)}${(c.evidence||[]).length?`<br><small>Evidence: ${c.evidence.map(f=>esc(f.name)).join('; ')}</small>`:''}</td><td>${esc(c.owner)}</td><td>${fmtD(c.due)}</td><td>${esc(c.status)}${c.doneDate?' '+fmtD(c.doneDate):''}</td></tr>`).join('')||'<tr><td colspan="4">None recorded</td></tr>'}</table>
 <h2>${hasPerson(i)?7:5}. Sign-off</h2><table class="sig"><tr><th>Reported by</th><th>Investigated by</th><th>Safety &amp; health officer / HOD</th><th>Management</th></tr><tr><td>${esc(i.reportedBy)}</td><td>${esc(i.investigatedBy)}</td><td></td><td>${esc(i.closedBy)}</td></tr><tr><td>Date:</td><td>Date: ${fmtD(i.investigationDate)}</td><td>Date:</td><td>Date: ${fmtD(i.closedDate)}</td></tr></table>
 <p class="note">Internal record. Notifiable accidents and dangerous occurrences must be notified to the nearest DOSH office immediately and reported in writing on the approved form (JKKP 6, or JKKP 7 for occupational poisoning / disease) within 7 days, under the OSH (NADOPOD) Regulations 2004. Attachments held in GFB Asset &amp; Maintenance: ${(i.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
   outputDoc(html,`${i.no}_Incident_Report.html`,print);
