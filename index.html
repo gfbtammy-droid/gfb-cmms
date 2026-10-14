@@ -910,7 +910,12 @@ function lineRow(l){
   return`<div class="line"><select class="lp" aria-label="Part"><option value="">Choose part…</option>${partOpts.map(([pid,p])=>`<option value="${pid}"${l.partId===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (${num(p.qty)} ${esc(p.unit||'')})</option>`).join('')}</select><input class="lq" type="number" step="any" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><span class="lc num muted">${l.partId?rm(num(l.qty)*num(l.unitCost)):''}</span><button type="button" class="btn sm lx" aria-label="Remove line">×</button></div>`;
 }
 function linesEditor(lines){
-  return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div>${Object.keys(S.parts).length?'<div><button type="button" class="btn sm" id="addLine">Add spare part</button></div>':'<p class="muted" style="margin:0">Add parts under Spares &amp; consumables to record what each job uses.</p>'}`;
+  return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div><div class="acts" style="margin:0"><button type="button" class="btn sm" id="addLine"${Object.keys(S.parts).length?'':' hidden'}>Add spare part</button><button type="button" class="btn sm" id="newPartBtn">＋ New part (not in list yet)</button></div>
+  <div id="newPart" class="panel" hidden style="padding:12px"><b>New spare / consumable</b><p class="muted" style="margin:2px 0 8px;font-size:12px">It is saved to Spares &amp; consumables and added to this job. Enter the quantity bought or in store now; the job deducts what it uses when it is marked Completed.</p>
+   <div class="fgrid"><div class="field"><label for="np_code">Part code *</label><input id="np_code" type="text" placeholder="e.g. SP-DOOR-PLATE"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
+   <div class="field"><label for="np_unit">Unit</label><input id="np_unit" type="text" placeholder="pcs, roll, litre"></div><div class="field"><label for="np_cost">Unit cost (RM)</label><input id="np_cost" type="number" step="any" inputmode="decimal"></div>
+   <div class="field"><label for="np_qty">Quantity bought / in store now</label><input id="np_qty" type="number" step="any" inputmode="decimal"></div><div class="field"><label for="np_use">Used on this job</label><input id="np_use" type="number" step="any" inputmode="decimal" value="1"></div></div>
+   <div class="acts" style="margin-top:8px"><button type="button" class="btn pri sm" id="np_save">Save part &amp; add to job</button><button type="button" class="btn sm" id="np_cancel">Cancel</button></div><div class="err" id="np_err" hidden></div></div>`;
 }
 function readLines(){return $$('#lines .line').map(r=>{const pid=$('.lp',r).value;const p=S.parts[pid];return pid?{partId:pid,name:p?.name||'',qty:num($('.lq',r).value),unitCost:num(p?.unitCost)}:null}).filter(l=>l&&l.qty>0)}
 function woForm(id,preset={}){
@@ -965,6 +970,23 @@ function woForm(id,preset={}){
     $$('#lines .lp,#lines .lq',sh).forEach(el=>el.oninput=()=>{const r=el.closest('.line');const p=S.parts[$('.lp',r).value];$('.lc',r).textContent=p?rm(num($('.lq',r).value)*num(p.unitCost)):''});
   };
   const al=$('#addLine',sh);if(al)al.onclick=()=>{$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:'',qty:1,unitCost:0}));bindLines()};
+  const np=$('#newPart',sh),nb=$('#newPartBtn',sh);
+  if(nb)nb.onclick=()=>{np.hidden=false;nb.hidden=true;$('#np_code',sh).focus()};
+  if(np){$('#np_cancel',sh).onclick=()=>{np.hidden=true;nb.hidden=false};
+    $('#np_save',sh).onclick=async()=>{const err=$('#np_err',sh);err.hidden=true;const g=k=>$('#np_'+k,sh).value.trim();
+      const code=g('code'),name=g('name'),qty=num(g('qty')),use=num(g('use'));
+      const fail=m=>{err.textContent=m;err.hidden=false};
+      if(!code||!name)return fail('Enter the part code and name.');
+      if(Object.values(S.parts).some(p=>String(p.code).toLowerCase()===code.toLowerCase()))return fail('Part code '+code+' already exists. Use “Add spare part” to pick it.');
+      if(use>0&&qty<use)return fail('Quantity bought / in store must be at least the quantity used on this job.');
+      const key=newId('parts');const part={code,name,unit:g('unit'),unitCost:g('cost')===''?'':num(g('cost')),qty,minQty:'',moves:qty?[{date:today(),type:'Opening stock',qty,bal:qty,by:S.me.id,name:S.me.name,at:new Date().toISOString()}]:[]};
+      const b=$('#np_save',sh);b.disabled=true;
+      try{await put('parts',key,part,'Created from work order form');}catch(e){b.disabled=false;return fail(e.message||'Could not save the part.')}
+      b.disabled=false;
+      $$('#lines .lp',sh).forEach(sel=>{if(!sel.querySelector(`option[value="${key}"]`))sel.insertAdjacentHTML('beforeend',`<option value="${key}">${esc(code)} · ${esc(name)} (${qty} ${esc(part.unit||'')})</option>`)});
+      if(use>0){$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:key,qty:use,unitCost:num(part.unitCost)}));bindLines()}
+      ['code','name','unit','cost','qty'].forEach(k=>$('#np_'+k,sh).value='');$('#np_use',sh).value='1';np.hidden=true;nb.hidden=false;if(al)al.hidden=false;toast(name+' added to Spares & consumables');
+    }}
   bindLines();
   // suggest contractor's name when contractor chosen
   const ps=$('#f_supplierId',sh),pb=$('#f_performedBy',sh);if(ps&&pb)ps.onchange=()=>{if(ps.value&&!pb.value)pb.value='External contractor / vendor'};
