@@ -39,7 +39,8 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .brand .me img{width:26px;height:26px;border-radius:50%}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
 nav.tabs::-webkit-scrollbar{display:none}
-nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:9px 12px;color:var(--muted);font-weight:500;cursor:pointer;white-space:nowrap}
+@media (min-width:700px){nav.tabs{flex-wrap:wrap;overflow-x:visible}}
+nav.tabs button{background:none;border:0;border-bottom:3px solid transparent;padding:9px 10px;color:var(--muted);font-weight:500;cursor:pointer;white-space:nowrap}
 nav.tabs button[aria-current="true"]{color:var(--ink);border-bottom-color:var(--accent)}
 nav.tabs button:hover{color:var(--ink)}
 nav.tabs .n{font-family:var(--f-mono);font-size:11px;background:var(--bad);color:#fff;border-radius:9px;padding:0 6px;margin-left:5px}
@@ -467,7 +468,7 @@ const F_SUP=[
 ];
 
 /* ---------- shell / navigation ---------- */
-const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['contracts','Contracts & renewals'],['assets','Asset register'],['parts','Spares & consumables'],['suppliers','Contractors'],['activity','Activity log'],['settings','Settings & locations'],['users','Users']];
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
 let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
 function counts(){
   const as=Object.values(S.assets);
