@@ -923,10 +923,12 @@ function woForm(id,preset={}){
   const data=prev||{type:'Breakdown / repair',status:'Open',priority:'Normal',reportDate:today(),performedBy:'',...preset};
   let lines=(prev?.lines||[]).map(l=>({...l}));
   const link=prev?{}:{incidentId:preset.incidentId||'',capaId:preset.capaId||''};
-  const extra=()=>linesEditor(lines.length?lines:[])+(prev?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
+  const key=id||newId('workorders');let newFiles=[],upPending=0;
+  const extra=()=>linesEditor(lines.length?lines:[])+`<div class="fgrid"><div class="sec">Attachments: service report, invoice, photos (optional)</div></div>${prev&&(prev.files||[]).length?`<p class="muted" style="margin:0">${prev.files.length} file(s) already attached; manage them on the job record.</p>`:''}<div class="toolbar" style="margin:0"><select id="wf_kind" style="width:auto" aria-label="Attachment type">${FILE_KINDS.workorders.map(k=>opt(k)).join('')}</select><label class="btn sm" for="wf_cam" style="cursor:pointer">Take photo</label><input id="wf_cam" class="wf-in" type="file" accept="image/*" capture="environment" hidden><label class="btn sm" for="wf_up" style="cursor:pointer">Attach PDF or photo</label><input id="wf_up" class="wf-in" type="file" multiple accept="image/*,application/pdf" hidden></div><div class="ev-list" id="wf_list"></div><p class="muted" style="margin:0;font-size:12px">PDF or photos up to 25 MB. Files are saved with the job when you click Save.</p>`+(prev?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
   const sh=formSheet({title:prev?'Update '+prev.no:'New work order',fields:F_WO,data,extra:extra(),
     danger:prev&&S.canAdmin?{label:'Delete job',onClick:()=>confirmBox('Delete '+prev.no+'?','The job, its compliance record and links to attachments will be removed. Spares already deducted are not returned to stock.','Delete',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{
+      if(upPending)return'Please wait for the attachment upload to finish.';
       lines=readLines();
       if(['Completed','Verified'].includes(v.status)&&!v.completedDate)return'Enter the date the work was completed.';
       if(v.status==='Verified'){
@@ -936,8 +938,7 @@ function woForm(id,preset={}){
         if(!v.verifiedDate)v.verifiedDate=today();
       }
       if(v.status==='Completed'&&!prev?.partsPosted){for(const l of lines){const p=S.parts[l.partId];if(p&&num(l.qty)>num(p.qty))return`Only ${num(p.qty)} ${p.unit||''} of ${p.name} in store.`}}
-      const key=id||newId('workorders');
-      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       const finishing=['Completed','Verified'].includes(next.status);
       // deduct spares once, when the job is first completed
       if(finishing&&!next.partsPosted&&lines.length){
@@ -945,7 +946,7 @@ function woForm(id,preset={}){
           const r=await api('POST','/api/stock/'+l.partId,{type:'Issue',delta:-num(l.qty),date:next.completedDate||today(),ref:next.no,note:A(next.assetId)?.code||woWhere(next)});S.parts[l.partId]=r.doc}
         next.partsPosted=true;
       }
-      const act=prev?diffAct(prev,next,F_WO)+((JSON.stringify(prev.lines||[])!==JSON.stringify(lines))?'; spares list':''):'Created '+next.no+' ('+next.type+')'+(next.incidentId&&S.incidents[next.incidentId]?' from incident '+S.incidents[next.incidentId].no:'');
+      const act=(prev?diffAct(prev,next,F_WO)+((JSON.stringify(prev.lines||[])!==JSON.stringify(lines))?'; spares list':''):'Created '+next.no+' ('+next.type+')'+(next.incidentId&&S.incidents[next.incidentId]?' from incident '+S.incidents[next.incidentId].no:''))+(newFiles.length?'; attached '+newFiles.map(f=>f.kind+': '+f.name).join(', '):'');
       await put('workorders',key,next,act);
       // asset side effects
       const a=A(next.assetId);
@@ -960,6 +961,10 @@ function woForm(id,preset={}){
       }
       toast(prev?next.no+' updated':next.no+' created');renderList();if(prev)renderDetail();else openDetail('wo',key);
     }});
+  const wl=$('#wf_list',sh);const drawWF=(up)=>{wl.innerHTML=newFiles.map((f,i)=>`<span class="evc"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener" title="${esc(f.name)}">${esc(f.kind)}: ${esc(f.name)}</a><button type="button" class="wf-x" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('')+(up?`<span class="evc up">Uploading ${esc(up)}…</span>`:'');fillFiles(wl)};
+  wl.addEventListener('click',e=>{const x=e.target.closest('.wf-x');if(x){newFiles.splice(+x.dataset.i,1);drawWF()}});
+  $$('.wf-in',sh).forEach(inp=>inp.onchange=async()=>{const kind=$('#wf_kind',sh).value;const list=[...inp.files];inp.value='';
+    for(const f of list){upPending++;drawWF(f.name);try{const r=await uploadFile('workorders',key,f);newFiles.push({id:r.id,name:r.name,kind,ct:r.ct,size:r.size,at:new Date().toISOString(),by:S.me.name})}catch(err){toast(f.name+': '+err.message)}finally{upPending--;drawWF()}}});
   const asel=$('#f_assetId',sh);if(asel)asel.addEventListener('change',()=>{const a=A(asel.value);if(!a)return;
     const ds=$('#f_dept',sh),ls=$('#f_location',sh);
     if(ds&&a.dept&&!ds.value){ds.value=a.dept;ds.dispatchEvent(new Event('change'))}
@@ -1192,7 +1197,7 @@ DETAIL.incident=(id,i)=>{
   const d=doshInfo(i),p=perkesoInfo(i),a=i.assetId&&A(i.assetId);
   const alert=i.status!=='Closed'&&d.immediate&&!i.doshNotifiedAt?`<div class="banner" style="margin:0;background:var(--bad-soft)"><b>Notify DOSH now.</b> This ${i.category==='Dangerous occurrence'?'dangerous occurrence':'injury'} must be reported to the nearest DOSH office immediately by the quickest means (phone or email), then in writing on ${d.form} within ${d.days} days (by ${fmtD(d.due)}).</div>`:'';
   return{eyebrow:'Incident · '+esc(i.no),title:i.title,pills:incStatusPill(i.status)+sevPill(i)+doshPill(i)+perkesoPill(i)+(i.foodImpact?'<span class="pill warn">Food safety impact</span>':''),
-    body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Update record</button><button class="btn" id="dJob">Create repair job</button>')}<button class="btn" id="dPrint">Print report</button><button class="btn" id="dDl">Download report</button></div>${alert}
+    body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Update record</button><button class="btn" id="dJob">Create repair job</button>')}<button class="btn" id="dPrint">Print report</button><button class="btn" id="dDl">Download report</button><button class="btn" id="dHz">HIRARC (Excel)</button></div>${alert}
     ${kv([['Type',esc(i.category)],['Date & time',incWhen(i)],['Where',esc(place(i)||'')],['Equipment',a?`<a href="#" data-asset="${i.assetId}">${esc(a.code+' · '+a.name)}</a>`:''],['Reported by',esc(i.reportedBy)],['Witnesses',esc(i.witnesses)]])}
     <div><h3>What happened</h3>${i.activity?`<p style="margin:0 0 6px"><b>Activity:</b> ${esc(i.activity)}</p>`:''}<div style="white-space:pre-wrap">${esc(i.description)}</div></div>
     ${hasPerson(i)?`<div><h3>Person involved</h3>${kv([['Name',esc(i.personName)],['Employment',esc([i.personType,i.personEmployer].filter(Boolean).join(' · '))],['IC / passport',esc(i.personIdNo)],['Nationality',esc(i.nationality)],['Gender · age',esc([i.gender,i.age].filter(x=>x!==''&&x!=null).join(' · '))],['Occupation',esc(i.occupation)]])}</div>
@@ -1202,8 +1207,9 @@ DETAIL.incident=(id,i)=>{
     ${p.need?`<div><h3>PERKESO</h3>${kv([['Borang 34 due',fmtDT(p.dueAt)+` <span class="muted">(${p.hrs} h setting)</span>`],['Submitted',i.perkesoDate?fmtD(i.perkesoDate):''],['Reference',esc(i.perkesoRef)]])}</div>`:''}
     <div><h3>Investigation</h3>${kv([['Investigated by',esc(i.investigatedBy)],['Date',fmtD(i.investigationDate)],['HIRARC reviewed',i.hirarcReviewed?'Yes':'Not yet'],['Scene preserved',i.sceneKept?'Yes':'']])}
       ${['immediateAction','immediateCause','rootCause'].map(k=>i[k]?`<p style="margin:8px 0 0"><b>${({immediateAction:'Immediate action',immediateCause:'Immediate cause',rootCause:'Root cause'})[k]}:</b> ${esc(i[k])}</p>`:'').join('')}</div>
+    ${hirarcBlock(i)}
     <div><h3>Corrective &amp; preventive actions</h3>${(i.capa||[]).length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${i.capa.map(c=>`<tr><td>${esc(c.action)}<br><span class="muted">${esc(c.owner||'')}</span>${(c.evidence||[]).length?`<div class="ev-list">${evChips(c.evidence,false)}</div>`:''}${(()=>{const wj=c.cid&&Object.entries(S.workorders).find(([,w])=>w.incidentId===id&&w.capaId===c.cid);return wj?`<div style="margin-top:4px"><a href="#" data-wo="${wj[0]}">${esc(wj[1].no)}</a> ${woPill(wj[1].status)}</div>`:(c.status!=='Done'?W(()=>`<div style="margin-top:4px"><button type="button" class="btn sm" data-capajob="${esc(c.cid||'')}" data-capaix="${i.capa.indexOf(c)}">Create work order</button></div>`):'')})()}</td><td class="num">${c.due?'Due '+fmtD(c.due):''}</td><td>${c.status==='Done'?`<span class="pill ok">Done ${fmtD(c.doneDate)}</span>`:`<span class="pill ${c.due&&c.due<today()?'bad':'warn'}">Open</span>`}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No actions recorded yet.</span>'}</div>
-    ${(()=>{const js=Object.entries(S.workorders).filter(([,w])=>w.incidentId===id).sort((x,y)=>String(x[1].reportDate).localeCompare(String(y[1].reportDate)));return js.length?`<div><h3>Repair work orders</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${js.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(woWhat(w))}${(w.lines||[]).length?' · '+(w.lines||[]).length+' spare item(s)':''}</span></td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin:6px 0 0">Total repair cost ${rm(js.reduce((t,[,w])=>t+woCost(w),0))}</p></div>`:''})()}
+    ${(()=>{const js=Object.entries(S.workorders).filter(([,w])=>w.incidentId===id).sort((x,y)=>String(x[1].reportDate).localeCompare(String(y[1].reportDate)));return js.length?`<div><h3>Repair work orders</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${js.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(woWhat(w))}${(w.lines||[]).length?' · '+(w.lines||[]).length+' spare item(s)':''}</span>${(w.files||[]).length?`<div class="ev-list">${w.files.map(f=>`<span class="evc"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener" title="${esc(f.name)}">${esc(f.kind||'File')}: ${esc(f.name)}</a></span>`).join('')}</div>`:''}</td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin:6px 0 0">Total repair cost ${rm(js.reduce((t,[,w])=>t+woCost(w),0))}</p></div>`:''})()}
     ${i.status==='Closed'?`<div><h3>Closed</h3>${kv([['Closed by',esc(i.closedBy)],['Closed on',fmtD(i.closedDate)]])}</div>`:''}`,
     bind(dr){const e=$('#dEdit',dr);if(e)e.onclick=()=>incForm(id);
       const base={type:'Breakdown / repair',assetId:i.assetId&&A(i.assetId)?i.assetId:'',dept:i.dept||'',location:i.location||'',incidentId:id,reportedBy:S.me.name};
@@ -1212,7 +1218,7 @@ DETAIL.incident=(id,i)=>{
         if(!c){const ix=+b.dataset.capaix;const capa=(inc.capa||[]).map(x=>x.cid?x:{...x,cid:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,6)});
           try{inc=await put('incidents',id,{...inc,capa},'Action references added')}catch(e){return}c=inc.capa[ix]}
         if(c)woForm(null,{...base,title:c.action,capaId:c.cid})});
-      $$('[data-wo]',dr).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('wo',x.dataset.wo)});$('#dPrint',dr).onclick=()=>incReport(id,true);$('#dDl',dr).onclick=()=>incReport(id,false);
+      $$('[data-wo]',dr).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('wo',x.dataset.wo)});$('#dPrint',dr).onclick=()=>incReport(id,true);$('#dHz',dr).onclick=()=>hirarcSheet([id]);$('#dDl',dr).onclick=()=>incReport(id,false);
       $$('[data-asset]',dr).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)})}};
 };
 
@@ -1290,9 +1296,9 @@ function summaryDoc(year,workers,hours){
 }
 function reportsSheet(){
   const y=String(new Date().getFullYear());
-  const fields=[{k:'report',label:'Report',type:'select',blank:false,opts:[['register','Accident register (all entries)'],['summary','Annual summary with rates']]},{k:'year',label:'Year',req:true},{k:'workers',label:'Average no. of workers (annual summary)',type:'number'},{k:'hours',label:'Total hours worked (annual summary)',type:'number'}];
+  const fields=[{k:'report',label:'Report',type:'select',blank:false,opts:[['register','Accident register (all entries)'],['summary','Annual summary with rates']]},{k:'year',label:'Year',req:true},{k:'workers',label:'Average no. of workers (annual summary)',type:'number'},{k:'hours',label:'Total hours worked (annual summary)',type:'number'},{k:'hzDept',label:'Department for HIRARC (blank = all)',type:'select',opts:()=>S.settings.departments}];
   const sh=formSheet({title:'Incident reports',fields,data:{report:'register',year:fval('incidents','year')||y},
-    extra:`<div class="acts"><button type="button" class="btn pri" id="rPrint">Print / save as PDF</button><button type="button" class="btn" id="rHtml">Download (.html)</button><button type="button" class="btn" id="rCsv">Download register (.csv)</button></div><p class="muted" style="margin:0">The register lists every entry for the year. Send DOSH the extract for the year before 31 January.</p>`});
+    extra:`<div class="acts"><button type="button" class="btn pri" id="rPrint">Print / save as PDF</button><button type="button" class="btn" id="rHtml">Download (.html)</button><button type="button" class="btn" id="rCsv">Download register (.csv)</button><button type="button" class="btn" id="rHz">HIRARC (.xlsx)</button></div><p class="muted" style="margin:0">The register lists every entry for the year. Send DOSH the extract for the year before 31 January.</p>`});
   if(!sh)return;
   $('#fsave',sh)?.remove();
   const go2=(mode)=>{const v=readForm(fields);if(!/^\d{4}$/.test(v.year)){toast('Enter a 4-digit year.');return}
@@ -1300,6 +1306,9 @@ function reportsSheet(){
     const html=v.report==='summary'?summaryDoc(v.year,v.workers,v.hours):registerDoc(v.year);
     outputDoc(html,v.report==='summary'?`GFB_OSH_Annual_Summary_${v.year}.html`:`GFB_Accident_Register_${v.year}.html`,mode==='print')};
   $('#rPrint',sh).onclick=()=>go2('print');$('#rHtml',sh).onclick=()=>go2('html');$('#rCsv',sh).onclick=()=>go2('csv');
+  $('#rHz',sh).onclick=()=>{const v=readForm(fields);if(!/^\d{4}$/.test(v.year)){toast('Enter a 4-digit year.');return}
+    const ids=Object.entries(S.incidents).filter(([,i])=>String(i.incDate||'').startsWith(v.year)&&(!v.hzDept||i.dept===v.hzDept)).map(([id])=>id);
+    if(!ids.length){toast('No incidents for '+v.year+(v.hzDept?' in '+v.hzDept:'')+'.');return}hirarcSheet(ids)};
 }
 
 /* ---------- assets filter + QR labels ---------- */
@@ -1455,6 +1464,109 @@ ${Object.keys(months).sort().map(k=>months[k].map((e,ix)=>`<tr><td>${ix?'':mname
   $('#kPrint',sh).onclick=()=>go2('print');$('#kHtml',sh).onclick=()=>go2('html');$('#kCsv',sh).onclick=()=>go2('csv');
 }
 
+
+/* ---------- HIRARC (Hazard Identification, Risk Assessment & Risk Control) from incidents ---------- */
+const HZ_CATS=['Physical','Chemical','Biological','Ergonomic','Psychosocial'];
+const CONS_PEOPLE=['First Aid','Minor Injury','Serious Injury','Fatality','Multiple Fatality','N/A'];
+const CONS_ASSETS=['Slight Damage','Minor Damage','Moderate Damage','Major Damage','Massive Damage','N/A'];
+const CONS_ENV=['Slight effect','Minor effect','Moderate effect','Major effect','Massive effect','N/A'];
+const CONS_REP=['Slight Impact','Minor Impact','Moderate Impact','Major Impact','Massive Impact','N/A'];
+const LIKE=[['1','1 – Rare'],['2','2 – Possible'],['3','3 – Likely'],['4','4 – Often'],['5','5 – Frequent / almost certain']];
+const SEVR=[['1','1 – Insignificant'],['2','2 – Minor'],['3','3 – Moderate'],['4','4 – Major'],['5','5 – Catastrophic']];
+const F_HIRARC=[
+  {type:'sec',label:'HIRARC risk assessment (optional; used for the HIRARC Excel report)'},
+  {k:'hazard',label:'Hazard',ph:'e.g. Exposed sealer blade, wet floor, loose door fitting'},
+  {k:'hazardCat',label:'Category of hazard',type:'select',opts:HZ_CATS},
+  {k:'consPeople',label:'Consequence – people',short:'Cons – people',type:'select',opts:CONS_PEOPLE},
+  {k:'consAssets',label:'Consequence – assets',short:'Cons – assets',type:'select',opts:CONS_ASSETS},
+  {k:'consEnv',label:'Consequence – environment',short:'Cons – environment',type:'select',opts:CONS_ENV},
+  {k:'consRep',label:'Consequence – reputation',short:'Cons – reputation',type:'select',opts:CONS_REP},
+  {k:'existingControl',label:'Existing risk control (before this incident)',short:'Existing control',type:'textarea',full:true},
+  {k:'likelihoodJust',label:'Justification of likelihood',short:'Likelihood justification',full:true,ph:'e.g. Second similar case this year; task done daily'},
+  {k:'riskL',label:'Likelihood (L) – current',short:'Likelihood',type:'select',opts:LIKE},
+  {k:'riskS',label:'Severity (S) – current',short:'Severity',type:'select',opts:SEVR},
+  {k:'resL',label:'Likelihood (L) – after additional control',short:'Residual likelihood',type:'select',opts:LIKE},
+  {k:'resS',label:'Severity (S) – after additional control',short:'Residual severity',type:'select',opts:SEVR}
+];
+const rmn=(l,s)=>num(l)&&num(s)?num(l)*num(s):null;
+const rmnBand=n=>n==null?null:n>=15?['Extreme','bad']:n>=8?['High','bad']:n>=4?['Moderate','warn']:['Low','ok'];
+const rmnPill=(l,s)=>{const n=rmn(l,s),b=rmnBand(n);return b?`<span class="pill ${b[1]}">RMN ${n} · ${b[0]}</span>`:''};
+const sevToPeople=s=>({'Fatal':'Fatality','Serious bodily injury (Schedule 1)':'Serious Injury','Lost time – more than 4 days':'Serious Injury','Lost time – 4 days or less':'Minor Injury','Medical treatment, no lost time':'Minor Injury','First aid only':'First Aid','No injury':'N/A'})[s]||'';
+function hirarcBlock(i){
+  if(!F_HIRARC.some(f=>f.k&&i[f.k]!==''&&i[f.k]!=null&&i[f.k]!==false))return'';
+  return`<div><h3>HIRARC risk assessment</h3>${kv([['Hazard',esc(i.hazard)],['Category',esc(i.hazardCat)],['Cons – people',esc(i.consPeople)],['Cons – assets',esc(i.consAssets)],['Cons – environment',esc(i.consEnv)],['Cons – reputation',esc(i.consRep)],['Current risk',i.riskL&&i.riskS?`L${esc(i.riskL)} × S${esc(i.riskS)} ${rmnPill(i.riskL,i.riskS)}`:''],['After additional control',i.resL&&i.resS?`L${esc(i.resL)} × S${esc(i.resS)} ${rmnPill(i.resL,i.resS)}`:'']])}
+    ${i.existingControl?`<p style="margin:8px 0 0"><b>Existing control:</b> ${esc(i.existingControl)}</p>`:''}${i.likelihoodJust?`<p style="margin:6px 0 0"><b>Likelihood justification:</b> ${esc(i.likelihoodJust)}</p>`:''}</div>`;
+}
+let exlP=null;
+function loadExcelJS(){if(window.ExcelJS)return Promise.resolve();if(!exlP)exlP=new Promise((res,rej)=>{const s=document.createElement('script');s.src='exceljs.min.js';s.onload=()=>res();s.onerror=()=>{exlP=null;rej(new Error('Could not load the Excel library. Check your connection and try again.'))};document.head.appendChild(s)});return exlP}
+function hirarcSheet(ids){
+  const L=ids.map(id=>[id,S.incidents[id]]).filter(x=>x[1]).sort((a,b)=>String(a[1].incDate).localeCompare(String(b[1].incDate))||String(a[1].no).localeCompare(String(b[1].no)));
+  if(!L.length){toast('No incidents to include.');return}
+  const one=(k)=>{const v=[...new Set(L.map(([,i])=>i[k]).filter(Boolean))];return v.length===1?v[0]:v.length?'Various':''};
+  const yr=String(L[L.length-1][1].incDate||today()).slice(0,4);
+  const deptCode=String(one('dept')||'GEN').replace(/[^A-Za-z]/g,'').slice(0,4).toUpperCase()||'GEN';
+  const fields=[{type:'sec',label:`${L.length} incident(s): ${L.map(([,i])=>i.no).join(', ')}`},
+    {k:'dept',label:'Department'},{k:'process',label:'Process'},{k:'location',label:'Location'},
+    {k:'assessor',label:'Risk assessor'},{k:'team1',label:'RM team member 1'},{k:'team2',label:'RM team member 2'},
+    {k:'approver',label:'Approved by – name'},{k:'designation',label:'Approved by – designation'},
+    {k:'raRef',label:'RA reference no.'},{k:'assessDate',label:'Assessment / review date',type:'date'},{k:'lastAssess',label:'Last assessment',ph:'e.g. 30/08/2024 or NA'}];
+  const sh=formSheet({title:'HIRARC report (Excel)',fields,
+    data:{dept:one('dept'),process:one('dept'),location:one('location'),assessor:one('investigatedBy')||S.me.name,team1:'NA',team2:'NA',raRef:`HIRARC-${yr}-${deptCode}-${L.length===1?L[0][1].no:pad(L.length)}`,assessDate:today(),lastAssess:'NA'},
+    extra:`<div class="acts"><button type="button" class="btn pri" id="hzDl">Download HIRARC (.xlsx)</button></div><p class="muted" style="margin:0">Uses your HIRARC Form 2024 layout. Each incident becomes one row. Hazard, category, consequences, existing control and L/S scores come from the incident's HIRARC section; additional risk control and PIC come from its corrective actions. Blank scores can be filled in Excel. Names of injured persons are not included.</p>`});
+  if(!sh)return;$('#fsave',sh)?.remove();
+  $('#hzDl',sh).onclick=async()=>{const b=$('#hzDl',sh);b.disabled=true;const old=b.textContent;b.textContent='Preparing…';
+    try{await buildHirarc(L,readForm(fields))}catch(e){toast(e.message||'Could not create the file.')}finally{b.disabled=false;b.textContent=old}};
+}
+async function buildHirarc(L,h){
+  await loadExcelJS();
+  const r=await fetch('hirarc-template.xlsx',{cache:'no-cache'});if(!r.ok)throw new Error('HIRARC template file is missing from the website.');
+  const wb=new ExcelJS.Workbook();await wb.xlsx.load(await r.arrayBuffer());
+  const ws=wb.getWorksheet('Report');
+  const set=(a,v)=>{ws.getCell(a).value=v===''||v==null?null:v};
+  set('C3',h.dept);set('C4',h.process);set('C5',h.location);set('G3',h.assessor);set('G4',h.team1);set('G5',h.team2);
+  set('L4',h.approver);set('L5',h.designation);set('P4',h.raRef||'');
+  if(h.assessDate){const [y,m,d]=h.assessDate.split('-').map(Number);ws.getCell('C6').value=new Date(Date.UTC(y,m-1,d));ws.getCell('C6').numFmt='dd/mm/yyyy'}
+  set('G6',h.lastAssess);
+  const cols='ABCDEFGHIJKLMNOPQRST'.split('');const widths={};cols.forEach(c=>widths[c]=ws.getColumn(c).width||9);
+  const first=11,lastTpl=39;
+  L.forEach(([,i],ix)=>{
+    const rn=first+ix,row=ws.getRow(rn);
+    if(rn>lastTpl)cols.forEach(c=>{row.getCell(c).style=JSON.parse(JSON.stringify(ws.getRow(lastTpl).getCell(c).style||{}))});
+    const capa=(i.capa||[]);
+    const v={A:ix+1,B:i.activity||i.title,C:i.hazard||i.immediateCause||'',D:i.hazardCat||'',
+      E:i.title+(i.description&&i.description!==i.title?'\n'+i.description:'')+`\n(${i.no}, ${fmtD(i.incDate)})`,
+      F:i.consPeople||(hasPerson(i)?sevToPeople(i.severity):'N/A'),G:i.consAssets||'',H:i.consEnv||'',I:i.consRep||'',
+      J:i.existingControl||'',K:i.likelihoodJust||'',L:num(i.riskL)||null,M:num(i.riskS)||null,
+      O:capa.map((c,k)=>(capa.length>1?(k+1)+'. ':'')+c.action+(c.status==='Done'?' (done '+fmtD(c.doneDate)+')':'')).join('\n'),
+      P:num(i.resL)||null,Q:num(i.resS)||null,
+      S:capa.map((c,k)=>(capa.length>1?(k+1)+'. ':'')+[c.owner,c.due&&fmtD(c.due)].filter(Boolean).join(' – ')).filter(x=>x.replace(/^\d+\.\s*/,'')).join('\n'),
+      T:[i.no,i.category,'Status: '+(i.status||''),i.hirarcReviewed?'HIRARC reviewed':''].filter(Boolean).join('\n')};
+    let lines=1;
+    cols.forEach(c=>{const cell=row.getCell(c);cell.style=JSON.parse(JSON.stringify(cell.style||{}));
+      if(c==='N')cell.value={formula:`L${rn}*M${rn}`};else if(c==='R')cell.value={formula:`P${rn}*Q${rn}`};else cell.value=v[c]===''||v[c]==null?null:v[c];
+      cell.border={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};cell.font={name:'Arial',size:9};
+      cell.alignment={wrapText:true,vertical:'top',horizontal:['A','L','M','N','P','Q','R'].includes(c)?'center':'left'};
+      if(typeof v[c]==='string'){const per=Math.max(4,Math.floor(widths[c]*1.15));lines=Math.max(lines,v[c].split('\n').reduce((t,s)=>t+Math.max(1,Math.ceil(s.length/per)),0))}});
+    row.height=Math.min(400,Math.max(30,lines*13+6));
+    if(rn>40){[['D','$W$5:$W$9'],['F','$X$5:$X$10']].forEach(([c,f])=>{row.getCell(c).dataValidation={type:'list',allowBlank:true,formulae:[f]}})}
+  });
+  const lastRow=Math.max(lastTpl,first+L.length-1);
+  for(let rn=first+L.length;rn<=lastTpl;rn++){ws.getRow(rn).height=18}
+  const band=(ref)=>ws.addConditionalFormatting({ref,rules:[
+    {type:'cellIs',operator:'between',formulae:[15,25],priority:1,style:{fill:{type:'pattern',pattern:'solid',bgColor:{argb:'FFFF5B5B'}},font:{bold:true}}},
+    {type:'cellIs',operator:'between',formulae:[8,12],priority:2,style:{fill:{type:'pattern',pattern:'solid',bgColor:{argb:'FFFFA94D'}}}},
+    {type:'cellIs',operator:'between',formulae:[4,6],priority:3,style:{fill:{type:'pattern',pattern:'solid',bgColor:{argb:'FFFFE066'}}}},
+    {type:'cellIs',operator:'between',formulae:[1,3],priority:4,style:{fill:{type:'pattern',pattern:'solid',bgColor:{argb:'FF8CE99A'}}}}]});
+  band(`N${first}:N${lastRow}`);band(`R${first}:R${lastRow}`);
+  for(let rn=first+L.length;rn<=lastTpl;rn++)cols.forEach(c=>{const cell=ws.getRow(rn).getCell(c);cell.style={...JSON.parse(JSON.stringify(cell.style||{})),border:{top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}}}});
+  ws.pageSetup.printArea=`A$1:T$${lastRow}`;
+  const buf=await wb.xlsx.writeBuffer();
+  const name=`GFB_HIRARC_${String(h.dept||'All').replace(/[^A-Za-z0-9]+/g,'_')}_${h.assessDate||today()}.xlsx`;
+  save(name,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  toast('HIRARC downloaded: '+L.length+' row(s)');
+}
+
+{const ix=F_INC.findIndex(f=>f.type==='sec'&&/^Status/.test(f.label));F_INC.splice(ix<0?F_INC.length:ix,0,...F_HIRARC)}
 function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
 window.addEventListener('hashchange',routeHash);
 
