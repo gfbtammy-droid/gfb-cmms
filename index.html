@@ -296,7 +296,8 @@ const woWhat=w=>aLabel(w.assetId)||woWhere(w)||'No asset / location given';
 const partsCost=w=>(w.lines||[]).reduce((s,l)=>s+num(l.qty)*num(l.unitCost),0);
 const woCost=w=>num(w.invoiceAmount)+num(w.labourCost)+partsCost(w);
 const woDate=w=>w.completedDate||w.reportDate||'';
-const openWO=w=>!['Completed','Verified'].includes(w.status);
+const openWO=w=>!w.draft&&!['Completed','Verified'].includes(w.status);
+const draftPill='<span class="pill warn">Draft</span>';
 const lowStock=p=>p.minQty!==''&&p.minQty!=null&&num(p.qty)<=num(p.minQty);
 function pmPill(i){if(!i)return'<span class="muted">—</span>';if(i.state==='unset')return'<span class="pill warn">Set last PM date</span>';
   const t=i.days<0?Math.abs(i.days)+' d overdue':i.days===0?'Due today':'in '+i.days+' d';
@@ -347,13 +348,13 @@ function fieldHTML(f,v){
 }
 function readForm(fields){const o={};fields.forEach(f=>{if(f.type==='sec')return;const el=$('#f_'+f.k);if(!el)return;if(f.type==='locsel'){o[f.k]=el.value==='__new'?($('#f_'+f.k+'_new').value.trim()||'__new'):el.value;return}o[f.k]=f.type==='check'?el.checked:f.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim()});return o}
 function closeLayer(kind){const l=$('#layer');$$(kind==='sheet'?'.sheet,.scrim.top':'.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());if(kind!=='sheet')S.detail=null}
-function openSheet({title,sub,body,saveLabel='Save',onSave,danger}){
+function openSheet({title,sub,body,saveLabel='Save',onSave,danger,onDraft}){
   closeLayer('sheet');
   const l=$('#layer');
   l.insertAdjacentHTML('beforeend',`<div class="scrim top"></div><div class="sheet" role="dialog" aria-modal="true" aria-label="${esc(title)}">
     <div class="hd"><div><h2>${esc(title)}</h2>${sub?`<div class="muted" style="margin-top:2px">${sub}</div>`:''}</div><button class="x" type="button" data-close aria-label="Close">×</button></div>
     <form novalidate>${body}<div class="err" id="ferr" hidden></div></form>
-    <div class="ft">${danger?`<button type="button" class="btn danger" id="fdanger" style="margin-right:auto">${esc(danger.label)}</button>`:''}<button type="button" class="btn" data-close>Cancel</button>${onSave?`<button type="button" class="btn pri" id="fsave">${esc(saveLabel)}</button>`:''}</div></div>`);
+    <div class="ft">${danger?`<button type="button" class="btn danger" id="fdanger" style="margin-right:auto">${esc(danger.label)}</button>`:''}<button type="button" class="btn" data-close>Cancel</button>${onDraft?'<button type="button" class="btn" id="fdraft">Save as draft</button>':''}${onSave?`<button type="button" class="btn pri" id="fsave">${esc(saveLabel)}</button>`:''}</div></div>`);
   const sh=$('.sheet',l);
   $$('[data-close]',sh).forEach(b=>b.onclick=()=>closeLayer('sheet'));
   $('.scrim.top',l).onclick=()=>closeLayer('sheet');
@@ -361,11 +362,13 @@ function openSheet({title,sub,body,saveLabel='Save',onSave,danger}){
   if(onSave)$('#fsave').onclick=async()=>{const err=$('#ferr');err.hidden=true;const b=$('#fsave');b.disabled=true;
     try{const msg=await onSave();if(msg){err.textContent=msg;err.hidden=false}else closeLayer('sheet')}catch(e){if(e.message!=='ro'){err.textContent=e.message||'Could not save.';err.hidden=false}}finally{if(document.body.contains(b))b.disabled=false}};
   if(danger)$('#fdanger').onclick=danger.onClick;
+  if(onDraft)$('#fdraft').onclick=async()=>{const err=$('#ferr');err.hidden=true;const b=$('#fdraft');b.disabled=true;
+    try{const msg=await onDraft();if(msg){err.textContent=msg;err.hidden=false}else closeLayer('sheet')}catch(e){if(e.message!=='ro'){err.textContent=e.message||'Could not save the draft.';err.hidden=false}}finally{if(document.body.contains(b))b.disabled=false}};
   const first=$('input,select,textarea',sh);if(first)first.focus();
   return sh;
 }
 function confirmBox(title,msg,label,onOk){openSheet({title,body:`<p style="margin:0">${msg}</p>`,saveLabel:label,onSave:async()=>{await onOk()}})}
-function formSheet({title,fields,data={},extra='',onSave,danger}){
+function formSheet({title,fields,data={},extra='',onSave,danger,onDraft}){
   const body=`<div class="fgrid">${fields.map(f=>fieldHTML(f,data[f.k])).join('')}</div>${extra}`;
   const sh=openSheet({title,body,onSave:async()=>{
     const v=readForm(fields);const miss=fields.filter(f=>f.req&&(v[f.k]===''||v[f.k]==null)).map(f=>f.label);
@@ -376,7 +379,7 @@ function formSheet({title,fields,data={},extra='',onSave,danger}){
       if(hit)v[f.k]=hit.name;else{try{await addLocations([{name:v[f.k],dept:v[f.deptField]||''}])}catch(e){}}
     }
     return onSave(v);
-  },danger});
+  },danger,onDraft:onDraft?async()=>onDraft(readForm(fields)):null});
   fields.filter(f=>f.type==='locsel').forEach(f=>bindLocSel(sh,f));
   return sh;
 }
@@ -564,14 +567,14 @@ VIEW.assets={
 VIEW.wos={
   shell:()=>`<h2>Work orders</h2><div class="toolbar">
     <input class="grow" type="search" data-f="q" id="q_w" placeholder="Search WO no., asset, problem, invoice no…" value="${esc(fval('wos','q'))}">
-    <select data-f="status" id="s_w" style="width:auto">${[['all','All statuses'],['open','Open (not completed)'],...WO_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('wos','status','all'))).join('')}</select>
+    <select data-f="status" id="s_w" style="width:auto">${[['all','All statuses'],['open','Open (not completed)'],['draft','Drafts'],...WO_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('wos','status','all'))).join('')}</select>
     <select data-f="type" id="t_w" style="width:auto"><option value="">All job types</option>${WO_TYPES.map(c=>opt(c,fval('wos','type'))).join('')}</select>
     ${W(()=>'<button class="btn pri" id="addW">New work order</button>')}<button class="btn" id="expW">Export CSV</button></div><div id="list"></div>`,
   bind(){bindFilters('wos');const a=$('#addW');if(a)a.onclick=()=>woForm();$('#expW').onclick=()=>exportCSV('workorders')},
   list(){
     const q=fval('wos','q'),st=fval('wos','status','all'),t=fval('wos','type');
-    const rows=Object.entries(S.workorders).filter(([,w])=>(st==='all'||(st==='open'?openWO(w):w.status===st))&&(!t||w.type===t)&&match(q,w.no,woWhat(w),w.title,w.invoiceNo,w.supplierReportNo,sup(w.supplierId)?.name)).sort((a,b)=>String(b[1].reportDate).localeCompare(String(a[1].reportDate))||String(b[1].no).localeCompare(String(a[1].no)));
-    return`<div class="tbl-wrap"><table><thead><tr><th>WO no.</th><th>Asset · problem</th><th class="hs">Type</th><th class="hs">Contractor</th><th>Status</th><th class="r">Cost</th></tr></thead><tbody>${rows.length?rows.map(([id,w])=>`<tr data-open="wo:${id}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(woWhat(w))}<br><span class="muted">${esc(w.title)}</span></td><td class="hs">${esc(w.type)}<br>${prPill(w.priority)}</td><td class="hs">${esc(sup(w.supplierId)?.name||w.performedBy||'—')}${(w.files||[]).length?`<br><span class="muted">${(w.files||[]).length} file(s)</span>`:''}</td><td>${woPill(w.status)}</td><td class="r num">${woCost(w)?rm(woCost(w)):'—'}</td></tr>`).join(''):emptyRow(6,'No work orders here','Log a breakdown, repair or PM job with “New work order”.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} work order(s) · total ${rm(rows.reduce((s,[,w])=>s+woCost(w),0))}</p>`;
+    const rows=Object.entries(S.workorders).filter(([,w])=>(st==='all'||(st==='open'?openWO(w):st==='draft'?w.draft:(!w.draft&&w.status===st)))&&(!t||w.type===t)&&match(q,w.no,woWhat(w),w.title,w.invoiceNo,w.supplierReportNo,sup(w.supplierId)?.name)).sort((a,b)=>String(b[1].reportDate).localeCompare(String(a[1].reportDate))||String(b[1].no).localeCompare(String(a[1].no)));
+    return`<div class="tbl-wrap"><table><thead><tr><th>WO no.</th><th>Asset · problem</th><th class="hs">Type</th><th class="hs">Contractor</th><th>Status</th><th class="r">Cost</th></tr></thead><tbody>${rows.length?rows.map(([id,w])=>`<tr data-open="wo:${id}"><td class="mono">${w.draft?draftPill:esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(woWhat(w))}<br><span class="muted">${esc(w.title)}</span></td><td class="hs">${esc(w.type)}<br>${prPill(w.priority)}</td><td class="hs">${esc(sup(w.supplierId)?.name||w.performedBy||'—')}${(w.files||[]).length?`<br><span class="muted">${(w.files||[]).length} file(s)</span>`:''}</td><td>${woPill(w.status)}</td><td class="r num">${woCost(w)?rm(woCost(w)):'—'}</td></tr>`).join(''):emptyRow(6,'No work orders here','Log a breakdown, repair or PM job with “New work order”.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} work order(s) · total ${rm(rows.reduce((s,[,w])=>s+woCost(w),0))}</p>`;
   }};
 
 VIEW.pm={
@@ -618,7 +621,7 @@ VIEW.activity={
   bind(){bindFilters('activity')},
   list(){
     const q=fval('activity','q');const ev=[];
-    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>r.no+' · '+woWhat(r)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>r.no+' · '+r.title],contracts:['contract',r=>r.title]};
+    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>(r.no||'Draft')+' · '+woWhat(r)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>(r.no||'Draft')+' · '+r.title],contracts:['contract',r=>r.title]};
     COLLS.forEach(c=>Object.entries(S[c]).forEach(([id,r])=>(r.history||[]).forEach(h=>ev.push([h,c,id,lab[c][1](r)]))));
     const rows=ev.filter(([h,,,n])=>match(q,h.act,n)).sort((a,b)=>String(b[0].at).localeCompare(String(a[0].at))).slice(0,300);
     const kind={assets:'Asset',workorders:'Work order',parts:'Spare',suppliers:'Contractor',incidents:'Incident',contracts:'Contract'};
@@ -702,8 +705,8 @@ const DETAIL={
   },
   wo(id,w){
     const chk=[['chkHygiene','Hygiene condition checked'],['chkSafety','Safety condition checked'],['chkIsolated','Work area isolated from production'],['chkPPE','Technicians wore PPE'],['chkTools','No foreign matter / tools left on line'],['chkClearance','Hygiene clearance before restart']];
-    return{eyebrow:'Work order · '+esc(w.no),title:w.title,pills:woPill(w.status)+prPill(w.priority)+`<span class="pill">${esc(w.type)}</span>`,
-      body:`<div class="acts">${W(()=>`<button class="btn pri" id="dEdit">Update job</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button></div>
+    return{eyebrow:w.draft?'Work order · draft':'Work order · '+esc(w.no),title:w.title,pills:(w.draft?draftPill:woPill(w.status))+prPill(w.priority)+`<span class="pill">${esc(w.type)}</span>`,
+      body:`<div class="acts">${w.draft?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Draft.</b> Not yet a numbered work order. Click <b>Continue draft</b>, complete it and click <b>Save</b> to issue the WO number.</div>':''}${W(()=>`<button class="btn pri" id="dEdit">${w.draft?'Continue draft':'Update job'}</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button></div>
       ${w.incidentId?`<div class="banner" style="margin:0">${S.me&&S.me.incidents&&S.incidents[w.incidentId]?`Raised from incident <a href="#" data-inc="${w.incidentId}">${esc(S.incidents[w.incidentId].no)} · ${esc(S.incidents[w.incidentId].title)}</a>${w.capaId&&(S.incidents[w.incidentId].capa||[]).find(c=>c.cid===w.capaId)?' for action: <b>'+esc(S.incidents[w.incidentId].capa.find(c=>c.cid===w.capaId).action)+'</b>':''}`:'Raised from an incident record (restricted to people with incident access).'}</div>`:''}
       ${kv([['Machine / item',w.assetId&&A(w.assetId)?`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`:''],['Department · location',esc(woWhere(w))],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
       ${w.tasksDone?`<div><h3>Tasks completed</h3><div style="white-space:pre-wrap">${esc(w.tasksDone)}</div></div>`:''}
@@ -925,9 +928,14 @@ function woForm(id,preset={}){
   let lines=(prev?.lines||[]).map(l=>({...l}));
   const link=prev?{}:{incidentId:preset.incidentId||'',capaId:preset.capaId||''};
   const key=id||newId('workorders');let newFiles=[],upPending=0;
-  const extra=()=>linesEditor(lines.length?lines:[])+`<div class="fgrid"><div class="sec">Attachments: service report, invoice, photos (optional)</div></div>${prev&&(prev.files||[]).length?`<p class="muted" style="margin:0">${prev.files.length} file(s) already attached; manage them on the job record.</p>`:''}<div class="toolbar" style="margin:0"><select id="wf_kind" style="width:auto" aria-label="Attachment type">${FILE_KINDS.workorders.map(k=>opt(k)).join('')}</select><label class="btn sm" for="wf_cam" style="cursor:pointer">Take photo</label><input id="wf_cam" class="wf-in" type="file" accept="image/*" capture="environment" hidden><label class="btn sm" for="wf_up" style="cursor:pointer">Attach PDF or photo</label><input id="wf_up" class="wf-in" type="file" multiple accept="image/*,application/pdf" hidden></div><div class="ev-list" id="wf_list"></div><p class="muted" style="margin:0;font-size:12px">PDF or photos up to 25 MB. Files are saved with the job when you click Save.</p>`+(prev?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
-  const sh=formSheet({title:prev?'Update '+prev.no:'New work order',fields:F_WO,data,extra:extra(),
+  const extra=()=>linesEditor(lines.length?lines:[])+`<div class="fgrid"><div class="sec">Attachments: service report, invoice, photos (optional)</div></div>${prev&&(prev.files||[]).length?`<p class="muted" style="margin:0">${prev.files.length} file(s) already attached; manage them on the job record.</p>`:''}<div class="toolbar" style="margin:0"><select id="wf_kind" style="width:auto" aria-label="Attachment type">${FILE_KINDS.workorders.map(k=>opt(k)).join('')}</select><label class="btn sm" for="wf_cam" style="cursor:pointer">Take photo</label><input id="wf_cam" class="wf-in" type="file" accept="image/*" capture="environment" hidden><label class="btn sm" for="wf_up" style="cursor:pointer">Attach PDF or photo</label><input id="wf_up" class="wf-in" type="file" multiple accept="image/*,application/pdf" hidden></div><div class="ev-list" id="wf_list"></div><p class="muted" style="margin:0;font-size:12px">PDF or photos up to 25 MB. Files are saved with the job when you click Save.</p>`+(prev&&!prev.draft?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
+  const sh=formSheet({title:prev?(prev.draft?'Draft work order':'Update '+prev.no):'New work order',fields:F_WO,data,extra:extra(),
     danger:prev&&S.canAdmin?{label:'Delete job',onClick:()=>confirmBox('Delete '+prev.no+'?','The job, its compliance record and links to attachments will be removed. Spares already deducted are not returned to stock.','Delete',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList()})}:null,
+    onDraft:(!prev||prev.draft)?async v=>{
+      if(upPending)return'Please wait for the attachment upload to finish.';
+      const next={...(prev||{}),...link,...v,lines:readLines(),no:'',draft:true};if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      await put('workorders',key,next,prev?'Draft updated':'Saved as draft');toast('Draft saved. Open it from Work orders to finish.');renderList();if(prev)renderDetail();else openDetail('wo',key);
+    }:null,
     onSave:async v=>{
       if(upPending)return'Please wait for the attachment upload to finish.';
       lines=readLines();
@@ -939,7 +947,7 @@ function woForm(id,preset={}){
         if(!v.verifiedDate)v.verifiedDate=today();
       }
       if(v.status==='Completed'&&!prev?.partsPosted){for(const l of lines){const p=S.parts[l.partId];if(p&&num(l.qty)>num(p.qty))return`Only ${num(p.qty)} ${p.unit||''} of ${p.name} in store.`}}
-      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};const wasDraft=!!next.draft;delete next.draft;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       const finishing=['Completed','Verified'].includes(next.status);
       // deduct spares once, when the job is first completed
       if(finishing&&!next.partsPosted&&lines.length){
@@ -947,12 +955,12 @@ function woForm(id,preset={}){
           const r=await api('POST','/api/stock/'+l.partId,{type:'Issue',delta:-num(l.qty),date:next.completedDate||today(),ref:next.no,note:A(next.assetId)?.code||woWhere(next)});S.parts[l.partId]=r.doc}
         next.partsPosted=true;
       }
-      const act=(prev?diffAct(prev,next,F_WO)+((JSON.stringify(prev.lines||[])!==JSON.stringify(lines))?'; spares list':''):'Created '+next.no+' ('+next.type+')'+(next.incidentId&&S.incidents[next.incidentId]?' from incident '+S.incidents[next.incidentId].no:''))+(newFiles.length?'; attached '+newFiles.map(f=>f.kind+': '+f.name).join(', '):'');
+      const act=(prev&&!wasDraft?diffAct(prev,next,F_WO)+((JSON.stringify(prev.lines||[])!==JSON.stringify(lines))?'; spares list':''):'Created '+next.no+' ('+next.type+')'+(next.incidentId&&S.incidents[next.incidentId]?' from incident '+S.incidents[next.incidentId].no:''))+(newFiles.length?'; attached '+newFiles.map(f=>f.kind+': '+f.name).join(', '):'');
       await put('workorders',key,next,act);
       // asset side effects
       const a=A(next.assetId);
       if(a){const upd={};const why=[];
-        if(!prev&&next.type==='Breakdown / repair'&&$('#f_markRepair')?.checked!==false&&a.status==='Active'&&!finishing){upd.status='Under repair';why.push('Status Active → Under repair')}
+        if((!prev||wasDraft)&&next.type==='Breakdown / repair'&&$('#f_markRepair')?.checked!==false&&a.status==='Active'&&!finishing){upd.status='Under repair';why.push('Status Active → Under repair')}
         if(finishing&&!(prev&&['Completed','Verified'].includes(prev.status))){
           if(a.status==='Under repair'){upd.status='Active';why.push('Status Under repair → Active')}
           if(next.type==='Preventive maintenance'&&next.completedDate&&(!a.lastPM||next.completedDate>a.lastPM)){upd.lastPM=next.completedDate;why.push('Last PM '+fmtD(next.completedDate))}
@@ -960,7 +968,7 @@ function woForm(id,preset={}){
         }
         if(why.length)await put('assets',next.assetId,{...a,...upd},'From '+next.no+': '+why.join('; '));
       }
-      toast(prev?next.no+' updated':next.no+' created');renderList();if(prev)renderDetail();else openDetail('wo',key);
+      toast(prev&&!wasDraft?next.no+' updated':next.no+' created');renderList();if(prev)renderDetail();else openDetail('wo',key);
     }});
   const wl=$('#wf_list',sh);const drawWF=(up)=>{wl.innerHTML=newFiles.map((f,i)=>`<span class="evc"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener" title="${esc(f.name)}">${esc(f.kind)}: ${esc(f.name)}</a><button type="button" class="wf-x" data-i="${i}" aria-label="Remove ${esc(f.name)}">×</button></span>`).join('')+(up?`<span class="evc up">Uploading ${esc(up)}…</span>`:'');fillFiles(wl)};
   wl.addEventListener('click',e=>{const x=e.target.closest('.wf-x');if(x){newFiles.splice(+x.dataset.i,1);drawWF()}});
@@ -1158,8 +1166,13 @@ function incForm(id,preset={}){
   const prev=id?S.incidents[id]:null;
   const data=prev||{category:'Accident – injury',incDate:today(),status:'Reported',reportedBy:S.me.name,...preset};
   const key=id||('inc-'+Date.now().toString(36)+Math.random().toString(36).slice(2,6));let evPending=0;
-  const sh=formSheet({title:prev?'Update '+prev.no:'Report incident / accident',fields:F_INC,data,extra:capaEditor((prev&&prev.capa)||[]),
+  const sh=formSheet({title:prev?(prev.draft?'Draft incident report':'Update '+prev.no):'Report incident / accident',fields:F_INC,data,extra:capaEditor((prev&&prev.capa)||[]),
     danger:prev&&S.canAdmin?{label:'Delete record',onClick:()=>confirmBox('Delete '+prev.no+'?','DOSH requires every register entry to be kept for at least 5 years (NADOPOD Regulations 2004, reg. 10). Delete only a record entered by mistake.','Delete',async()=>{await api('DELETE','/api/docs/incidents/'+id);delete S.incidents[id];closeLayer('drawer');renderList()})}:null,
+    onDraft:(!prev||prev.draft)?async v=>{
+      if(evPending)return'Please wait for the evidence upload to finish.';
+      const next={...(prev||{}),...v,capa:readCapa(prev&&prev.capa),no:'',draft:true};
+      await put('incidents',key,next,prev?'Draft updated':'Saved as draft');toast('Draft saved. It is not in the register until you complete and save it.');renderList();if(prev)renderDetail();else openDetail('incident',key);
+    }:null,
     onSave:async v=>{
       if(evPending)return'Please wait for the evidence upload to finish.';
       const caps=readCapa(prev&&prev.capa);
@@ -1174,8 +1187,8 @@ function incForm(id,preset={}){
         if(p.need&&!v.perkesoDate)return'Record the Borang 34 (PERKESO) submission before closing.';
         if(!v.closedDate)v.closedDate=today();
       }
-      const next={...(prev||{}),...v,capa:caps,no:(prev&&prev.no)||nextIncNo()};
-      const act=prev?diffAct(prev,next,F_INC)+(JSON.stringify(prev.capa||[])!==JSON.stringify(caps)?'; actions (CAPA)':''):'Reported '+next.no+' ('+next.category+(next.severity&&hasPerson(next)?', '+next.severity:'')+')';
+      const next={...(prev||{}),...v,capa:caps,no:(prev&&prev.no)||nextIncNo()};const wasDraft=!!next.draft;delete next.draft;
+      const act=prev&&!wasDraft?diffAct(prev,next,F_INC)+(JSON.stringify(prev.capa||[])!==JSON.stringify(caps)?'; actions (CAPA)':''):'Reported '+next.no+' ('+next.category+(next.severity&&hasPerson(next)?', '+next.severity:'')+')';
       await put('incidents',key,next,act);
       toast(d.immediate&&!next.doshNotifiedAt?'Saved. Notify the nearest DOSH office now by phone or email.':(prev?next.no+' updated':next.no+' recorded'));
       renderList();if(prev)renderDetail();else openDetail('incident',key);
@@ -1197,8 +1210,8 @@ function incForm(id,preset={}){
 DETAIL.incident=(id,i)=>{
   const d=doshInfo(i),p=perkesoInfo(i),a=i.assetId&&A(i.assetId);
   const alert=i.status!=='Closed'&&d.immediate&&!i.doshNotifiedAt?`<div class="banner" style="margin:0;background:var(--bad-soft)"><b>Notify DOSH now.</b> This ${i.category==='Dangerous occurrence'?'dangerous occurrence':'injury'} must be reported to the nearest DOSH office immediately by the quickest means (phone or email), then in writing on ${d.form} within ${d.days} days (by ${fmtD(d.due)}).</div>`:'';
-  return{eyebrow:'Incident · '+esc(i.no),title:i.title,pills:incStatusPill(i.status)+sevPill(i)+doshPill(i)+perkesoPill(i)+(i.foodImpact?'<span class="pill warn">Food safety impact</span>':''),
-    body:`<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">Update record</button><button class="btn" id="dJob">Create repair job</button>')}<button class="btn" id="dPrint">Print report</button><button class="btn" id="dDl">Download report</button><button class="btn" id="dHz">HIRARC (Excel)</button></div>${alert}
+  return{eyebrow:i.draft?'Incident · draft':'Incident · '+esc(i.no),title:i.title,pills:(i.draft?draftPill:'')+incStatusPill(i.status)+sevPill(i)+doshPill(i)+perkesoPill(i)+(i.foodImpact?'<span class="pill warn">Food safety impact</span>':''),
+    body:`${i.draft?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Draft.</b> Not yet in the incident register and has no reference number. Click <b>Continue draft</b>, complete the required fields and click <b>Save</b>. DOSH deadlines still run from the incident date.</div>':''}<div class="acts">${W(()=>'<button class="btn pri" id="dEdit">'+(i.draft?'Continue draft':'Update record')+'</button><button class="btn" id="dJob">Create repair job</button>')}<button class="btn" id="dPrint">Print report</button><button class="btn" id="dDl">Download report</button><button class="btn" id="dHz">HIRARC (Excel)</button></div>${alert}
     ${kv([['Type',esc(i.category)],['Date & time',incWhen(i)],['Where',esc(place(i)||'')],['Equipment',a?`<a href="#" data-asset="${i.assetId}">${esc(a.code+' · '+a.name)}</a>`:''],['Reported by',esc(i.reportedBy)],['Witnesses',esc(i.witnesses)]])}
     <div><h3>What happened</h3>${i.activity?`<p style="margin:0 0 6px"><b>Activity:</b> ${esc(i.activity)}</p>`:''}<div style="white-space:pre-wrap">${esc(i.description)}</div></div>
     ${hasPerson(i)?`<div><h3>Person involved</h3>${kv([['Name',esc(i.personName)],['Employment',esc([i.personType,i.personEmployer].filter(Boolean).join(' · '))],['IC / passport',esc(i.personIdNo)],['Nationality',esc(i.nationality)],['Gender · age',esc([i.gender,i.age].filter(x=>x!==''&&x!=null).join(' · '))],['Occupation',esc(i.occupation)]])}</div>
@@ -1229,19 +1242,19 @@ VIEW.incidents={
     <div class="toolbar"><input class="grow" type="search" data-f="q" id="q_i" placeholder="Search ref, name, title, location…" value="${esc(fval('incidents','q'))}">
     <select data-f="year" id="y_i" style="width:auto"><option value="">All years</option>${years.map(y=>opt(y,fval('incidents','year'))).join('')}</select>
     <select data-f="cat" id="c_i" style="width:auto"><option value="">All types</option>${INC_CATS.map(c=>opt(c,fval('incidents','cat'))).join('')}</select>
-    <select data-f="status" id="s_i" style="width:auto">${[['','All statuses'],['open','Not closed'],['due','DOSH / PERKESO report due'],...INC_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('incidents','status'))).join('')}</select>
+    <select data-f="status" id="s_i" style="width:auto">${[['','All statuses'],['open','Not closed'],['due','DOSH / PERKESO report due'],['draft','Drafts'],...INC_STATUS.map(s=>[s,s])].map(o=>opt(o,fval('incidents','status'))).join('')}</select>
     ${W(()=>'<button class="btn pri" id="addI">Report incident</button>')}<button class="btn" id="repI">Reports</button></div><div id="list"></div>`},
   bind(){bindFilters('incidents');const a=$('#addI');if(a)a.onclick=()=>incForm();$('#repI').onclick=reportsSheet},
   list(){
     const q=fval('incidents','q'),y=fval('incidents','year'),c=fval('incidents','cat'),st=fval('incidents','status');
-    const rows=Object.entries(S.incidents).filter(([,i])=>(!y||String(i.incDate||'').startsWith(y))&&(!c||i.category===c)&&(!st||(st==='open'?i.status!=='Closed':st==='due'?incPending(i):i.status===st))&&match(q,i.no,i.title,i.personName,i.location,i.dept,i.description)).sort((a,b)=>String(b[1].incDate).localeCompare(String(a[1].incDate))||String(b[1].no).localeCompare(String(a[1].no)));
-    return`<div class="tbl-wrap"><table><thead><tr><th>Ref · date</th><th>What happened</th><th class="hs">Person</th><th>Type · severity</th><th>DOSH / PERKESO</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(([id,i])=>`<tr data-open="incident:${id}"><td class="mono">${esc(i.no)}<br><span class="muted">${incWhen(i)}</span></td><td>${esc(i.title)}<br><span class="muted">${esc(place(i))}</span></td><td class="hs">${esc(i.personName||'—')}${i.personType?'<br><span class="muted">'+esc(i.personType)+'</span>':''}</td><td>${sevPill(i)}</td><td>${doshPill(i)}${perkesoPill(i)?'<br>'+perkesoPill(i):''}</td><td>${incStatusPill(i.status)}</td></tr>`).join(''):emptyRow(6,Object.keys(S.incidents).length?'No records match':'No incidents recorded','Record every accident, dangerous occurrence, near miss and occupational illness here, including minor ones.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} record(s)</p>`;
+    const rows=Object.entries(S.incidents).filter(([,i])=>(!y||String(i.incDate||'').startsWith(y))&&(!c||i.category===c)&&(!st||(st==='open'?i.status!=='Closed':st==='due'?incPending(i):st==='draft'?i.draft:(!i.draft&&i.status===st)))&&match(q,i.no,i.title,i.personName,i.location,i.dept,i.description)).sort((a,b)=>String(b[1].incDate).localeCompare(String(a[1].incDate))||String(b[1].no).localeCompare(String(a[1].no)));
+    return`<div class="tbl-wrap"><table><thead><tr><th>Ref · date</th><th>What happened</th><th class="hs">Person</th><th>Type · severity</th><th>DOSH / PERKESO</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(([id,i])=>`<tr data-open="incident:${id}"><td class="mono">${i.draft?draftPill:esc(i.no)}<br><span class="muted">${incWhen(i)}</span></td><td>${esc(i.title)}<br><span class="muted">${esc(place(i))}</span></td><td class="hs">${esc(i.personName||'—')}${i.personType?'<br><span class="muted">'+esc(i.personType)+'</span>':''}</td><td>${sevPill(i)}</td><td>${doshPill(i)}${perkesoPill(i)?'<br>'+perkesoPill(i):''}</td><td>${incStatusPill(i.status)}</td></tr>`).join(''):emptyRow(6,Object.keys(S.incidents).length?'No records match':'No incidents recorded','Record every accident, dangerous occurrence, near miss and occupational illness here, including minor ones.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} record(s)</p>`;
   }};
 
 /* ---------- reports ---------- */
 const REG_COLS=[['Ref no','no'],['Date',i=>fmtD(i.incDate)],['Time','incTime'],['Type','category'],['Severity','severity'],['Name','personName'],['IC / passport','personIdNo'],['Employment type','personType'],['Employer','personEmployer'],['Occupation','occupation'],['Nationality','nationality'],['Gender','gender'],['Age','age'],['Nature of injury','injuryNature'],['Part of body','bodyPart'],['Days lost','daysLost'],['Department','dept'],['Location','location'],['Equipment',i=>i.assetId&&A(i.assetId)?A(i.assetId).code+' '+A(i.assetId).name:''],['What happened',i=>[i.title,i.description].filter(Boolean).join(': ')],['DOSH notified',i=>i.doshNotifiedAt?fmtDT(i.doshNotifiedAt):''],['Written report',i=>{const d=doshInfo(i);return i.doshReportDate?d.form+' '+fmtD(i.doshReportDate):(d.written?'Due '+fmtD(d.due):'Not notifiable')}],['DOSH ref','doshRef'],['Borang 34',i=>i.perkesoDate?fmtD(i.perkesoDate):(perkesoInfo(i).need?'Pending':'')],['Root cause','rootCause'],['Status','status']];
 const cell=(i,k)=>typeof k==='function'?k(i):(i[k]??'');
-function incRows(year){return Object.values(S.incidents).filter(i=>!year||String(i.incDate||'').startsWith(year)).sort((a,b)=>String(a.incDate).localeCompare(String(b.incDate))||String(a.no).localeCompare(String(b.no)))}
+function incRows(year){return Object.values(S.incidents).filter(i=>!i.draft).filter(i=>!year||String(i.incDate||'').startsWith(year)).sort((a,b)=>String(a.incDate).localeCompare(String(b.incDate))||String(a.no).localeCompare(String(b.no)))}
 const CO=()=>esc((window.GFB_CONFIG&&window.GFB_CONFIG.companyName)||'GFB Food Sdn Bhd');
 const RPT_CSS='body{font:11px Arial,sans-serif;margin:24px;color:#111}h1{font-size:16px;margin:0 0 2px}h2{font-size:13px;margin:16px 0 6px}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:10px}.note{color:#444;margin-top:12px}.sig td{height:54px}@page{margin:12mm}';
 function outputDoc(html,filename,print){
@@ -1308,7 +1321,7 @@ function reportsSheet(){
     outputDoc(html,v.report==='summary'?`GFB_OSH_Annual_Summary_${v.year}.html`:`GFB_Accident_Register_${v.year}.html`,mode==='print')};
   $('#rPrint',sh).onclick=()=>go2('print');$('#rHtml',sh).onclick=()=>go2('html');$('#rCsv',sh).onclick=()=>go2('csv');
   $('#rHz',sh).onclick=()=>{const v=readForm(fields);if(!/^\d{4}$/.test(v.year)){toast('Enter a 4-digit year.');return}
-    const ids=Object.entries(S.incidents).filter(([,i])=>String(i.incDate||'').startsWith(v.year)&&(!v.hzDept||i.dept===v.hzDept)).map(([id])=>id);
+    const ids=Object.entries(S.incidents).filter(([,i])=>!i.draft&&String(i.incDate||'').startsWith(v.year)&&(!v.hzDept||i.dept===v.hzDept)).map(([id])=>id);
     if(!ids.length){toast('No incidents for '+v.year+(v.hzDept?' in '+v.hzDept:'')+'.');return}hirarcSheet(ids)};
 }
 
