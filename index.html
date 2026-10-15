@@ -1708,19 +1708,69 @@ function calCSV(rows){const head=['Equipment','Range','Calibration ID','Serial n
   const csv='﻿'+[head.join(','),...rows.map(([,a])=>[a.calEquip||a.name,a.calRange,a.calId,a.serial,a.code,a.location,calLabel(CAL_INT,a.calIntFreq),a.calIntLast,calIntInfo(a)?.due||'',calLabel(CAL_EXT,a.calExtFreq),a.calibDue,a.stampDue,a.calTol,a.calPoints,sup(a.calLab)?.name||'',a.calStatus||'In use'].map(csvCell).join(','))].join('\r\n');
   save(`GFB_Calibration_Register_${today()}.csv`,csv)}
 const calDocCSS='body{font:11px Arial,sans-serif;margin:24px;color:#111}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}.ft{display:flex;justify-content:space-between;margin-top:28px}h1{font-size:15px;margin:0}h2{font-size:13px;margin:2px 0}';
+/* ---- L04 master list layout (3 pages, as per Form L04 R11) ---- */
+const L04_ORDER=['standard weight','weighing scale','refractrometer','refractometer','sealing machine','moisture analyser','ph meter','autopacking (1) sealing machine','magnetic trap','metal detector (fe & sus)','checkweigher','air leak tester','thermohygrometer','timer'];
+const L04_P2=['weighing scale','refractrometer','refractometer','sealing machine','moisture analyser','ph meter'];
+const L04_HEAD=['Weight','Weight / Temperature / Brix / pH','Gauss / Sensitivity / Weight/ Temperature'];
+function capGrams(r){const m=String(r||'').replace(/,/g,'').match(/([\d.]+)\s*(kg|g)\b/i);if(!m)return 1e12;return parseFloat(m[1])*(m[2].toLowerCase()==='kg'?1000:1)}
+function l04Page(a){const e=String(a.calEquip||a.name||'').trim().toLowerCase();
+  if(e==='standard weight')return 0;if(e==='weighing scale'&&capGrams(a.calRange)<=10000)return 0;if(L04_P2.includes(e))return 1;return 2}
+function l04Rows(){const pages=[[],[],[]];
+  Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.status!=='Disposed').forEach(([id,a])=>pages[l04Page(a)].push([id,a]));
+  const ix=a=>{const i=L04_ORDER.indexOf(String(a.calEquip||a.name||'').trim().toLowerCase());return i<0?99:i};
+  pages.forEach(p=>p.sort(([,x],[,y])=>ix(x)-ix(y)||String(x.calEquip||x.name).localeCompare(String(y.calEquip||y.name))||capGrams(x.calRange)-capGrams(y.calRange)||String(x.calId||'').localeCompare(String(y.calId||''),undefined,{numeric:true})));
+  return pages}
+async function l04Excel(v){await loadExcelJS();
+  const wb=new ExcelJS.Workbook();wb.creator='GFB CMMS';const rev=v.rev?'R'+String(v.rev).replace(/^R/i,''):'';
+  const ws=wb.addWorksheet(rev||'L04',{views:[{showGridLines:false}]});
+  [26.5,30.2,30,29.5,23.2,20.7,19.5,23.5,24.7,19.5].forEach((w,i)=>ws.getColumn(i+1).width=w);
+  const F=(b)=>({name:'Calibri',size:16,bold:!!b}),AL={horizontal:'center',vertical:'middle',wrapText:true};
+  const T='thin',M='medium';
+  const hx=s=>String(s||'').replace(/&/g,'&&');
+  ws.headerFooter={differentFirst:false,oddHeader:`&L&14Form No.: ${hx(v.formNo)}\nRevision: ${hx(v.rev)}&C&"-,Bold"&28${hx(String(CO()).replace(/&amp;/g,'&').toUpperCase())}&R&14Effective Date: ${hx(v.eff)}`,oddFooter:`&L&14Prepared by: ${hx(v.prep)}&R&14Approved by: ${hx(v.appr)}`};
+  ws.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,margins:{left:0.236,right:0.236,top:0.748,bottom:0.276,header:0.315,footer:0.315}};
+  const toDate=d=>{if(!d)return'';const m=String(d).match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):d};
+  let r=1;const pages=l04Rows();let printed=0;
+  pages.forEach((rows,pi)=>{if(!rows.length)return;
+    if(printed)ws.getRow(r-1).addPageBreak();printed++;
+    ws.mergeCells(r,1,r+1,10);const t=ws.getCell(r,1);t.value='CALIBRATION MASTER LIST';t.font={name:'Calibri',size:24,bold:true};t.alignment={horizontal:'center',vertical:'middle'};ws.getRow(r+1).height=15;r+=2;
+    const h1=r,h2=r+1;ws.getRow(h1).height=24;ws.getRow(h2).height=24;
+    const heads=['Equipment',L04_HEAD[pi],'Machine No.','Identification/\nSerial Number','Location/Area','Frequency',null,'Next Calibration Date','Next Stamping Date','Tolerance'];
+    heads.forEach((h,i)=>{if(h==null)return;const c=ws.getCell(h1,i+1);c.value=h;c.font=F(1);c.alignment=AL});
+    [1,2,3,4,5,8,9,10].forEach(c=>ws.mergeCells(h1,c,h2,c));ws.mergeCells(h1,6,h1,7);
+    ws.getCell(h2,6).value='Internal';ws.getCell(h2,7).value='External';[6,7].forEach(c=>{const x=ws.getCell(h2,c);x.font=F(1);x.alignment=AL});
+    for(let rr=h1;rr<=h2;rr++)for(let c=1;c<=10;c++)ws.getCell(rr,c).border={top:{style:rr===h1?M:T},bottom:{style:rr===h2?M:T},left:{style:c===1?M:T},right:{style:c===10?M:T}};
+    r=h2+1;const first=r;let grpStart=r,grpKey=null;
+    const closeGrp=end=>{if(end>grpStart)ws.mergeCells(grpStart,1,end,1)};
+    rows.forEach(([,a],k)=>{const key=String(a.calEquip||a.name||'').trim().toLowerCase();
+      if(key!==grpKey){if(grpKey!=null)closeGrp(r-1);grpKey=key;grpStart=r;ws.getCell(r,1).value=(a.calEquip||a.name||'').trim()}
+      const vals=[null,a.calRange||'-',a.calId||'NA',a.serial||'-',a.location||'',(a.calIntFreq?calLabel(CAL_INT,a.calIntFreq):'')||'-',(a.calExtFreq?calLabel(CAL_EXT,a.calExtFreq):'')||'-',toDate(a.calibDue),toDate(a.stampDue),a.calTol||'-'];
+      vals.forEach((x,i)=>{if(i===0)return;const c=ws.getCell(r,i+1);c.value=x===''?null:x;if(i===7||i===8)c.numFmt='dd/mm/yyyy'});
+      const lines=Math.max(1,...[a.calRange,a.calTol,a.calEquip].map(x=>String(x||'').split('\n').length));ws.getRow(r).height=Math.max(30,lines*22);
+      r++});
+    closeGrp(r-1);const last=r-1;
+    for(let rr=first;rr<=last;rr++)for(let c=1;c<=10;c++){const x=ws.getCell(rr,c);x.font=F(0);x.alignment=AL;x.border={top:{style:T},bottom:{style:rr===last?M:T},left:{style:c===1?M:T},right:{style:c===10?M:T}}}
+    r=last+2});
+  if(!printed){ws.getCell(1,1).value='No instruments in the calibration register.'}
+  ws.pageSetup.printArea=`A$1:J$${Math.max(1,r-2)}`;
+  const buf=await wb.xlsx.writeBuffer();
+  save(`L04_Calibration_Master_List${rev?'_'+rev:''}_${today()}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  toast('Excel L04 downloaded')}
 function masterSheet(){const st=S.settings.calDoc||{};
   const fields=[{k:'formNo',label:'Form no.'},{k:'rev',label:'Revision'},{k:'eff',label:'Effective date',ph:'e.g. 06 November 2025'},{k:'prep',label:'Prepared by'},{k:'appr',label:'Approved by'}];
   const sh=formSheet({title:'Calibration master list (print)',fields,data:{formNo:st.formNo||'L04',rev:st.rev||'',eff:st.eff||'',prep:st.prep||'R&D Officer',appr:st.appr||'Food Safety Team Leader'},
-    extra:'<div class="acts"><button type="button" class="btn pri" id="mlP">Print / save as PDF</button><button type="button" class="btn" id="mlH">Download (.html)</button></div><p class="muted" style="margin:0">Lists every active instrument in the register, grouped by equipment type, in your L04 master list columns.</p>'});
+    extra:'<div class="acts"><button type="button" class="btn pri" id="mlP">Print / save as PDF</button><button type="button" class="btn pri" id="mlX">Download Excel (L04 form)</button><button type="button" class="btn" id="mlH">Download (.html)</button></div><p class="muted" style="margin:0">Lists every active instrument in the register in your L04 layout: page 1 standard weights &amp; small scales, page 2 large scales, refractometers, sealers, moisture &amp; pH, page 3 other equipment. The Excel file carries the form no., revision, effective date, prepared / approved by in the page header and footer.</p>'});
   if(!sh)return;$('#fsave',sh)?.remove();
   const go2=async pr=>{const v=readForm(fields);if(S.canAdmin&&JSON.stringify(v)!==JSON.stringify(st)){try{await saveSettings({calDoc:v},'Calibration master list header updated')}catch(e){}}
-    const rows=Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.status!=='Disposed').sort((x,y)=>String(x[1].calEquip||x[1].name).localeCompare(String(y[1].calEquip||y[1].name))||String(x[1].calId).localeCompare(String(y[1].calId),undefined,{numeric:true}));
+    const rows=l04Rows().flat();
     let last='';const body=rows.map(([,a])=>{const g=a.calEquip||a.name;const show=g!==last;last=g;return`<tr><td>${show?esc(g):''}</td><td>${esc(a.calRange||'')}</td><td>${esc(a.calId||'NA')}</td><td>${esc(a.serial||'')}</td><td>${esc(a.location||'')}</td><td>${esc(calLabel(CAL_INT,a.calIntFreq)||'-')}</td><td>${esc(calLabel(CAL_EXT,a.calExtFreq)||'-')}</td><td>${a.calibDue?fmtD(a.calibDue):''}</td><td>${a.stampDue?fmtD(a.stampDue):''}</td><td>${esc(a.calTol||'-')}</td></tr>`}).join('');
     const html=`<!doctype html><html><head><meta charset="utf-8"><title>Calibration master list</title><style>${calDocCSS}@page{size:A4 landscape;margin:10mm}</style></head><body><div class="hd"><div>Form No.: ${esc(v.formNo)}<br>Revision: ${esc(v.rev)}</div><div style="text-align:center"><h1>${CO()}</h1><h2>CALIBRATION MASTER LIST</h2></div><div>Effective Date: ${esc(v.eff)}<br>Printed: ${fmtD(today())}</div></div>
 <table><thead><tr><th rowspan="2">Equipment</th><th rowspan="2">Weight / Range</th><th rowspan="2">Machine No.</th><th rowspan="2">Identification / Serial Number</th><th rowspan="2">Location / Area</th><th colspan="2">Frequency</th><th rowspan="2">Next Calibration Date</th><th rowspan="2">Next Stamping Date</th><th rowspan="2">Tolerance</th></tr><tr><th>Internal</th><th>External</th></tr></thead><tbody>${body||'<tr><td colspan="10">No instruments</td></tr>'}</tbody></table>
 <div class="ft"><div>Prepared by: ${esc(v.prep)}</div><div>Approved by: ${esc(v.appr)}</div></div></body></html>`;
     outputDoc(html,`GFB_Calibration_Master_List_${today()}.html`,pr)};
   $('#mlP',sh).onclick=()=>go2(true);$('#mlH',sh).onclick=()=>go2(false);
+  $('#mlX',sh).onclick=async()=>{const v=readForm(fields);if(S.canAdmin&&JSON.stringify(v)!==JSON.stringify(st)){try{await saveSettings({calDoc:v},'Calibration master list header updated')}catch(e){}}
+    const b=$('#mlX',sh);b.disabled=true;b.textContent='Preparing…';try{await l04Excel(v)}catch(e){toast('Could not build the Excel file: '+(e.message||e))}finally{b.disabled=false;b.textContent='Download Excel (L04 form)'}};
 }
 function labSheet(){
   const fields=[{k:'lab',label:'Calibration lab',type:'select',opts:supOpts},{k:'days',label:'Include instruments due within (days)',type:'number'}];
