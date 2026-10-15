@@ -343,12 +343,13 @@ function fieldHTML(f,v){
   if(f.type==='locsel')return`<div class="field${cls}"><label for="${id}">${esc(f.label)}${req}</label><select id="${id}">${locOptionsHTML('',v)}</select><input id="${id}_new" type="text" placeholder="Type the new location name" autocomplete="off" hidden></div>`;
   if(f.type==='check')return`<label class="check${cls}" for="${id}"><input type="checkbox" id="${id}"${v?' checked':''}><span>${esc(f.label)}${f.hint?`<br><span class="muted" style="font-size:12px">${esc(f.hint)}</span>`:''}</span></label>`;
   let ctl;
-  if(f.type==='select')ctl=`<select id="${id}">${(f.blank!==false?'<option value="">—</option>':'')}${(typeof f.opts==='function'?f.opts():f.opts).map(o=>opt(o,v)).join('')}</select>`;
+  if(f.type==='select'&&f.opts===supOpts&&S.canWrite)ctl=`<select id="${id}" data-supsel><option value="">—</option>${supOpts().map(o=>opt(o,v)).join('')}<option value="__newsup">＋ Add new contractor / vendor…</option></select><div class="newsup" hidden style="display:flex;gap:6px;margin-top:6px"><input type="text" class="ns-name" placeholder="Company name" autocomplete="off" style="flex:1;min-width:0"><button type="button" class="btn sm pri ns-add">Add</button></div>`;
+  else if(f.type==='select')ctl=`<select id="${id}">${(f.blank!==false?'<option value="">—</option>':'')}${(typeof f.opts==='function'?f.opts():f.opts).map(o=>opt(o,v)).join('')}</select>`;
   else if(f.type==='textarea')ctl=`<textarea id="${id}" placeholder="${esc(f.ph||'')}">${esc(v)}</textarea>`;
   else ctl=`<input id="${id}" type="${f.type||'text'}" value="${esc(v)}" placeholder="${esc(f.ph||'')}"${f.type==='number'?' step="any" inputmode="decimal"':''}${f.listOpts?` list="dl_${f.k}" autocomplete="off"`:''}>`+(f.listOpts?`<datalist id="dl_${f.k}">${f.listOpts().map(o=>`<option value="${esc(o)}">`).join('')}</datalist>`:'');
   return`<div class="field${cls}"><label for="${id}">${esc(f.label)}${req}</label>${ctl}</div>`;
 }
-function readForm(fields){const o={};fields.forEach(f=>{if(f.type==='sec')return;const el=$('#f_'+f.k);if(!el)return;if(f.type==='locsel'){o[f.k]=el.value==='__new'?($('#f_'+f.k+'_new').value.trim()||'__new'):el.value;return}o[f.k]=f.type==='check'?el.checked:f.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim()});return o}
+function readForm(fields){const o={};fields.forEach(f=>{if(f.type==='sec')return;const el=$('#f_'+f.k);if(!el)return;if(f.type==='locsel'){o[f.k]=el.value==='__new'?($('#f_'+f.k+'_new').value.trim()||'__new'):el.value;return}if(el.value==='__newsup'){o[f.k]='';return}o[f.k]=f.type==='check'?el.checked:f.type==='number'?(el.value===''?'':Number(el.value)):el.value.trim()});return o}
 function closeLayer(kind){const l=$('#layer');$$(kind==='sheet'?'.sheet,.scrim.top':'.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());if(kind!=='sheet')S.detail=null}
 function openSheet({title,sub,body,saveLabel='Save',onSave,danger,onDraft}){
   closeLayer('sheet');
@@ -869,6 +870,19 @@ function assetForm(id,copyFrom,preset){
   if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});const hide=it&&!(prev&&isCal(prev));F_CAL.forEach(f=>{if(f.k){const el=$('#f_'+f.k,sh)?.closest('.field');if(el)el.hidden=hide}});$$('.sec',sh).forEach(x=>{if(/^Calibration/.test(x.textContent))x.hidden=hide})};if(cat){cat.addEventListener('change',tog);tog()}}
   if(src&&sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent=`Copied from ${src.code}. Check the asset code, then enter the serial no., department and location of this unit.`;$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
 }
+/* inline "add new contractor / vendor" in any contractor dropdown */
+document.addEventListener('change',e=>{const sel=e.target.closest('select[data-supsel]');if(!sel)return;const box=sel.parentElement.querySelector('.newsup');if(!box)return;
+  const show=sel.value==='__newsup';box.hidden=!show;box.style.display=show?'flex':'none';if(show)box.querySelector('.ns-name').focus()});
+async function addSupInline(box){const sel=box.parentElement.querySelector('select[data-supsel]');const inp=box.querySelector('.ns-name');const name=inp.value.trim();
+  if(!name){toast('Type the company name first.');inp.focus();return}
+  const hit=Object.entries(S.suppliers).find(([,x])=>String(x.name||'').trim().toLowerCase()===name.toLowerCase());
+  let key;if(hit)key=hit[0];else{key=newId('suppliers');const btn=box.querySelector('.ns-add');btn.disabled=true;
+    try{await put('suppliers',key,{name,kind:'Contractor (service)',approval:'Under evaluation'},'Added from a form (quick add)')}catch(err){btn.disabled=false;toast('Could not add: '+(err.message||err));return}btn.disabled=false}
+  $$('select[data-supsel]').forEach(s2=>{if(![...s2.options].some(o=>o.value===key))s2.querySelector('option[value="__newsup"]').insertAdjacentHTML('beforebegin',`<option value="${esc(key)}">${esc(name)}</option>`)});
+  sel.value=key;sel.dispatchEvent(new Event('change',{bubbles:true}));inp.value='';box.hidden=true;box.style.display='none';
+  toast(hit?name+' already exists, selected':name+' added. Fill in contact details later under Contractors.')}
+document.addEventListener('click',e=>{const b=e.target.closest('.ns-add');if(b)addSupInline(b.closest('.newsup'))});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.closest('.ns-name')){e.preventDefault();addSupInline(e.target.closest('.newsup'))}});
 function supForm(id){
   const prev=id?S.suppliers[id]:null;
   formSheet({title:prev?'Edit contractor / vendor':'Add contractor / vendor',fields:F_SUP,data:prev||{approval:'Under evaluation'},
