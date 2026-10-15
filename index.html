@@ -146,6 +146,8 @@ a{color:var(--accent)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
+.calr,.calh{display:grid;grid-template-columns:2fr 1.2fr 0.8fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.calh{font-size:12px}
+@media (max-width:640px){.calr,.calh{grid-template-columns:1fr 1fr 0.7fr 0.9fr 30px}}
 .capa{display:grid;grid-template-columns:2fr 1fr 150px 90px auto 34px;gap:6px;align-items:center}
 .capa .ca-ev{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}.capa .ca-ev:empty{display:none}
 .evc{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;max-width:100%}.evc a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}.evc button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;color:inherit}.evc.up{opacity:.6;padding-right:10px}
@@ -265,9 +267,9 @@ const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
 function normSettings(d){d=d||{};const pick=k=>Array.isArray(d[k])&&d[k].length?d[k]:DEFAULTS[k];
   const locList=Array.isArray(d.locList)?d.locList.filter(l=>l&&l.name).map(l=>({name:String(l.name),dept:String(l.dept||'')})):(Array.isArray(d.locations)&&d.locations.length?d.locations.map(n=>({name:n,dept:''})):DEFAULTS.locList.map(l=>({...l})));
   const dosh={reportDays:num(d.dosh&&d.dosh.reportDays)||7,perkesoHours:num(d.dosh&&d.dosh.perkesoHours)||48};
-  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh}}
+  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{}}}
 async function saveSettings(patch,act){
-  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,...patch};body.locations=body.locList.map(l=>l.name);
+  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},...patch};body.locations=body.locList.map(l=>l.name);
   await put('config','settings',body,act||'Lists updated');
   S.settings=normSettings(body);
 }
@@ -407,8 +409,6 @@ const F_ASSET=[
   {type:'sec',label:'Maintenance schedule'},
   {k:'pmInterval',label:'Preventive maintenance',short:'PM frequency',type:'select',opts:INTERVALS,blank:false},
   {k:'lastPM',label:'Last PM done',type:'date'},
-  {k:'calibInterval',label:'Calibration frequency',type:'select',opts:INTERVALS,blank:false},
-  {k:'calibDue',label:'Next calibration due',type:'date'},
   {k:'pmTasks',label:'PM checklist / tasks',type:'textarea',full:true,ph:'One task per line, e.g. Grease bearings with food-grade H1 grease'},
   {k:'notes',label:'Specs & notes',type:'textarea',full:true,ph:'Capacity, power rating, aircon HP, PC specs, IP address, licence…'}
 ];
@@ -471,7 +471,7 @@ const F_SUP=[
 ];
 
 /* ---------- shell / navigation ---------- */
-const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM & calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM'],['cal','Calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
 let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
 function counts(){
   const as=Object.values(S.assets);
@@ -479,11 +479,12 @@ function counts(){
     overdue:as.filter(a=>pmInfo(a)?.state==='overdue').length,
     open:Object.values(S.workorders).filter(openWO).length,
     low:Object.values(S.parts).filter(lowStock).length,
-    renew:Object.values(S.contracts).filter(conDue).length
+    renew:Object.values(S.contracts).filter(conDue).length,
+    cal:Object.values(S.assets).filter(calOverdue).length
   };
 }
 function renderTabs(){
-  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low,contracts:c.renew};
+  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low,contracts:c.renew,cal:c.cal};
   $('#tabs').innerHTML=VIEWS.map(([k,l])=>`<button type="button" data-v="${k}" aria-current="${S.view===k}">${l}${badge[k]?`<span class="n">${badge[k]}</span>`:''}</button>`).join('');
   $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 }
@@ -494,7 +495,7 @@ function renderShell(){
   $('#main').innerHTML=(S.canWrite?'':'<div class="banner">Your account is view-only. Ask an admin to make you an Editor to add or update records.</div>')+V.shell();
   if(V.bind)V.bind();renderList();
 }
-function renderList(){const el=$('#list');if(el){el.innerHTML=VIEW[S.view].list();if(S.view==='settings')bindLocations(el);if(S.view==='assets')bindBulk(el);bindRows(el);fillNames(el);
+function renderList(){const el=$('#list');if(el){el.innerHTML=VIEW[S.view].list();if(S.view==='settings')bindLocations(el);if(S.view==='assets')bindBulk(el);$$('[data-calrow]',el).forEach(b=>b.onclick=e=>{e.stopPropagation();const[i,k]=b.dataset.calrow.split('|');calRecord(i,k)});bindRows(el);fillNames(el);
   const d=$('#dAdd',el);if(d)d.onclick=()=>assetForm();
   $$('[data-eu]',el).forEach(b=>b.onclick=()=>userForm(b.dataset.eu));
   $$('[data-pm]',el).forEach(b=>b.onclick=e=>{e.stopPropagation();const a=A(b.dataset.pm);woForm(null,{assetId:b.dataset.pm,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a?.pmTasks||''})})}renderTabs()}
@@ -502,7 +503,7 @@ function bindRows(root){$$('[data-open]',root).forEach(r=>r.onclick=e=>{if(e.tar
   $$('[data-go]',root).forEach(b=>b.onclick=()=>{const[v,f,val]=b.dataset.go.split('|');go(v,f?{[f]:val}:null)})}
 const W=fn=>S.canWrite?fn():'';
 const fval=(v,k,d='')=>(S.f[v]&&S.f[v][k])??d;
-function bindFilters(v){$$('[data-f]').forEach(el=>{const h=()=>{S.f[v]={...(S.f[v]||{}),[el.dataset.f]:el.value};renderList()};el.oninput=h;el.onchange=h})}
+function bindFilters(v){$$('[data-f]').forEach(el=>{const h=()=>{S.f[v]={...(S.f[v]||{}),[el.dataset.f]:el.value};renderList()};if(el.tagName==='SELECT'||el.type==='date')el.onchange=h;else el.oninput=h})}
 const match=(q,...xs)=>!q||xs.join(' ').toLowerCase().includes(q.toLowerCase());
 const emptyRow=(cols,title,msg)=>`<tr><td colspan="${cols}"><div class="empty"><b>${title}</b>${msg}</div></td></tr>`;
 
@@ -538,6 +539,7 @@ VIEW.dash={shell:()=>'<div id="list"></div>',list(){
     ${tile('bad',down.length,'Machines under repair','assets|status|Under repair')}
     ${tile('warn',low.length,'Spares at re-order level','parts|low|1')}
     ${tile('warn',Object.values(S.contracts).filter(conDue).length,'Contract renewals due','contracts|state|due')}
+    ${tile('warn',Object.values(S.assets).filter(calDue).length,'Calibration due / out of tolerance','cal|state|due')}
     ${S.me&&S.me.incidents?tile('bad',Object.values(S.incidents).filter(i=>i.status!=='Closed').length,'Open incidents','incidents|status|open')+tile('bad',Object.values(S.incidents).filter(incPending).length,'DOSH / PERKESO reports due','incidents|status|due'):''}
   </div>
   <div class="grid2">
@@ -578,17 +580,15 @@ VIEW.wos={
   }};
 
 VIEW.pm={
-  shell:()=>`<h2>PM &amp; calibration schedule</h2><div class="toolbar">
+  shell:()=>`<h2>Preventive maintenance schedule</h2><div class="toolbar">
     <input class="grow" type="search" data-f="q" id="q_p" placeholder="Search asset…" value="${esc(fval('pm','q'))}">
     <select data-f="state" id="s_p" style="width:auto">${[['','All scheduled'],['overdue','Overdue'],['soon','Due in 14 days'],['unset','Missing last-PM date']].map(o=>opt(o,fval('pm','state'))).join('')}</select></div><div id="list"></div>`,
   bind(){bindFilters('pm')},
   list(){
     const q=fval('pm','q'),st=fval('pm','state');
     const rows=Object.entries(S.assets).map(([id,a])=>[id,a,pmInfo(a)]).filter(([,a,i])=>i&&(!st||i.state===st)&&match(q,a.code,a.name,a.dept,a.location)).sort((x,y)=>(x[2].days??-9999)-(y[2].days??-9999));
-    const cal=Object.entries(S.assets).filter(([,a])=>a.calibDue&&a.status!=='Disposed'&&match(q,a.code,a.name)).sort(byStr('calibDue'));
     const iv=v=>(INTERVALS.find(x=>x[0]===String(v))||['',v+' days'])[1];
-    return`<div class="tbl-wrap"><table><thead><tr><th>Asset</th><th class="hs">Frequency</th><th class="hs">Last PM</th><th>Next due</th><th></th></tr></thead><tbody>${rows.length?rows.map(([id,a,i])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span> ${esc(a.name)}${a.foodContact?'<span class="fc">FC</span>':''}<br><span class="muted">${esc(place(a))}</span></td><td class="hs">${iv(a.pmInterval)}</td><td class="hs">${fmtD(a.lastPM)}</td><td>${pmPill(i)}</td><td class="r">${W(()=>`<button class="btn sm" data-pm="${id}">Log PM</button>`)}</td></tr>`).join(''):emptyRow(5,'No PM schedules here','Set a preventive-maintenance frequency on an asset to schedule it.')}</tbody></table></div>
-    <h2>Calibration due</h2><div class="tbl-wrap"><table><thead><tr><th>Instrument / asset</th><th>Frequency</th><th>Next calibration</th></tr></thead><tbody>${cal.length?cal.map(([id,a])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span> ${esc(a.name)}</td><td>${a.calibInterval?iv(a.calibInterval):'—'}</td><td>${fmtD(a.calibDue)} ${watchPill(dateWatch(a.calibDue))}</td></tr>`).join(''):emptyRow(3,'No calibration dates set','Weighing scales, thermometers, moisture analysers and metal detectors belong here. Set “Next calibration due” on the asset.')}</tbody></table></div>`;
+    return`<div class="tbl-wrap"><table><thead><tr><th>Asset</th><th class="hs">Frequency</th><th class="hs">Last PM</th><th>Next due</th><th></th></tr></thead><tbody>${rows.length?rows.map(([id,a,i])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.code)}</span> ${esc(a.name)}${a.foodContact?'<span class="fc">FC</span>':''}<br><span class="muted">${esc(place(a))}</span></td><td class="hs">${iv(a.pmInterval)}</td><td class="hs">${fmtD(a.lastPM)}</td><td>${pmPill(i)}</td><td class="r">${W(()=>`<button class="btn sm" data-pm="${id}">Log PM</button>`)}</td></tr>`).join(''):emptyRow(5,'No PM schedules here','Set a preventive-maintenance frequency on an asset to schedule it.')}</tbody></table></div>`;
   }};
 
 VIEW.parts={
@@ -692,8 +692,9 @@ const DETAIL={
     return{eyebrow:esc(a.code)+' · '+esc(a.category||''),title:a.name,
       pills:statusPill(a.status)+(a.foodContact?'<span class="pill acc">Food-contact</span>':'')+(a.criticality?`<span class="pill">${esc(a.criticality)} criticality</span>`:''),
       body:`<div class="acts">${W(()=>`<button class="btn pri" id="dNewWO">Report problem / new job</button>${a.pmInterval?'<button class="btn" id="dPM">Log PM</button>':''}<button class="btn" id="dEdit">Edit asset</button><button class="btn" id="dMove">Move location</button><button class="btn" id="dDup">Add another unit</button>`)}<button class="btn" id="dQR">QR label</button></div>
-      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],isIT(a)&&!a.calibDue?['Support / licence',(()=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?conPill(c):''})()]:['Calibration due',a.calibDue?fmtD(a.calibDue)+' '+watchPill(dateWatch(a.calibDue)):'']])}
+      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],isIT(a)&&!isCal(a)?['Support / licence',(()=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?conPill(c):''})()]:null])}
       ${a.pmTasks?`<div><h3>PM checklist</h3><ul style="margin:0;padding-left:20px">${a.pmTasks.split('\n').filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`:''}
+      ${calAssetBlock(id,a)}
       ${conSection(id,a)}
       ${a.notes?`<div><h3>Specs &amp; notes</h3><div style="white-space:pre-wrap">${esc(a.notes)}</div></div>`:''}
       ${(a.moves||[]).length?`<div><h3>Location history</h3><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>From → to</th><th class="hs">Reason</th></tr></thead><tbody>${a.moves.slice().reverse().map(m=>`<tr><td class="num" style="white-space:nowrap">${fmtD(m.date)}</td><td>${esc([m.fromDept,m.fromLoc].filter(Boolean).join(' · ')||'—')} → <b>${esc([m.toDept,m.toLoc].filter(Boolean).join(' · ')||'—')}</b>${m.fromUser!==m.toUser?`<br><span class="muted">User: ${esc(m.fromUser||'—')} → ${esc(m.toUser||'—')}</span>`:''}<br><span class="muted">${who(m)}</span></td><td class="hs">${esc(m.reason||'')}</td></tr>`).join('')}</tbody></table></div></div>`:''}
@@ -701,7 +702,7 @@ const DETAIL={
       <div><h3>Maintenance history</h3><p class="muted" style="margin:0 0 8px">${ws.length} job(s) · ${rm(total)} · ${down} h downtime</p>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(w.type)}</span></td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs logged for this asset yet.</span>'}</div>
       ${S.me&&S.me.incidents?(()=>{const inc=Object.entries(S.incidents).filter(([,i])=>i.assetId===id);return inc.length?`<div><h3>Incidents involving this asset</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${inc.map(([iid,i])=>`<tr data-open="incident:${iid}"><td class="mono">${esc(i.no)}<br><span class="muted">${fmtD(i.incDate)}</span></td><td>${esc(i.title)}</td><td>${incStatusPill(i.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})():''}
       ${usedParts.length?`<div><h3>Spares for this asset</h3>${usedParts.map(p=>`<div>${esc(p.code)} · ${esc(p.name)} — <b class="num">${num(p.qty)} ${esc(p.unit||'')}</b> in store</div>`).join('')}</div>`:''}`,
-      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)});const ac=$('#dAddCon',d);if(ac)ac.onclick=()=>conForm(null,{assetId:id,supplierId:a.supplierId||'',dept:a.dept||'',title:a.name+' – support',type:isIT(a)?'Support agreement / AMC':'Service contract (non-IT)'})}};
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)});$$('[data-calrec]',d).forEach(b=>b.onclick=()=>calRecord(id,b.dataset.calrec));const ac=$('#dAddCon',d);if(ac)ac.onclick=()=>conForm(null,{assetId:id,supplierId:a.supplierId||'',dept:a.dept||'',title:a.name+' – support',type:isIT(a)?'Support agreement / AMC':'Service contract (non-IT)'})}};
   },
   wo(id,w){
     const chk=[['chkHygiene','Hygiene condition checked'],['chkSafety','Safety condition checked'],['chkIsolated','Work area isolated from production'],['chkPPE','Technicians wore PPE'],['chkTools','No foreign matter / tools left on line'],['chkClearance','Hygiene clearance before restart']];
@@ -710,6 +711,7 @@ const DETAIL={
       ${w.incidentId?`<div class="banner" style="margin:0">${S.me&&S.me.incidents&&S.incidents[w.incidentId]?`Raised from incident <a href="#" data-inc="${w.incidentId}">${esc(S.incidents[w.incidentId].no)} · ${esc(S.incidents[w.incidentId].title)}</a>${w.capaId&&(S.incidents[w.incidentId].capa||[]).find(c=>c.cid===w.capaId)?' for action: <b>'+esc(S.incidents[w.incidentId].capa.find(c=>c.cid===w.capaId).action)+'</b>':''}`:'Raised from an incident record (restricted to people with incident access).'}</div>`:''}
       ${kv([['Machine / item',w.assetId&&A(w.assetId)?`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`:''],['Department · location',esc(woWhere(w))],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
       ${w.tasksDone?`<div><h3>Tasks completed</h3><div style="white-space:pre-wrap">${esc(w.tasksDone)}</div></div>`:''}
+      ${calResultsHTML(w)}
       <div><h3>Compliance checks</h3><div style="display:grid;gap:4px">${chk.map(([k,l])=>`<div><span class="dot ${w[k]?'ok':'bad'}"></span>${l}${w[k]?'':' <span class="muted">— not confirmed</span>'}</div>`).join('')}</div></div>
       <div><h3>Costs</h3>${(w.lines||[]).length?`<div class="tbl-wrap" style="margin-bottom:8px"><table style="min-width:0"><tbody>${w.lines.map(l=>`<tr data-open="part:${l.partId}"><td>${esc(S.parts[l.partId]?.name||l.name||'Part')}</td><td class="r num">${esc(l.qty)} × ${rm(l.unitCost)}</td><td class="r num">${rm(num(l.qty)*num(l.unitCost))}</td></tr>`).join('')}</tbody></table></div><p class="muted" style="margin:0 0 6px">${w.partsPosted?'Spares deducted from store stock.':'Spares are deducted from store stock when the job is marked Completed.'}</p>`:''}
       ${kv([['Invoice',w.invoiceNo?`<span class="mono">${esc(w.invoiceNo)}</span>${w.invoiceDate?' · '+fmtD(w.invoiceDate):''}`:''],['Invoice amount',w.invoiceAmount!==''&&w.invoiceAmount!=null?rm(w.invoiceAmount):''],['Internal labour',w.labourCost?rm(w.labourCost):''],['Spares from store',partsCost(w)?rm(partsCost(w)):''],['Total cost',`<b class="num">${rm(woCost(w))}</b>`]])}</div>
@@ -854,9 +856,9 @@ function moveAsset(id){
   if(sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent='Now at: '+([a.dept,a.location].filter(Boolean).join(' · ')||'no location set')+(a.assignedTo?' · user '+a.assignedTo:'');$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
 }
 function copyOf(src){const {history,files,moves,createdAt,createdBy,updatedAt,updatedBy,...rest}=src;return{...rest,code:nextCode(src.code),serial:'',faNo:'',location:'',assignedTo:'',lastPM:'',status:'Active'}}
-function assetForm(id,copyFrom){
+function assetForm(id,copyFrom,preset){
   const prev=id?S.assets[id]:null;const src=!prev&&copyFrom?S.assets[copyFrom]:null;
-  const data=prev||(src?copyOf(src):{status:'Active',pmInterval:'',calibInterval:''});
+  const data=prev||(src?copyOf(src):{status:'Active',pmInterval:'',calIntFreq:'',calExtFreq:'',calStatus:'In use',...(preset||{})});
   const sh=formSheet({title:prev?'Edit asset':src?'Add another unit':'Add asset',fields:F_ASSET,data,
     danger:prev&&S.canAdmin?{label:'Delete asset',onClick:()=>confirmBox('Delete this asset?','For traceability, set the status to <b>Disposed</b> instead. Deleting removes the asset record; its work orders stay but lose the link.','Delete permanently',async()=>{await api('DELETE','/api/docs/assets/'+id);delete S.assets[id];closeLayer('drawer');renderList();toast('Asset deleted')})}:null,
     onSave:async v=>{
@@ -864,7 +866,7 @@ function assetForm(id,copyFrom){
       const key=id||newId('assets');const next={...(prev||{}),...v};
       await put('assets',key,next,src?'Created as another unit of '+src.code:diffAct(prev,next,F_ASSET));toast(prev?'Asset updated':'Asset added');renderList();if(prev)renderDetail();else openDetail('asset',key);
     }});
-  if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});['calibInterval','calibDue'].forEach(k=>{const f=$('#f_'+k,sh)?.closest('.field');if(f)f.hidden=it&&!(prev&&prev.calibDue)})};if(cat){cat.addEventListener('change',tog);tog()}}
+  if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});const hide=it&&!(prev&&isCal(prev));F_CAL.forEach(f=>{if(f.k){const el=$('#f_'+f.k,sh)?.closest('.field');if(el)el.hidden=hide}});$$('.sec',sh).forEach(x=>{if(/^Calibration/.test(x.textContent))x.hidden=hide})};if(cat){cat.addEventListener('change',tog);tog()}}
   if(src&&sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent=`Copied from ${src.code}. Check the asset code, then enter the serial no., department and location of this unit.`;$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
 }
 function supForm(id){
@@ -928,18 +930,20 @@ function woForm(id,preset={}){
   let lines=(prev?.lines||[]).map(l=>({...l}));
   const link=prev?{}:{incidentId:preset.incidentId||'',capaId:preset.capaId||''};
   const key=id||newId('workorders');let newFiles=[],upPending=0;
-  const extra=()=>linesEditor(lines.length?lines:[])+`<div class="fgrid"><div class="sec">Attachments: service report, invoice, photos (optional)</div></div>${prev&&(prev.files||[]).length?`<p class="muted" style="margin:0">${prev.files.length} file(s) already attached; manage them on the job record.</p>`:''}<div class="toolbar" style="margin:0"><select id="wf_kind" style="width:auto" aria-label="Attachment type">${FILE_KINDS.workorders.map(k=>opt(k)).join('')}</select><label class="btn sm" for="wf_cam" style="cursor:pointer">Take photo</label><input id="wf_cam" class="wf-in" type="file" accept="image/*" capture="environment" hidden><label class="btn sm" for="wf_up" style="cursor:pointer">Attach PDF or photo</label><input id="wf_up" class="wf-in" type="file" multiple accept="image/*,application/pdf" hidden></div><div class="ev-list" id="wf_list"></div><p class="muted" style="margin:0;font-size:12px">PDF or photos up to 25 MB. Files are saved with the job when you click Save.</p>`+(prev&&!prev.draft?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
+  const extra=()=>calBoxHTML((prev&&prev.cal)||preset.cal,A((prev||preset).assetId))+linesEditor(lines.length?lines:[])+`<div class="fgrid"><div class="sec">Attachments: service report, invoice, photos (optional)</div></div>${prev&&(prev.files||[]).length?`<p class="muted" style="margin:0">${prev.files.length} file(s) already attached; manage them on the job record.</p>`:''}<div class="toolbar" style="margin:0"><select id="wf_kind" style="width:auto" aria-label="Attachment type">${FILE_KINDS.workorders.map(k=>opt(k)).join('')}</select><label class="btn sm" for="wf_cam" style="cursor:pointer">Take photo</label><input id="wf_cam" class="wf-in" type="file" accept="image/*" capture="environment" hidden><label class="btn sm" for="wf_up" style="cursor:pointer">Attach PDF or photo</label><input id="wf_up" class="wf-in" type="file" multiple accept="image/*,application/pdf" hidden></div><div class="ev-list" id="wf_list"></div><p class="muted" style="margin:0;font-size:12px">PDF or photos up to 25 MB. Files are saved with the job when you click Save.</p>`+(prev&&!prev.draft?'':`<label class="check" for="f_markRepair" style="margin-top:4px"><input type="checkbox" id="f_markRepair" checked><span>Set the asset’s status to <b>Under repair</b> for breakdown jobs</span></label>`);
   const sh=formSheet({title:prev?(prev.draft?'Draft work order':'Update '+prev.no):'New work order',fields:F_WO,data,extra:extra(),
     danger:prev&&S.canAdmin?{label:prev.draft?'Discard draft':'Delete job',onClick:()=>prev.draft?confirmBox('Discard this draft?','The draft work order and any files attached to it will be removed.','Discard draft',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList();toast('Draft discarded')}):confirmBox('Delete '+prev.no+'?','The job, its compliance record and links to attachments will be removed. Spares already deducted are not returned to stock.','Delete',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList()})}:null,
     onDraft:(!prev||prev.draft)?async v=>{
       if(upPending)return'Please wait for the attachment upload to finish.';
-      const next={...(prev||{}),...link,...v,lines:readLines(),no:'',draft:true};if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines:readLines(),no:'',draft:true};const dc=v.type==='Calibration'?readCalBox(sh):null;if(dc)next.cal=dc;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       await put('workorders',key,next,prev?'Draft updated':'Saved as draft');toast('Draft saved. Open it from Work orders to finish.');renderList();if(prev)renderDetail();else openDetail('wo',key);
     }:null,
     onSave:async v=>{
       if(upPending)return'Please wait for the attachment upload to finish.';
       lines=readLines();
       if(['Completed','Verified'].includes(v.status)&&!v.completedDate)return'Enter the date the work was completed.';
+      const cal=v.type==='Calibration'?readCalBox(sh):null;
+      if(cal&&['Completed','Verified'].includes(v.status)&&cal.result==='Fail'&&!cal.impact)return'A check point is out of tolerance. Record the product impact assessment before completing.';
       if(v.status==='Verified'){
         const a=A(v.assetId);
         if(!v.verifiedBy)return'Enter who verified the job (QA / HOD).';
@@ -947,7 +951,7 @@ function woForm(id,preset={}){
         if(!v.verifiedDate)v.verifiedDate=today();
       }
       if(v.status==='Completed'&&!prev?.partsPosted){for(const l of lines){const p=S.parts[l.partId];if(p&&num(l.qty)>num(p.qty))return`Only ${num(p.qty)} ${p.unit||''} of ${p.name} in store.`}}
-      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};const wasDraft=!!next.draft;delete next.draft;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};const wasDraft=!!next.draft;delete next.draft;if(cal)next.cal=cal;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       const finishing=['Completed','Verified'].includes(next.status);
       // deduct spares once, when the job is first completed
       if(finishing&&!next.partsPosted&&lines.length){
@@ -964,7 +968,7 @@ function woForm(id,preset={}){
         if(finishing&&!(prev&&['Completed','Verified'].includes(prev.status))){
           if(a.status==='Under repair'){upd.status='Active';why.push('Status Under repair → Active')}
           if(next.type==='Preventive maintenance'&&next.completedDate&&(!a.lastPM||next.completedDate>a.lastPM)){upd.lastPM=next.completedDate;why.push('Last PM '+fmtD(next.completedDate))}
-          if(next.type==='Calibration'&&next.completedDate&&a.calibInterval){upd.calibDue=addDays(next.completedDate,a.calibInterval);why.push('Calibration due '+fmtD(upd.calibDue))}
+          if(next.type==='Calibration'&&next.completedDate)calSideEffects(a,next,upd,why);
         }
         if(why.length)await put('assets',next.assetId,{...a,...upd},'From '+next.no+': '+why.join('; '));
       }
@@ -974,6 +978,7 @@ function woForm(id,preset={}){
   wl.addEventListener('click',e=>{const x=e.target.closest('.wf-x');if(x){newFiles.splice(+x.dataset.i,1);drawWF()}});
   $$('.wf-in',sh).forEach(inp=>inp.onchange=async()=>{const kind=$('#wf_kind',sh).value;const list=[...inp.files];inp.value='';
     for(const f of list){upPending++;drawWF(f.name);try{const r=await uploadFile('workorders',key,f);newFiles.push({id:r.id,name:r.name,kind,ct:r.ct,size:r.size,at:new Date().toISOString(),by:S.me.name})}catch(err){toast(f.name+': '+err.message)}finally{upPending--;drawWF()}}});
+  bindCalBox(sh);
   const asel=$('#f_assetId',sh);if(asel)asel.addEventListener('change',()=>{const a=A(asel.value);if(!a)return;
     const ds=$('#f_dept',sh),ls=$('#f_location',sh);
     if(ds&&a.dept&&!ds.value){ds.value=a.dept;ds.dispatchEvent(new Event('change'))}
@@ -1581,6 +1586,152 @@ async function buildHirarc(L,h){
 }
 
 {const ix=F_INC.findIndex(f=>f.type==='sec'&&/^Status/.test(f.label));F_INC.splice(ix<0?F_INC.length:ix,0,...F_HIRARC)}
+
+/* ---------- calibration (QA): master list, internal verification, external calibration, stamping ---------- */
+const CAL_INT=[['','—'],['0.5','Twice a day'],['1','Daily'],['7','Weekly'],['30','Every month'],['90','Every 3 months'],['180','Every 6 months']];
+const CAL_EXT=[['','—'],['180','Every 6 months'],['365','Once a year'],['730','Every 2 years']];
+const CAL_STATUS=['In use','Sent for calibration','Out of tolerance'];
+const CAL_KINDS=[['Internal','Internal verification'],['External','External calibration'],['Stamping','Stamping (Metrology)']];
+const calLabel=(list,v)=>(list.find(x=>x[0]===String(v??''))||['',''])[1];
+const isCal=a=>!!(a&&(a.calId||a.calTol||a.calIntFreq||a.calExtFreq||a.calibDue||a.stampDue));
+const numIn=s=>{const m=String(s??'').replace(/,/g,'').match(/-?\d+(\.\d+)?/);return m?parseFloat(m[0]):null};
+function calIntInfo(a){const f=num(a.calIntFreq);if(!f)return null;if(!a.calIntLast)return{state:'unset'};const due=addDays(a.calIntLast,Math.max(1,Math.ceil(f)));const d=dayDiff(today(),due);return{due,days:d,state:d<0?'overdue':d<=Math.min(7,Math.ceil(f/4))?'soon':'ok'}}
+const calExtInfo=a=>a.calibDue?{due:a.calibDue,...dateWatch(a.calibDue,30)}:null;
+const stampInfo=a=>a.stampDue?{due:a.stampDue,...dateWatch(a.stampDue,30)}:null;
+function calDue(a){if(!isCal(a)||a.status==='Disposed')return false;return a.calStatus==='Out of tolerance'||[calIntInfo(a),calExtInfo(a),stampInfo(a)].some(i=>i&&(i.state==='overdue'||i.state==='soon'))}
+function calOverdue(a){if(!isCal(a)||a.status==='Disposed')return false;return a.calStatus==='Out of tolerance'||[calIntInfo(a),calExtInfo(a),stampInfo(a)].some(i=>i&&i.state==='overdue')}
+function duePill(i,unsetLabel){if(!i)return'<span class="muted">—</span>';if(i.state==='unset')return`<span class="pill warn">${unsetLabel||'Set last date'}</span>`;
+  const t=i.days<0?Math.abs(i.days)+' d overdue':i.days===0?'due today':'in '+i.days+' d';return`<span class="num">${fmtD(i.due)}</span><br><span class="pill ${i.state==='overdue'?'bad':i.state==='soon'?'warn':'ok'}">${t}</span>`}
+const calStatusPill=s=>`<span class="pill ${({'In use':'ok','Sent for calibration':'info','Out of tolerance':'bad'})[s||'In use']||''}">${esc(s||'In use')}</span>`;
+const F_CAL=[
+  {type:'sec',label:'Calibration (QA master list)'},
+  {k:'calId',label:'Calibration ID / machine no.',short:'Calibration ID',ph:'e.g. WS60/01'},
+  {k:'calEquip',label:'Equipment type (master list grouping)',short:'Equipment type',ph:'e.g. Weighing Scale',listOpts:()=>[...new Set(Object.values(S.assets).map(a=>a.calEquip).filter(Boolean))].sort()},
+  {k:'calRange',label:'Range / capacity / setting',short:'Range',ph:'e.g. 60kg · 230 °C - 250 °C · 0 - 14 pH'},
+  {k:'calTol',label:'Tolerance',ph:'e.g. ±0.10kg'},
+  {k:'calPoints',label:'Check points (comma separated)',short:'Check points',full:true,ph:'e.g. 20kg, 40kg, 60kg  (leave blank to enter during the check)'},
+  {k:'calIntFreq',label:'Internal verification',short:'Internal frequency',type:'select',opts:CAL_INT,blank:false},
+  {k:'calIntLast',label:'Last internal verification',type:'date'},
+  {k:'calExtFreq',label:'External calibration',short:'External frequency',type:'select',opts:CAL_EXT,blank:false},
+  {k:'calibDue',label:'Next external calibration',type:'date'},
+  {k:'stampDue',label:'Next stamping (Metrology)',short:'Next stamping',type:'date'},
+  {k:'calLab',label:'Calibration lab',type:'select',opts:supOpts},
+  {k:'calStatus',label:'Calibration status',type:'select',opts:CAL_STATUS,blank:false}
+];
+function calPointsOf(a){const p=String(a&&a.calPoints||'').split(/[,;\n]/).map(s=>s.trim()).filter(Boolean);return p.length?p:[a&&a.calRange?String(a.calRange).split('\n')[0]:'']}
+function calRow(r,tol){return`<div class="calr"><input class="cr-p" type="text" aria-label="Check point" placeholder="Check point, e.g. 20kg" value="${esc(r.point)}"><input class="cr-r" type="text" inputmode="decimal" aria-label="Reading" placeholder="Reading" value="${esc(r.reading)}"><span class="cr-e num muted">${r.err!=null&&r.err!==''?esc(r.err):''}</span><select class="cr-s" aria-label="Result"${r.manual?' data-manual="1"':''}>${opt(['','—'],r.result)}${opt('Pass',r.result)}${opt('Fail',r.result)}</select><button type="button" class="btn sm cr-x" aria-label="Remove point">×</button></div>`}
+function calBoxHTML(cal,a){
+  cal=cal||{};const rows=(cal.points&&cal.points.length?cal.points:calPointsOf(a).map(p=>({point:p})));
+  return`<div id="calBox"><div class="fgrid"><div class="sec">Calibration record</div>
+    <div class="field"><label for="cal_kind">Type</label><select id="cal_kind">${CAL_KINDS.map(o=>opt(o,cal.kind||'Internal')).join('')}</select></div>
+    <div class="field"><label for="cal_cert">Certificate / report no.</label><input id="cal_cert" type="text" value="${esc(cal.cert)}"></div>
+    <div class="field"><label for="cal_std">Reference standard used</label><input id="cal_std" type="text" placeholder="e.g. SW5/01, SW25/01" value="${esc(cal.std)}"></div></div>
+    <p class="muted" style="margin:4px 0" id="cal_tolnote">${a?`Tolerance: <b>${esc(a.calTol||'not set')}</b>${a.calRange?' · Range '+esc(a.calRange):''}. Enter readings in the same unit as the check point; the error and result fill in automatically.`:'Choose the instrument above to load its check points and tolerance.'}</p>
+    <div class="calh muted"><span>Check point</span><span>Reading</span><span>Error</span><span>Result</span><span></span></div>
+    <div id="calRows">${rows.map(r=>calRow(r,a&&a.calTol)).join('')}</div>
+    <div class="acts" style="margin:4px 0"><button type="button" class="btn sm" id="calAdd">Add check point</button><span id="calOverall"></span></div>
+    <div class="field"><label for="cal_impact">Product impact assessment (required if any point fails)</label><textarea id="cal_impact" placeholder="What was measured with this instrument since the last good check, and is any product on hold or released after review?">${esc(cal.impact)}</textarea></div>
+    <label class="check" for="cal_oos"><input type="checkbox" id="cal_oos"${cal.oos===false?'':' checked'}><span>If any point fails, set the instrument <b>Out of service</b> and its calibration status to <b>Out of tolerance</b></span></label></div>`;
+}
+function calRecalc(box,tolStr){const tol=numIn(tolStr);let any=0,fail=0;
+  $$('.calr',box).forEach(r=>{const p=numIn($('.cr-p',r).value),rd=numIn($('.cr-r',r).value),e=$('.cr-e',r),s=$('.cr-s',r);
+    if(p!=null&&rd!=null&&$('.cr-r',r).value.trim()!==''){const err=+(rd-p).toFixed(6);e.textContent=(err>0?'+':'')+err;if(!s.dataset.manual&&tol!=null)s.value=Math.abs(err)<=Math.abs(tol)+1e-9?'Pass':'Fail'}else e.textContent='';
+    if(s.value){any++;if(s.value==='Fail')fail++}});
+  const o=$('#calOverall',box);if(o)o.innerHTML=any?(fail?`<span class="pill bad">${fail} point(s) out of tolerance</span>`:'<span class="pill ok">All points within tolerance</span>'):'';}
+function readCalBox(sh){const box=$('#calBox',sh);if(!box||box.hidden)return null;
+  const points=$$('.calr',box).map(r=>({point:$('.cr-p',r).value.trim(),reading:$('.cr-r',r).value.trim(),err:$('.cr-e',r).textContent,result:$('.cr-s',r).value,manual:!!$('.cr-s',r).dataset.manual})).filter(p=>p.point||p.reading);
+  const res=points.some(p=>p.result==='Fail')?'Fail':points.length&&points.every(p=>p.result==='Pass')?'Pass':'';
+  return{kind:$('#cal_kind',box).value,cert:$('#cal_cert',box).value.trim(),std:$('#cal_std',box).value.trim(),points,result:res,impact:$('#cal_impact',box).value.trim(),oos:$('#cal_oos',box).checked}}
+function bindCalBox(sh){
+  const box=$('#calBox',sh);if(!box)return;const ty=$('#f_type',sh),as=$('#f_assetId',sh);
+  const anchor=$$('.fgrid .sec',sh).find(d=>/^Food safety & compliance/.test(d.textContent));if(anchor){box.style.gridColumn='1/-1';anchor.before(box)}
+  const tol=()=>{const a=A(as&&as.value);return a?a.calTol:''};
+  const show=()=>{box.hidden=!(ty&&ty.value==='Calibration')};show();if(ty)ty.addEventListener('change',show);
+  box.addEventListener('input',e=>{if(e.target.closest('.cr-s'))e.target.dataset.manual='1';calRecalc(box,tol())});
+  box.addEventListener('change',e=>{if(e.target.closest('.cr-s')){e.target.dataset.manual='1';calRecalc(box,tol())}});
+  box.addEventListener('click',e=>{const x=e.target.closest('.cr-x');if(x){x.closest('.calr').remove();calRecalc(box,tol())}});
+  $('#calAdd',box).onclick=()=>{$('#calRows',box).insertAdjacentHTML('beforeend',calRow({},tol()))};
+  if(as)as.addEventListener('change',()=>{const a=A(as.value);const n=$('#cal_tolnote',box);if(n)n.innerHTML=a?`Tolerance: <b>${esc(a.calTol||'not set')}</b>${a.calRange?' · Range '+esc(a.calRange):''}. Enter readings in the same unit as the check point; the error and result fill in automatically.`:'';
+    if(a&&!$$('.cr-r',box).some(i=>i.value.trim()))$('#calRows',box).innerHTML=calPointsOf(a).map(p=>calRow({point:p},a.calTol)).join('');calRecalc(box,tol())});
+  calRecalc(box,tol());
+}
+function calSideEffects(a,next,upd,why){
+  const k=(next.cal&&next.cal.kind)||'External',c=next.completedDate;
+  if(k==='Internal'){if(!a.calIntLast||c>a.calIntLast){upd.calIntLast=c;why.push('Last internal verification '+fmtD(c))}}
+  else if(k==='Stamping'){upd.stampDue=addMonths(c,12);why.push('Next stamping '+fmtD(upd.stampDue))}
+  else{const d=num(a.calExtFreq)||num(a.calibInterval)||365;upd.calibDue=d%365===0?addMonths(c,12*d/365):addDays(c,d);why.push('Next external calibration '+fmtD(upd.calibDue))}
+  if(next.cal&&next.cal.result==='Fail'){if(next.cal.oos){upd.calStatus='Out of tolerance';why.push('Calibration status → Out of tolerance');if(a.status!=='Out of service'&&a.status!=='Disposed'){upd.status='Out of service';why.push('Status '+a.status+' → Out of service')}}}
+  else if(a.calStatus&&a.calStatus!=='In use'&&(k!=='Internal'||a.calStatus==='Out of tolerance')&&next.cal&&next.cal.result==='Pass'){upd.calStatus='In use';why.push('Calibration status → In use')}
+  else if(k==='External'&&a.calStatus==='Sent for calibration'){upd.calStatus='In use';why.push('Calibration status → In use (back from lab)')}
+}
+function calResultsHTML(w){const c=w.cal;if(!c)return'';
+  return`<div><h3>Calibration record · ${esc(calLabel(CAL_KINDS,c.kind))}</h3>${kv([['Result',c.result?`<span class="pill ${c.result==='Pass'?'ok':'bad'}">${c.result}</span>`:''],['Certificate / report no.',esc(c.cert)],['Reference standard',esc(c.std)]])}
+  ${(c.points||[]).length?`<div class="tbl-wrap" style="margin-top:6px"><table style="min-width:0"><thead><tr><th>Check point</th><th class="r">Reading</th><th class="r">Error</th><th>Result</th></tr></thead><tbody>${c.points.map(p=>`<tr><td>${esc(p.point)}</td><td class="r num">${esc(p.reading)}</td><td class="r num">${esc(p.err)}</td><td>${p.result?`<span class="pill ${p.result==='Pass'?'ok':'bad'}">${p.result}</span>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${c.impact?`<p style="margin:8px 0 0"><b>Product impact assessment:</b> ${esc(c.impact)}</p>`:''}</div>`}
+function calAssetBlock(id,a){
+  if(!isCal(a))return'';
+  const recs=Object.entries(S.workorders).filter(([,w])=>w.assetId===id&&w.type==='Calibration'&&!w.draft).sort((x,y)=>String(y[1].completedDate||y[1].reportDate).localeCompare(String(x[1].completedDate||x[1].reportDate)));
+  return`<div><h3>Calibration</h3>${kv([['Calibration ID',a.calId?`<span class="mono">${esc(a.calId)}</span>`:''],['Range',esc(a.calRange)],['Tolerance',esc(a.calTol)],['Check points',esc(a.calPoints)],['Internal',a.calIntFreq?esc(calLabel(CAL_INT,a.calIntFreq))+'<br>'+duePill(calIntInfo(a),'Set last check date'):''],['External calibration',a.calExtFreq||a.calibDue?esc(calLabel(CAL_EXT,a.calExtFreq))+'<br>'+duePill(calExtInfo(a)):''],['Stamping',a.stampDue?duePill(stampInfo(a)):''],['Lab',esc(sup(a.calLab)?.name||'')],['Status',calStatusPill(a.calStatus)]])}
+    ${W(()=>`<div class="acts" style="margin-top:8px"><button class="btn sm" data-calrec="Internal" type="button">Record internal check</button><button class="btn sm" data-calrec="External" type="button">Record external calibration</button>${a.stampDue?'<button class="btn sm" data-calrec="Stamping" type="button">Record stamping</button>':''}</div>`)}
+    ${recs.length?`<div class="tbl-wrap" style="margin-top:8px"><table style="min-width:0"><tbody>${recs.slice(0,12).map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="num">${fmtD(w.completedDate||w.reportDate)}</td><td>${esc(calLabel(CAL_KINDS,w.cal&&w.cal.kind)||'Calibration')}${w.cal&&w.cal.cert?'<br><span class="muted">Cert '+esc(w.cal.cert)+'</span>':''}</td><td>${w.cal&&w.cal.result?`<span class="pill ${w.cal.result==='Pass'?'ok':'bad'}">${w.cal.result}</span>`:woPill(w.status)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted" style="margin:6px 0 0">No calibration records yet.</p>'}</div>`;
+}
+function calRecord(id,kind){const a=A(id);if(!a)return;
+  woForm(null,{type:'Calibration',assetId:id,dept:a.dept||'',location:a.location||'',title:calLabel(CAL_KINDS,kind)+(a.calId?' – '+a.calId:''),status:'Completed',completedDate:today(),startDate:today(),supplierId:kind==='External'?(a.calLab||''):'',performedBy:kind==='External'?'External contractor / vendor':'Internal team',cal:{kind}})}
+function calRows(){const q=fval('cal','q'),st=fval('cal','state'),loc=fval('cal','loc');
+  return Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.status!=='Disposed'&&(!loc||a.location===loc)&&match(q,a.calId,a.name,a.calEquip,a.serial,a.location,a.code)&&(!st||(st==='due'?calDue(a):st==='overdue'?calOverdue(a):st==='lab'?a.calStatus==='Sent for calibration':st==='oot'?a.calStatus==='Out of tolerance':st==='unset'?calIntInfo(a)?.state==='unset':true)))
+    .sort((x,y)=>String(x[1].calEquip||'').localeCompare(String(y[1].calEquip||''))||String(x[1].calId||x[1].code).localeCompare(String(y[1].calId||y[1].code),undefined,{numeric:true}))}
+VIEW.cal={
+  shell:()=>`<h2>Calibration register</h2><p class="muted" style="margin-top:-4px">QA calibration master list: internal verification, external calibration and Metrology stamping, with readings checked against each instrument's tolerance.</p><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_cal" placeholder="Search ID, equipment, serial, location…" value="${esc(fval('cal','q'))}">
+    <select data-f="state" id="s_cal" style="width:auto">${[['','All instruments'],['due','Due within 30 days / overdue'],['overdue','Overdue'],['lab','Sent for calibration'],['oot','Out of tolerance'],['unset','Internal check date missing']].map(o=>opt(o,fval('cal','state'))).join('')}</select>
+    <select data-f="loc" id="l_cal" style="width:auto"><option value="">All locations</option>${[...new Set(Object.values(S.assets).filter(isCal).map(a=>a.location).filter(Boolean))].sort().map(l=>opt(l,fval('cal','loc'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addCal">Add instrument</button><button class="btn" id="labCal">Send / collect list</button>')}<button class="btn" id="mlCal">Master list (print)</button><button class="btn" id="expCal">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('cal');const a=$('#addCal');if(a)a.onclick=()=>assetForm(null,null,{category:'QC lab / measuring instrument',dept:'QA / QC',calStatus:'In use',calExtFreq:'365'});const l=$('#labCal');if(l)l.onclick=labSheet;$('#mlCal').onclick=masterSheet;$('#expCal').onclick=()=>calCSV(calRows())},
+  list(){const rows=calRows();const all=Object.values(S.assets).filter(a=>isCal(a)&&a.status!=='Disposed');
+    return`<p class="muted" style="margin:0 0 8px">${all.length} instrument(s) · ${all.filter(calOverdue).length} overdue or out of tolerance · ${all.filter(a=>a.calStatus==='Sent for calibration').length} at the lab</p><div class="tbl-wrap"><table><thead><tr><th>ID · equipment</th><th class="hs">Location</th><th class="hs">Range · tolerance</th><th>Internal</th><th>External</th><th class="hs">Stamping</th><th>Status</th><th></th></tr></thead><tbody>${rows.length?rows.map(([id,a])=>`<tr data-open="asset:${id}"><td><span class="mono">${esc(a.calId||a.code)}</span><br>${esc(a.calEquip||a.name)}${a.serial?`<br><span class="muted">S/N ${esc(a.serial)}</span>`:''}</td><td class="hs">${esc(a.location||'—')}</td><td class="hs">${esc(a.calRange||'')}<br><span class="muted">${esc(a.calTol||'')}</span></td><td>${a.calIntFreq?'<span class="muted">'+esc(calLabel(CAL_INT,a.calIntFreq))+'</span><br>'+duePill(calIntInfo(a),'Set last check'):'<span class="muted">—</span>'}</td><td>${duePill(calExtInfo(a))}</td><td class="hs">${duePill(stampInfo(a))}</td><td>${calStatusPill(a.calStatus)}</td><td class="r">${W(()=>`${a.calIntFreq?`<button class="btn sm" data-calrow="${id}|Internal" type="button">Internal</button> `:''}<button class="btn sm" data-calrow="${id}|External" type="button">External</button>`)}</td></tr>`).join(''):emptyRow(8,'No instruments here','Add calibration details to an asset (Edit asset → Calibration), or use Add instrument.')}</tbody></table></div>`}
+};
+function calCSV(rows){const head=['Equipment','Range','Calibration ID','Serial no','Asset code','Location','Internal frequency','Last internal check','Next internal check','External frequency','Next calibration date','Next stamping date','Tolerance','Check points','Lab','Status'];
+  const csv='﻿'+[head.join(','),...rows.map(([,a])=>[a.calEquip||a.name,a.calRange,a.calId,a.serial,a.code,a.location,calLabel(CAL_INT,a.calIntFreq),a.calIntLast,calIntInfo(a)?.due||'',calLabel(CAL_EXT,a.calExtFreq),a.calibDue,a.stampDue,a.calTol,a.calPoints,sup(a.calLab)?.name||'',a.calStatus||'In use'].map(csvCell).join(','))].join('\r\n');
+  save(`GFB_Calibration_Register_${today()}.csv`,csv)}
+const calDocCSS='body{font:11px Arial,sans-serif;margin:24px;color:#111}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}.ft{display:flex;justify-content:space-between;margin-top:28px}h1{font-size:15px;margin:0}h2{font-size:13px;margin:2px 0}';
+function masterSheet(){const st=S.settings.calDoc||{};
+  const fields=[{k:'formNo',label:'Form no.'},{k:'rev',label:'Revision'},{k:'eff',label:'Effective date',ph:'e.g. 06 November 2025'},{k:'prep',label:'Prepared by'},{k:'appr',label:'Approved by'}];
+  const sh=formSheet({title:'Calibration master list (print)',fields,data:{formNo:st.formNo||'L04',rev:st.rev||'',eff:st.eff||'',prep:st.prep||'R&D Officer',appr:st.appr||'Food Safety Team Leader'},
+    extra:'<div class="acts"><button type="button" class="btn pri" id="mlP">Print / save as PDF</button><button type="button" class="btn" id="mlH">Download (.html)</button></div><p class="muted" style="margin:0">Lists every active instrument in the register, grouped by equipment type, in your L04 master list columns.</p>'});
+  if(!sh)return;$('#fsave',sh)?.remove();
+  const go2=async pr=>{const v=readForm(fields);if(S.canAdmin&&JSON.stringify(v)!==JSON.stringify(st)){try{await saveSettings({calDoc:v},'Calibration master list header updated')}catch(e){}}
+    const rows=Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.status!=='Disposed').sort((x,y)=>String(x[1].calEquip||x[1].name).localeCompare(String(y[1].calEquip||y[1].name))||String(x[1].calId).localeCompare(String(y[1].calId),undefined,{numeric:true}));
+    let last='';const body=rows.map(([,a])=>{const g=a.calEquip||a.name;const show=g!==last;last=g;return`<tr><td>${show?esc(g):''}</td><td>${esc(a.calRange||'')}</td><td>${esc(a.calId||'NA')}</td><td>${esc(a.serial||'')}</td><td>${esc(a.location||'')}</td><td>${esc(calLabel(CAL_INT,a.calIntFreq)||'-')}</td><td>${esc(calLabel(CAL_EXT,a.calExtFreq)||'-')}</td><td>${a.calibDue?fmtD(a.calibDue):''}</td><td>${a.stampDue?fmtD(a.stampDue):''}</td><td>${esc(a.calTol||'-')}</td></tr>`}).join('');
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Calibration master list</title><style>${calDocCSS}@page{size:A4 landscape;margin:10mm}</style></head><body><div class="hd"><div>Form No.: ${esc(v.formNo)}<br>Revision: ${esc(v.rev)}</div><div style="text-align:center"><h1>${CO()}</h1><h2>CALIBRATION MASTER LIST</h2></div><div>Effective Date: ${esc(v.eff)}<br>Printed: ${fmtD(today())}</div></div>
+<table><thead><tr><th rowspan="2">Equipment</th><th rowspan="2">Weight / Range</th><th rowspan="2">Machine No.</th><th rowspan="2">Identification / Serial Number</th><th rowspan="2">Location / Area</th><th colspan="2">Frequency</th><th rowspan="2">Next Calibration Date</th><th rowspan="2">Next Stamping Date</th><th rowspan="2">Tolerance</th></tr><tr><th>Internal</th><th>External</th></tr></thead><tbody>${body||'<tr><td colspan="10">No instruments</td></tr>'}</tbody></table>
+<div class="ft"><div>Prepared by: ${esc(v.prep)}</div><div>Approved by: ${esc(v.appr)}</div></div></body></html>`;
+    outputDoc(html,`GFB_Calibration_Master_List_${today()}.html`,pr)};
+  $('#mlP',sh).onclick=()=>go2(true);$('#mlH',sh).onclick=()=>go2(false);
+}
+function labSheet(){
+  const fields=[{k:'lab',label:'Calibration lab',type:'select',opts:supOpts},{k:'days',label:'Include instruments due within (days)',type:'number'}];
+  const firstLab=Object.values(S.assets).find(a=>a.calLab)?.calLab||'';
+  const sh=formSheet({title:'Send / collect list',fields,data:{lab:firstLab,days:60},extra:'<div id="labList"></div><div class="acts"><button type="button" class="btn pri" id="labSend">Mark ticked as sent to lab</button><button type="button" class="btn" id="labPrint">Print list</button></div><p class="muted" style="margin:0">“To send” = external calibration due within the window and still in use. “To collect” = already marked Sent for calibration. When the certificate comes back, use <b>External</b> on the instrument to record it; the status returns to In use.</p>'});
+  if(!sh)return;$('#fsave',sh)?.remove();
+  const build=()=>{const days=num($('#f_days',sh).value)||60,lim=addDays(today(),days);
+    const send=Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.status!=='Disposed'&&a.calStatus!=='Sent for calibration'&&a.calibDue&&a.calibDue<=lim).sort((x,y)=>String(x[1].calibDue).localeCompare(String(y[1].calibDue)));
+    const coll=Object.entries(S.assets).filter(([,a])=>isCal(a)&&a.calStatus==='Sent for calibration');
+    $('#labList',sh).innerHTML=`<h3 style="margin:8px 0 4px">To send (${send.length})</h3>${send.length?send.map(([id,a])=>`<label class="check"><input type="checkbox" class="lab-ck" value="${id}" checked><span><b class="mono">${esc(a.calId||a.code)}</b> ${esc(a.calEquip||a.name)} ${esc(a.calRange||'')} · ${esc(a.location||'')} · due ${fmtD(a.calibDue)}</span></label>`).join(''):'<p class="muted" style="margin:0">Nothing due in this window.</p>'}
+      <h3 style="margin:10px 0 4px">To collect (${coll.length})</h3>${coll.length?coll.map(([,a])=>`<div><b class="mono">${esc(a.calId||a.code)}</b> ${esc(a.calEquip||a.name)} ${esc(a.calRange||'')} · ${esc(a.location||'')}${a.calSentDate?' · sent '+fmtD(a.calSentDate):''}</div>`).join(''):'<p class="muted" style="margin:0">Nothing at the lab.</p>'}`;
+    return{send,coll}};
+  let cur=build();$('#f_days',sh).addEventListener('input',()=>{cur=build()});
+  $('#labSend',sh).onclick=async()=>{const ids=$$('.lab-ck:checked',sh).map(c=>c.value);if(!ids.length){toast('Tick the instruments being sent.');return}
+    const lab=$('#f_lab',sh).value;let n=0;for(const id of ids){const a=S.assets[id];try{await put('assets',id,{...a,calStatus:'Sent for calibration',calSentDate:today(),...(lab?{calLab:lab}:{})},'Sent for calibration'+(lab&&sup(lab)?' to '+sup(lab).name:''));n++}catch(e){}}
+    toast(n+' instrument(s) marked as sent');cur=build();renderList()};
+  $('#labPrint',sh).onclick=()=>{const lab=sup($('#f_lab',sh).value)?.name||'calibration lab';const ticked=new Set($$('.lab-ck:checked',sh).map(c=>c.value));
+    const row=(a,k)=>`<tr><td>${esc(a.calEquip||a.name)}</td><td>${esc(a.calRange||'')}</td><td>${esc(a.calId||'NA')}</td><td>${esc(a.serial||'')}</td><td>${esc(a.location||'')}</td><td>${k}</td></tr>`;
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>To collect / pass to ${esc(lab)}</title><style>${calDocCSS}</style></head><body><div class="hd"><div>Form No.: ${esc((S.settings.calDoc||{}).formNo||'L04')}</div><div style="text-align:center"><h1>${CO()}</h1><h2>TO COLLECT / PASS TO ${esc(lab.toUpperCase())}</h2></div><div>Date: ${fmtD(today())}</div></div>
+<table><thead><tr><th>Equipment</th><th>Weight / Range</th><th>Machine No.</th><th>Identification / Serial Number</th><th>Location / Area</th><th>Action</th></tr></thead><tbody>${cur.send.filter(([id])=>ticked.has(id)).map(([,a])=>row(a,'To send')).join('')}${cur.coll.map(([,a])=>row(a,'To collect')).join('')||''}</tbody></table>
+<div class="ft"><div>Prepared by: ${esc((S.settings.calDoc||{}).prep||'')}</div><div>Approved by: ${esc((S.settings.calDoc||{}).appr||'')}</div></div></body></html>`;
+    outputDoc(html,'GFB_Calibration_Send_Collect_'+today()+'.html',true)};
+}
+
+F_ASSET.push(...F_CAL);
 function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
 window.addEventListener('hashchange',routeHash);
 
