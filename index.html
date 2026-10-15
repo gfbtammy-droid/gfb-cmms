@@ -146,8 +146,8 @@ a{color:var(--accent)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
-.calr,.calh{display:grid;grid-template-columns:2fr 1.2fr 0.8fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.calh{font-size:12px}
-@media (max-width:640px){.calr,.calh{grid-template-columns:1fr 1fr 0.7fr 0.9fr 30px}}
+.calr,.calh{display:grid;grid-template-columns:1.8fr 1.1fr 1fr 0.8fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.calh{font-size:12px}
+@media (max-width:640px){.calr,.calh{grid-template-columns:1.2fr 1fr 1fr 0.9fr 30px}.calr .cr-e,.calh span:nth-child(4){display:none}}
 .capa{display:grid;grid-template-columns:2fr 1fr 150px 90px auto 34px;gap:6px;align-items:center}
 .capa .ca-ev{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px}.capa .ca-ev:empty{display:none}
 .evc{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--line);border-radius:999px;padding:2px 4px 2px 10px;font-size:12px;max-width:100%}.evc a{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:220px}.evc button{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;color:inherit}.evc.up{opacity:.6;padding-right:10px}
@@ -267,9 +267,9 @@ const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
 function normSettings(d){d=d||{};const pick=k=>Array.isArray(d[k])&&d[k].length?d[k]:DEFAULTS[k];
   const locList=Array.isArray(d.locList)?d.locList.filter(l=>l&&l.name).map(l=>({name:String(l.name),dept:String(l.dept||'')})):(Array.isArray(d.locations)&&d.locations.length?d.locations.map(n=>({name:n,dept:''})):DEFAULTS.locList.map(l=>({...l})));
   const dosh={reportDays:num(d.dosh&&d.dosh.reportDays)||7,perkesoHours:num(d.dosh&&d.dosh.perkesoHours)||48};
-  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{}}}
+  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{},assetDoc:(d.assetDoc&&typeof d.assetDoc==='object')?d.assetDoc:{},cal:{lead:(d.cal&&num(d.cal.lead))||30,rule:(d.cal&&d.cal.rule==='errU')?'errU':'error'}}}
 async function saveSettings(patch,act){
-  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},...patch};body.locations=body.locList.map(l=>l.name);
+  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},assetDoc:cur.assetDoc||{},cal:cur.cal||{lead:30,rule:'error'},...patch};body.locations=body.locList.map(l=>l.name);
   await put('config','settings',body,act||'Lists updated');
   S.settings=normSettings(body);
 }
@@ -405,6 +405,7 @@ const F_ASSET=[
   {k:'manufacturer',label:'Manufacturer / brand'},{k:'model',label:'Model'},{k:'serial',label:'Serial no.'},
   {k:'supplierId',label:'Supplier / service contractor',type:'select',opts:supOpts},
   {k:'purchaseDate',label:'Purchase date',type:'date'},
+  {k:'installDate',label:'Install / commissioning date',type:'date'},
   {k:'warrantyUntil',label:'Warranty until',type:'date'},
   {k:'assignedTo',label:'Assigned to / user',ph:'For PCs, laptops, aircon room'},
   {type:'sec',label:'Maintenance schedule'},
@@ -559,8 +560,8 @@ VIEW.assets={
     <select data-f="dept" id="d_a" style="width:auto"><option value="">All departments</option>${opt(['__none','No department yet'],fval('assets','dept'))}${S.settings.departments.map(c=>opt(c,fval('assets','dept'))).join('')}</select>
     <select data-f="loc" id="l_a" style="width:auto"><option value="">All locations</option>${allLocs().map(c=>opt(c,fval('assets','loc'))).join('')}</select>
     <select data-f="status" id="s_a" style="width:auto"><option value="">All statuses</option>${ASSET_STATUS.map(c=>opt(c,fval('assets','status'))).join('')}</select>
-    ${W(()=>'<button class="btn pri" id="addA">Add asset</button><button class="btn" id="impA">Import CSV</button>')}<button class="btn" id="expA">Export CSV</button><button class="btn" id="qrA">Print QR labels</button></div><div id="list"></div>`,
-  bind(){bindFilters('assets');const a=$('#addA');if(a)a.onclick=()=>assetForm();const i=$('#impA');if(i)i.onclick=importAssets;$('#expA').onclick=()=>exportCSV('assets');$('#qrA').onclick=()=>printLabels(filteredAssets().map(x=>x[0]))},
+    ${W(()=>'<button class="btn pri" id="addA">Add asset</button><button class="btn" id="impA">Import CSV</button>')}<button class="btn" id="expA">Export CSV</button><button class="btn" id="qrA">Print QR labels</button><button class="btn" id="mlA">Master list (Excel / print)</button></div><div id="list"></div>`,
+  bind(){bindFilters('assets');const a=$('#addA');if(a)a.onclick=()=>assetForm();const i=$('#impA');if(i)i.onclick=importAssets;$('#expA').onclick=()=>exportCSV('assets');$('#qrA').onclick=()=>printLabels(filteredAssets().map(x=>x[0]));$('#mlA').onclick=assetMasterSheet},
   list(){
     const rows=filteredAssets();
     const ls=$('#l_a');if(ls){const cur=ls.value;ls.innerHTML='<option value="">All locations</option>'+allLocs().map(c=>opt(c,cur)).join('')}
@@ -636,12 +637,18 @@ VIEW.settings={
    <h2>Reporting deadlines</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Used by the incident register. The DOSH written report is 7 days under the NADOPOD Regulations 2004. Confirm the PERKESO Borang 34 deadline with PERKESO or your HR SOP.</p>
      <div class="fgrid"><div class="field"><label for="set_doshDays">DOSH written report due (days after incident)</label><input id="set_doshDays" type="number" value="${esc(S.settings.dosh.reportDays)}"${S.canAdmin?'':' readonly'}></div><div class="field"><label for="set_perkesoH">PERKESO Borang 34 due (hours after incident)</label><input id="set_perkesoH" type="number" value="${esc(S.settings.dosh.perkesoHours)}"${S.canAdmin?'':' readonly'}></div></div>
      ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="saveDosh">Save deadlines</button></div>':''}</div>
+   <h2>Calibration</h2><div class="panel"><p class="muted" style="margin:0 0 10px">How early an external calibration or stamping date turns amber (Calibration tab, Overview tile and the “due” filter), and how readings are judged against tolerance.</p>
+     <div class="fgrid"><div class="field"><label for="set_calLead">Remind before external calibration / stamping (days)</label><input id="set_calLead" type="number" min="1" value="${esc(S.settings.cal.lead)}"${S.canAdmin?'':' readonly'}></div>
+     <div class="field" style="grid-column:span 2"><label for="set_calRule">Pass / fail rule</label><select id="set_calRule"${S.canAdmin?'':' disabled'}>${opt(['error','Error within tolerance (uncertainty not counted)'],S.settings.cal.rule)}${opt(['errU','Error + measurement uncertainty within tolerance (stricter)'],S.settings.cal.rule)}</select></div></div>
+     <p class="muted" style="margin:6px 0 0">Uncertainty is optional per check point: copy the ± value from the certificate. With the stricter rule a point passes only when |error| + uncertainty ≤ tolerance.</p>
+     ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="saveCal">Save calibration settings</button></div>':''}</div>
    <h2>Data &amp; backups</h2><div class="panel"><p style="margin:0 0 10px">Records are stored in your Supabase project${CFG.supabaseUrl?` (<span class="mono">${esc(CFG.supabaseUrl.replace(/^https?:\/\//,''))}</span>)`:''}. Download a full copy every month and keep it with your ISO 22000 records. Attachments stay in Supabase Storage.</p>
      <div class="acts"><button class="btn pri" id="bkDl">Download full data copy (.json)</button>${S.canAdmin?'<label class="btn" for="bkImp" style="cursor:pointer">Import data file</label><input id="bkImp" type="file" accept=".json,application/json" hidden>':''}</div><div id="bkMsg" class="muted" style="margin-top:8px"></div></div>`,
   bind(){
     const b=$('#saveSet');if(b)b.onclick=async()=>{const v={};['categories','departments','partCats'].forEach(k=>v[k]=$('#set_'+k).value.split('\n').map(s=>s.trim()).filter(Boolean));
       try{await saveSettings(v,'Lists updated');toast('Lists saved')}catch(e){}};
     const sd=$('#saveDosh');if(sd)sd.onclick=async()=>{const d={reportDays:num($('#set_doshDays').value)||7,perkesoHours:num($('#set_perkesoH').value)||48};try{await saveSettings({dosh:d},'Reporting deadlines: DOSH '+d.reportDays+' days, PERKESO '+d.perkesoHours+' hours');toast('Deadlines saved')}catch(e){}};
+    const sc=$('#saveCal');if(sc)sc.onclick=async()=>{const c={lead:Math.max(1,num($('#set_calLead').value)||30),rule:$('#set_calRule').value==='errU'?'errU':'error'};try{await saveSettings({cal:c},'Calibration settings: remind '+c.lead+' days before; rule '+(c.rule==='errU'?'error + uncertainty':'error only'));toast('Calibration settings saved')}catch(e){}};
     $('#bkDl').onclick=()=>{const docs=[];COLLS.concat('config').forEach(c=>Object.entries(S[c]||{}).forEach(([id,data])=>docs.push({coll:c,id,data})));
       save(`GFB_Asset_Maintenance_backup_${today()}.json`,JSON.stringify({app:'GFB Asset & Maintenance',exported:new Date().toISOString(),docs},null,1))};
     const imp=$('#bkImp');if(imp)imp.onchange=async()=>{const f=imp.files[0];imp.value='';if(!f)return;const msg=$('#bkMsg');
@@ -693,7 +700,7 @@ const DETAIL={
     return{eyebrow:esc(a.code)+' · '+esc(a.category||''),title:a.name,
       pills:statusPill(a.status)+(a.foodContact?'<span class="pill acc">Food-contact</span>':'')+(a.criticality?`<span class="pill">${esc(a.criticality)} criticality</span>`:''),
       body:`<div class="acts">${W(()=>`<button class="btn pri" id="dNewWO">Report problem / new job</button>${a.pmInterval?'<button class="btn" id="dPM">Log PM</button>':''}<button class="btn" id="dEdit">Edit asset</button><button class="btn" id="dMove">Move location</button><button class="btn" id="dDup">Add another unit</button>`)}<button class="btn" id="dQR">QR label</button></div>
-      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],isIT(a)&&!isCal(a)?['Support / licence',(()=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?conPill(c):''})()]:null])}
+      ${kv([['Department',esc(a.dept)],['Location / room',esc(a.location)],['Fixed asset no.',a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Manufacturer / model',esc([a.manufacturer,a.model].filter(Boolean).join(' '))],['Serial no.',a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Supplier',a.supplierId?`<a href="#" data-sup="${a.supplierId}">${esc(sup(a.supplierId)?.name||'')}</a>`:''],['Purchased',a.purchaseDate?fmtD(a.purchaseDate):''],['Installed',a.installDate?fmtD(a.installDate):''],['Warranty',a.warrantyUntil?fmtD(a.warrantyUntil)+' '+watchPill(dateWatch(a.warrantyUntil)):''],['Assigned to',esc(a.assignedTo)],['Next PM',pmPill(pmInfo(a))],['Last PM',fmtD(a.lastPM)],isIT(a)&&!isCal(a)?['Support / licence',(()=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?conPill(c):''})()]:null])}
       ${a.pmTasks?`<div><h3>PM checklist</h3><ul style="margin:0;padding-left:20px">${a.pmTasks.split('\n').filter(Boolean).map(t=>`<li>${esc(t)}</li>`).join('')}</ul></div>`:''}
       ${calAssetBlock(id,a)}
       ${conSection(id,a)}
@@ -1042,7 +1049,7 @@ async function save(filename,data){
 }
 function exportCSV(coll){
   const spec={
-    assets:[['Asset code','code'],['Fixed asset no','faNo'],['Name','name'],['Category','category'],['Department','dept'],['Location','location'],['Status','status'],['Criticality','criticality'],['Food contact',a=>a.foodContact?'Yes':'No'],['Manufacturer','manufacturer'],['Model','model'],['Serial no','serial'],['Supplier',a=>sup(a.supplierId)?.name||''],['Purchase date','purchaseDate'],['Warranty until','warrantyUntil'],['Assigned to','assignedTo'],['PM every (days)','pmInterval'],['Last PM','lastPM'],['Next PM',a=>pmInfo(a)?.due||''],['Calibration due','calibDue'],['Notes','notes']],
+    assets:[['Asset code','code'],['Fixed asset no','faNo'],['Name','name'],['Category','category'],['Department','dept'],['Location','location'],['Status','status'],['Criticality','criticality'],['Food contact',a=>a.foodContact?'Yes':'No'],['Manufacturer','manufacturer'],['Model','model'],['Serial no','serial'],['Supplier',a=>sup(a.supplierId)?.name||''],['Purchase date','purchaseDate'],['Install date','installDate'],['Warranty until','warrantyUntil'],['Assigned to','assignedTo'],['PM every (days)','pmInterval'],['Last PM','lastPM'],['Next PM',a=>pmInfo(a)?.due||''],['Calibration due','calibDue'],['Notes','notes']],
     workorders:[['WO no','no'],['Report date','reportDate'],['Type','type'],['Asset code',w=>A(w.assetId)?.code||''],['Asset',w=>A(w.assetId)?.name||''],['Department',w=>w.dept||A(w.assetId)?.dept||''],['Location',w=>w.location||A(w.assetId)?.location||''],['Incident',w=>S.incidents[w.incidentId]?.no||(w.incidentId?'Yes':'')],['Problem','title'],['Priority','priority'],['Status','status'],['Reported by','reportedBy'],['Performed by','performedBy'],['Contractor',w=>sup(w.supplierId)?.name||''],['Technician','technician'],['Start','startDate'],['Completed','completedDate'],['Downtime (h)','downtimeHrs'],['Tasks done','tasksDone'],['Hygiene check',w=>w.chkHygiene?'Y':'N'],['Safety check',w=>w.chkSafety?'Y':'N'],['Area isolated',w=>w.chkIsolated?'Y':'N'],['PPE',w=>w.chkPPE?'Y':'N'],['Foreign matter check',w=>w.chkTools?'Y':'N'],['Hygiene clearance',w=>w.chkClearance?'Y':'N'],['Supplier report no','supplierReportNo'],['Invoice no','invoiceNo'],['Invoice date','invoiceDate'],['Invoice (RM)','invoiceAmount'],['Labour (RM)','labourCost'],['Spares (RM)',w=>partsCost(w).toFixed(2)],['Total (RM)',w=>woCost(w).toFixed(2)],['Verified by','verifiedBy'],['Verified on','verifiedDate'],['Attachments',w=>(w.files||[]).length]],
     parts:[['Part code','code'],['Name','name'],['Category','category'],['Unit','unit'],['On hand','qty'],['Re-order level','minQty'],['Store','store'],['Unit cost (RM)','unitCost'],['Value (RM)',p=>(num(p.qty)*num(p.unitCost)).toFixed(2)],['Food grade',p=>p.foodGrade?'Yes':'No'],['Supplier',p=>sup(p.supplierId)?.name||''],['Used on','compatible']],
     contracts:[['Contract','title'],['Type','type'],['Vendor',c=>sup(c.supplierId)?.name||''],['Linked asset code',c=>A(c.assetId)?.code||''],['Linked asset',c=>A(c.assetId)?.name||''],['Department','dept'],['Person in charge','owner'],['Reference','ref'],['Users / seats','seats'],['Period start','startDate'],['Renewal date','endDate'],['Status',c=>{const i=conInfo(c);return({cancelled:'Cancelled / not renewing',expired:'Expired',soon:'Due for renewal',ok:'Active',unset:'No renewal date'})[i.state]}],['Days to renewal',c=>conInfo(c).days??''],['Reminder (days)','noticeDays'],['Billing','billing'],['Annual cost (RM)','annualCost'],['Auto-renew',c=>c.autoRenew?'Yes':'No'],['Support contact','supportContact'],['Support phone','supportPhone'],['Support email','supportEmail'],['Renewals recorded',c=>(c.renewals||[]).length],['Scope','scope'],['Notes','notes']],
@@ -1610,8 +1617,9 @@ const calLabel=(list,v)=>(list.find(x=>x[0]===String(v??''))||['',''])[1];
 const isCal=a=>!!(a&&(a.calId||a.calTol||a.calIntFreq||a.calExtFreq||a.calibDue||a.stampDue));
 const numIn=s=>{const m=String(s??'').replace(/,/g,'').match(/-?\d+(\.\d+)?/);return m?parseFloat(m[0]):null};
 function calIntInfo(a){const f=num(a.calIntFreq);if(!f)return null;if(!a.calIntLast)return{state:'unset'};const due=addDays(a.calIntLast,Math.max(1,Math.ceil(f)));const d=dayDiff(today(),due);return{due,days:d,state:d<0?'overdue':d<=Math.min(7,Math.ceil(f/4))?'soon':'ok'}}
-const calExtInfo=a=>a.calibDue?{due:a.calibDue,...dateWatch(a.calibDue,30)}:null;
-const stampInfo=a=>a.stampDue?{due:a.stampDue,...dateWatch(a.stampDue,30)}:null;
+const calLead=()=>(S.settings&&S.settings.cal&&S.settings.cal.lead)||30;
+const calExtInfo=a=>a.calibDue?{due:a.calibDue,...dateWatch(a.calibDue,calLead())}:null;
+const stampInfo=a=>a.stampDue?{due:a.stampDue,...dateWatch(a.stampDue,calLead())}:null;
 function calDue(a){if(!isCal(a)||a.status==='Disposed')return false;return a.calStatus==='Out of tolerance'||[calIntInfo(a),calExtInfo(a),stampInfo(a)].some(i=>i&&(i.state==='overdue'||i.state==='soon'))}
 function calOverdue(a){if(!isCal(a)||a.status==='Disposed')return false;return a.calStatus==='Out of tolerance'||[calIntInfo(a),calExtInfo(a),stampInfo(a)].some(i=>i&&i.state==='overdue')}
 function duePill(i,unsetLabel){if(!i)return'<span class="muted">—</span>';if(i.state==='unset')return`<span class="pill warn">${unsetLabel||'Set last date'}</span>`;
@@ -1633,7 +1641,7 @@ const F_CAL=[
   {k:'calStatus',label:'Calibration status',type:'select',opts:CAL_STATUS,blank:false}
 ];
 function calPointsOf(a){const p=String(a&&a.calPoints||'').split(/[,;\n]/).map(s=>s.trim()).filter(Boolean);return p.length?p:[a&&a.calRange?String(a.calRange).split('\n')[0]:'']}
-function calRow(r,tol){return`<div class="calr"><input class="cr-p" type="text" aria-label="Check point" placeholder="Check point, e.g. 20kg" value="${esc(r.point)}"><input class="cr-r" type="text" inputmode="decimal" aria-label="Reading" placeholder="Reading" value="${esc(r.reading)}"><span class="cr-e num muted">${r.err!=null&&r.err!==''?esc(r.err):''}</span><select class="cr-s" aria-label="Result"${r.manual?' data-manual="1"':''}>${opt(['','—'],r.result)}${opt('Pass',r.result)}${opt('Fail',r.result)}</select><button type="button" class="btn sm cr-x" aria-label="Remove point">×</button></div>`}
+function calRow(r,tol){return`<div class="calr"><input class="cr-p" type="text" aria-label="Check point" placeholder="Check point, e.g. 20kg" value="${esc(r.point)}"><input class="cr-r" type="text" inputmode="decimal" aria-label="Reading" placeholder="Reading" value="${esc(r.reading)}"><input class="cr-u" type="text" inputmode="decimal" aria-label="Uncertainty (±)" placeholder="± U" value="${esc(r.u)}"><span class="cr-e num muted">${r.err!=null&&r.err!==''?esc(r.err):''}</span><select class="cr-s" aria-label="Result"${r.manual?' data-manual="1"':''}>${opt(['','—'],r.result)}${opt('Pass',r.result)}${opt('Fail',r.result)}</select><button type="button" class="btn sm cr-x" aria-label="Remove point">×</button></div>`}
 function calBoxHTML(cal,a){
   cal=cal||{};const rows=(cal.points&&cal.points.length?cal.points:calPointsOf(a).map(p=>({point:p})));
   return`<div id="calBox"><div class="fgrid"><div class="sec">Calibration record</div>
@@ -1641,7 +1649,7 @@ function calBoxHTML(cal,a){
     <div class="field"><label for="cal_cert">Certificate / report no.</label><input id="cal_cert" type="text" value="${esc(cal.cert)}"></div>
     <div class="field"><label for="cal_std">Reference standard used</label><input id="cal_std" type="text" placeholder="e.g. SW5/01, SW25/01" value="${esc(cal.std)}"></div></div>
     <p class="muted" style="margin:4px 0" id="cal_tolnote">${a?`Tolerance: <b>${esc(a.calTol||'not set')}</b>${a.calRange?' · Range '+esc(a.calRange):''}. Enter readings in the same unit as the check point; the error and result fill in automatically.`:'Choose the instrument above to load its check points and tolerance.'}</p>
-    <div class="calh muted"><span>Check point</span><span>Reading</span><span>Error</span><span>Result</span><span></span></div>
+    <div class="calh muted"><span>Check point</span><span>Reading</span><span>± Uncertainty</span><span>Error</span><span>Result</span><span></span></div>
     <div id="calRows">${rows.map(r=>calRow(r,a&&a.calTol)).join('')}</div>
     <div class="acts" style="margin:4px 0"><button type="button" class="btn sm" id="calAdd">Add check point</button><span id="calOverall"></span></div>
     <div class="field"><label for="cal_impact">Product impact assessment (required if any point fails)</label><textarea id="cal_impact" placeholder="What was measured with this instrument since the last good check, and is any product on hold or released after review?">${esc(cal.impact)}</textarea></div>
@@ -1649,13 +1657,14 @@ function calBoxHTML(cal,a){
 }
 function calRecalc(box,tolStr){const tol=numIn(tolStr);let any=0,fail=0;
   $$('.calr',box).forEach(r=>{const p=numIn($('.cr-p',r).value),rd=numIn($('.cr-r',r).value),e=$('.cr-e',r),s=$('.cr-s',r);
-    if(p!=null&&rd!=null&&$('.cr-r',r).value.trim()!==''){const err=+(rd-p).toFixed(6);e.textContent=(err>0?'+':'')+err;if(!s.dataset.manual&&tol!=null)s.value=Math.abs(err)<=Math.abs(tol)+1e-9?'Pass':'Fail'}else e.textContent='';
+    const u=$('.cr-u',r)?Math.abs(numIn($('.cr-u',r).value)||0):0,strict=S.settings.cal&&S.settings.cal.rule==='errU';
+    if(p!=null&&rd!=null&&$('.cr-r',r).value.trim()!==''){const err=+(rd-p).toFixed(6);e.textContent=(err>0?'+':'')+err;if(!s.dataset.manual&&tol!=null)s.value=Math.abs(err)+(strict?u:0)<=Math.abs(tol)+1e-9?'Pass':'Fail'}else e.textContent='';
     if(s.value){any++;if(s.value==='Fail')fail++}});
   const o=$('#calOverall',box);if(o)o.innerHTML=any?(fail?`<span class="pill bad">${fail} point(s) out of tolerance</span>`:'<span class="pill ok">All points within tolerance</span>'):'';}
 function readCalBox(sh){const box=$('#calBox',sh);if(!box||box.hidden)return null;
-  const points=$$('.calr',box).map(r=>({point:$('.cr-p',r).value.trim(),reading:$('.cr-r',r).value.trim(),err:$('.cr-e',r).textContent,result:$('.cr-s',r).value,manual:!!$('.cr-s',r).dataset.manual})).filter(p=>p.point||p.reading);
+  const points=$$('.calr',box).map(r=>({point:$('.cr-p',r).value.trim(),reading:$('.cr-r',r).value.trim(),u:($('.cr-u',r)?$('.cr-u',r).value.trim():''),err:$('.cr-e',r).textContent,result:$('.cr-s',r).value,manual:!!$('.cr-s',r).dataset.manual})).filter(p=>p.point||p.reading);
   const res=points.some(p=>p.result==='Fail')?'Fail':points.length&&points.every(p=>p.result==='Pass')?'Pass':'';
-  return{kind:$('#cal_kind',box).value,cert:$('#cal_cert',box).value.trim(),std:$('#cal_std',box).value.trim(),points,result:res,impact:$('#cal_impact',box).value.trim(),oos:$('#cal_oos',box).checked}}
+  return{rule:(S.settings.cal&&S.settings.cal.rule)||'error',kind:$('#cal_kind',box).value,cert:$('#cal_cert',box).value.trim(),std:$('#cal_std',box).value.trim(),points,result:res,impact:$('#cal_impact',box).value.trim(),oos:$('#cal_oos',box).checked}}
 function bindCalBox(sh){
   const box=$('#calBox',sh);if(!box)return;const ty=$('#f_type',sh),as=$('#f_assetId',sh);
   const anchor=$$('.fgrid .sec',sh).find(d=>/^Food safety & compliance/.test(d.textContent));if(anchor){box.style.gridColumn='1/-1';anchor.before(box)}
@@ -1680,7 +1689,8 @@ function calSideEffects(a,next,upd,why){
 }
 function calResultsHTML(w){const c=w.cal;if(!c)return'';
   return`<div><h3>Calibration record · ${esc(calLabel(CAL_KINDS,c.kind))}</h3>${kv([['Result',c.result?`<span class="pill ${c.result==='Pass'?'ok':'bad'}">${c.result}</span>`:''],['Certificate / report no.',esc(c.cert)],['Reference standard',esc(c.std)]])}
-  ${(c.points||[]).length?`<div class="tbl-wrap" style="margin-top:6px"><table style="min-width:0"><thead><tr><th>Check point</th><th class="r">Reading</th><th class="r">Error</th><th>Result</th></tr></thead><tbody>${c.points.map(p=>`<tr><td>${esc(p.point)}</td><td class="r num">${esc(p.reading)}</td><td class="r num">${esc(p.err)}</td><td>${p.result?`<span class="pill ${p.result==='Pass'?'ok':'bad'}">${p.result}</span>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${(c.points||[]).length?`<div class="tbl-wrap" style="margin-top:6px"><table style="min-width:0"><thead><tr><th>Check point</th><th class="r">Reading</th>${c.points.some(p=>p.u)?'<th class="r">± U</th>':''}<th class="r">Error</th><th>Result</th></tr></thead><tbody>${c.points.map(p=>`<tr><td>${esc(p.point)}</td><td class="r num">${esc(p.reading)}</td>${c.points.some(q=>q.u)?`<td class="r num">${esc(p.u||'')}</td>`:''}<td class="r num">${esc(p.err)}</td><td>${p.result?`<span class="pill ${p.result==='Pass'?'ok':'bad'}">${p.result}</span>`:''}</td></tr>`).join('')}</tbody></table></div>`:''}
+  ${c.points&&c.points.length?`<p class="muted" style="margin:6px 0 0">Rule: ${c.rule==='errU'?'|error| + uncertainty ≤ tolerance':'|error| ≤ tolerance'}</p>`:''}
   ${c.impact?`<p style="margin:8px 0 0"><b>Product impact assessment:</b> ${esc(c.impact)}</p>`:''}</div>`}
 function calAssetBlock(id,a){
   if(!isCal(a))return'';
@@ -1697,7 +1707,7 @@ function calRows(){const q=fval('cal','q'),st=fval('cal','state'),loc=fval('cal'
 VIEW.cal={
   shell:()=>`<h2>Calibration register</h2><p class="muted" style="margin-top:-4px">QA calibration master list: internal verification, external calibration and Metrology stamping, with readings checked against each instrument's tolerance.</p><div class="toolbar">
     <input class="grow" type="search" data-f="q" id="q_cal" placeholder="Search ID, equipment, serial, location…" value="${esc(fval('cal','q'))}">
-    <select data-f="state" id="s_cal" style="width:auto">${[['','All instruments'],['due','Due within 30 days / overdue'],['overdue','Overdue'],['lab','Sent for calibration'],['oot','Out of tolerance'],['unset','Internal check date missing']].map(o=>opt(o,fval('cal','state'))).join('')}</select>
+    <select data-f="state" id="s_cal" style="width:auto">${[['','All instruments'],['due','Due within '+calLead()+' days / overdue'],['overdue','Overdue'],['lab','Sent for calibration'],['oot','Out of tolerance'],['unset','Internal check date missing']].map(o=>opt(o,fval('cal','state'))).join('')}</select>
     <select data-f="loc" id="l_cal" style="width:auto"><option value="">All locations</option>${[...new Set(Object.values(S.assets).filter(isCal).map(a=>a.location).filter(Boolean))].sort().map(l=>opt(l,fval('cal','loc'))).join('')}</select>
     ${W(()=>'<button class="btn pri" id="addCal">Add instrument</button><button class="btn" id="labCal">Send / collect list</button>')}<button class="btn" id="mlCal">Master list (print)</button><button class="btn" id="expCal">Export CSV</button></div><div id="list"></div>`,
   bind(){bindFilters('cal');const a=$('#addCal');if(a)a.onclick=()=>assetForm(null,null,{category:'QC lab / measuring instrument',dept:'QA / QC',calStatus:'In use',calExtFreq:'365'});const l=$('#labCal');if(l)l.onclick=labSheet;$('#mlCal').onclick=masterSheet;$('#expCal').onclick=()=>calCSV(calRows())},
@@ -1708,6 +1718,52 @@ function calCSV(rows){const head=['Equipment','Range','Calibration ID','Serial n
   const csv='﻿'+[head.join(','),...rows.map(([,a])=>[a.calEquip||a.name,a.calRange,a.calId,a.serial,a.code,a.location,calLabel(CAL_INT,a.calIntFreq),a.calIntLast,calIntInfo(a)?.due||'',calLabel(CAL_EXT,a.calExtFreq),a.calibDue,a.stampDue,a.calTol,a.calPoints,sup(a.calLab)?.name||'',a.calStatus||'In use'].map(csvCell).join(','))].join('\r\n');
   save(`GFB_Calibration_Register_${today()}.csv`,csv)}
 const calDocCSS='body{font:11px Arial,sans-serif;margin:24px;color:#111}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:4px 6px;text-align:left;vertical-align:top}th{background:#eee}.hd{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}.ft{display:flex;justify-content:space-between;margin-top:28px}h1{font-size:15px;margin:0}h2{font-size:13px;margin:2px 0}';
+/* ---- Machine / equipment master list ---- */
+function assetMasterRows(f){return Object.entries(S.assets).filter(([,a])=>(f.disp||a.status!=='Disposed')&&(!f.dept||a.dept===f.dept)&&(!f.cat||a.category===f.cat))
+  .sort((x,y)=>String(x[1].dept||'~').localeCompare(String(y[1].dept||'~'))||String(x[1].category||'').localeCompare(String(y[1].category||''))||String(x[1].code||'').localeCompare(String(y[1].code||''),undefined,{numeric:true}))}
+function assetMasterCols(){return[
+  ['No.',(a,i)=>i+1,6],['Asset code',a=>a.code,16],['Fixed asset no.',a=>a.faNo,15],['Machine / equipment',a=>a.name,42],['Category',a=>a.category,22],
+  ['Manufacturer / brand',a=>a.manufacturer,20],['Model',a=>a.model,16],['Serial no.',a=>a.serial,18],['Department',a=>a.dept,15],['Location / area',a=>a.location,18],
+  ['Purchase date',a=>a.purchaseDate,'d'],['Install date',a=>a.installDate,'d'],['Warranty until',a=>a.warrantyUntil,'d'],
+  ['Supplier / service contractor',a=>sup(a.supplierId)?.name||'',24],
+  ['Support / licence renewal',(a,i,id)=>{const c=Object.values(S.contracts).filter(x=>x.assetId===id&&x.status!=='Cancelled').sort((x,y)=>String(x.endDate).localeCompare(String(y.endDate)))[0];return c?[c.type,c.endDate?fmtD(c.endDate):''].filter(Boolean).join(' · '):''},22],
+  ['Calibration ID',a=>a.calId||'',14],
+  ['Manual / spec on file',a=>{const k=(a.files||[]).map(f=>f.kind);const m=k.filter(x=>/manual|spec/i.test(x)).length;return m?'Yes ('+m+')':'No'},14],
+  ['Criticality',a=>a.criticality,12],['Food contact',a=>a.foodContact?'Yes':'No',10],['Status',a=>a.status,14]]}
+function assetMasterSheet(){const st=S.settings.assetDoc||{};
+  const fields=[{k:'formNo',label:'Form no.',ph:'e.g. M01'},{k:'rev',label:'Revision'},{k:'eff',label:'Effective date',ph:'e.g. 06 November 2025'},{k:'prep',label:'Prepared by'},{k:'appr',label:'Approved by'},
+    {type:'sec',label:'Which assets'},{k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments},{k:'cat',label:'Category',type:'select',opts:()=>S.settings.categories},{k:'disp',label:'Include disposed assets',type:'check'}];
+  const sh=formSheet({title:'Machine / equipment master list',fields,data:{formNo:st.formNo||'',rev:st.rev||'',eff:st.eff||'',prep:st.prep||'',appr:st.appr||'',dept:fval('assets','dept')||'',cat:fval('assets','cat')||''},
+    extra:'<div class="acts"><button type="button" class="btn pri" id="amX">Download Excel</button><button type="button" class="btn" id="amP">Print / save as PDF</button></div><p class="muted" style="margin:0" id="amN"></p><p class="muted" style="margin:0">Columns: asset code, fixed asset no., name, category, manufacturer, model, serial, department, location, purchase / install / warranty dates, supplier, support or licence renewal (from Contracts), calibration ID, whether a manual or spec is attached, criticality, food contact and status.</p>'});
+  if(!sh)return;$('#fsave',sh)?.remove();
+  const cnt=()=>{const v=readForm(fields);$('#amN',sh).textContent=assetMasterRows(v).length+' asset(s) will be listed.'};cnt();$$('select,input',sh).forEach(e=>e.addEventListener('change',cnt));
+  const hdr=async()=>{const v=readForm(fields);const h={formNo:v.formNo,rev:v.rev,eff:v.eff,prep:v.prep,appr:v.appr};if(S.canAdmin&&JSON.stringify(h)!==JSON.stringify({formNo:st.formNo||'',rev:st.rev||'',eff:st.eff||'',prep:st.prep||'',appr:st.appr||''})){try{await saveSettings({assetDoc:h},'Machine master list header updated')}catch(e){}}return v};
+  $('#amX',sh).onclick=async()=>{const b=$('#amX',sh);b.disabled=true;b.textContent='Preparing…';try{await assetMasterExcel(await hdr())}catch(e){toast('Could not build the Excel file: '+(e.message||e))}finally{b.disabled=false;b.textContent='Download Excel'}};
+  $('#amP',sh).onclick=async()=>{const v=await hdr();const cols=assetMasterCols(),rows=assetMasterRows(v);
+    const html=`<!doctype html><html><head><meta charset="utf-8"><title>Machine / equipment master list</title><style>${calDocCSS}td,th{font-size:9px}@page{size:A3 landscape;margin:8mm}</style></head><body><div class="hd"><div>Form No.: ${esc(v.formNo)}<br>Revision: ${esc(v.rev)}</div><div style="text-align:center"><h1>${CO()}</h1><h2>MACHINE / EQUIPMENT MASTER LIST${v.dept?' · '+esc(v.dept):''}${v.cat?' · '+esc(v.cat):''}</h2></div><div>Effective Date: ${esc(v.eff)}<br>Printed: ${fmtD(today())}</div></div>
+<table><thead><tr>${cols.map(c=>`<th>${esc(c[0])}</th>`).join('')}</tr></thead><tbody>${rows.map(([id,a],i)=>`<tr>${cols.map(c=>{const x=c[1](a,i,id);return`<td>${c[2]==='d'?(x?fmtD(x):''):esc(x??'')}</td>`}).join('')}</tr>`).join('')||`<tr><td colspan="${cols.length}">No assets</td></tr>`}</tbody></table>
+<div class="ft"><div>Prepared by: ${esc(v.prep)}</div><div>Approved by: ${esc(v.appr)}</div></div></body></html>`;
+    outputDoc(html,`GFB_Machine_Master_List_${today()}.html`,true)};
+}
+async function assetMasterExcel(v){await loadExcelJS();
+  const cols=assetMasterCols(),rows=assetMasterRows(v),N=cols.length;
+  const wb=new ExcelJS.Workbook();wb.creator='GFB CMMS';const ws=wb.addWorksheet('Machine master list',{views:[{state:'frozen',ySplit:3,showGridLines:false}]});
+  cols.forEach((c,i)=>ws.getColumn(i+1).width=c[2]==='d'?14:c[2]);
+  const hx=x=>String(x||'').replace(/&/g,'&&');
+  ws.headerFooter={oddHeader:`&L&10Form No.: ${hx(v.formNo)}\nRevision: ${hx(v.rev)}&C&"-,Bold"&16${hx(String(CO()).replace(/&amp;/g,'&').toUpperCase())}&R&10Effective Date: ${hx(v.eff)}`,oddFooter:`&L&10Prepared by: ${hx(v.prep)}&C&9Page &P of &N&R&10Approved by: ${hx(v.appr)}`};
+  ws.pageSetup={paperSize:8,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,horizontalCentered:true,printTitlesRow:'3:3',margins:{left:0.25,right:0.25,top:0.75,bottom:0.5,header:0.3,footer:0.3}};
+  ws.mergeCells(1,1,1,N);const t=ws.getCell(1,1);t.value='MACHINE / EQUIPMENT MASTER LIST'+(v.dept?' – '+v.dept:'')+(v.cat?' – '+v.cat:'');t.font={name:'Calibri',size:18,bold:true};t.alignment={horizontal:'center',vertical:'middle'};ws.getRow(1).height=30;
+  ws.getRow(2).height=6;
+  const T={style:'thin'},M={style:'medium'};
+  const hr=ws.getRow(3);hr.height=34;cols.forEach((c,i)=>{const x=hr.getCell(i+1);x.value=c[0];x.font={name:'Calibri',size:11,bold:true};x.alignment={horizontal:'center',vertical:'middle',wrapText:true};x.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE7EEEC'}};x.border={top:M,bottom:M,left:i?T:M,right:i===N-1?M:T}});
+  const toDate=d=>{const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/);return m?new Date(Date.UTC(+m[1],+m[2]-1,+m[3])):null};
+  rows.forEach(([id,a],ri)=>{const r=ws.getRow(4+ri);cols.forEach((c,i)=>{const x=r.getCell(i+1);let val=c[1](a,ri,id);if(c[2]==='d'){val=toDate(val);x.numFmt='dd/mm/yyyy'}x.value=val===''||val==null?null:val;
+      x.font={name:'Calibri',size:10,color:(c[0]==='Manual / spec on file'&&val==='No')?{argb:'FFB42318'}:undefined};x.alignment={vertical:'middle',wrapText:true,horizontal:(i===0||c[2]==='d')?'center':'left'};x.border={top:T,bottom:ri===rows.length-1?M:T,left:i?T:M,right:i===N-1?M:T}})});
+  ws.autoFilter={from:{row:3,column:1},to:{row:3+Math.max(rows.length,1),column:N}};
+  ws.pageSetup.printArea=`A$1:${ws.getColumn(N).letter}$${3+Math.max(rows.length,1)}`;
+  const buf=await wb.xlsx.writeBuffer();
+  save(`GFB_Machine_Master_List${v.dept?'_'+v.dept.replace(/[^A-Za-z0-9]+/g,'-'):''}_${today()}.xlsx`,new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  toast(rows.length+' asset(s) exported')}
 /* ---- L04 master list layout (3 pages, as per Form L04 R11) ---- */
 const L04_ORDER=['standard weight','weighing scale','refractrometer','refractometer','sealing machine','moisture analyser','ph meter','autopacking (1) sealing machine','magnetic trap','metal detector (fe & sus)','checkweigher','air leak tester','thermohygrometer','timer'];
 const L04_P2=['weighing scale','refractrometer','refractometer','sealing machine','moisture analyser','ph meter'];
