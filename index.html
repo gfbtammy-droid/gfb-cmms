@@ -2,7 +2,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#0d6b5f"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="GFB Maint">
 <link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" href="icon-192.png">
-<title>GFB Asset &amp; Maintenance</title>
+<title>GFB FOOD - CMMS</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -162,7 +162,7 @@ td.mono,td .mono{white-space:nowrap}
 <header class="top">
   <div class="wrap" style="padding-block:0">
     <div class="brand">
-      <div><h1>GFB Asset &amp; Maintenance</h1><div class="sub">Machines · Equipment · Spares · Contractors — ISO 22000 / HACCP / GMP records</div></div>
+      <div><h1>GFB FOOD - CMMS</h1><div class="sub">Machines · Equipment · Spares · Contractors — ISO 22000 / HACCP / GMP records</div></div>
       <div class="me menu" id="me"></div>
     </div>
     <nav class="tabs" id="tabs" aria-label="Modules"></nav>
@@ -1045,7 +1045,7 @@ function downloadF45(id,print){
 <tr><td>1</td><td>Hygiene Condition Checks</td><td>${yn(w.chkHygiene)}</td></tr><tr><td>2</td><td>Safety Condition Checks</td><td>${yn(w.chkSafety)}</td></tr><tr><td>3</td><td>Maintenance work areas were isolated from production zones to prevent contamination</td><td>${yn(w.chkIsolated)}</td></tr><tr><td>4</td><td>Technicians wore appropriate PPE during maintenance</td><td>${yn(w.chkPPE)}</td></tr><tr><td>5</td><td>No tools, screws or debris left on line (foreign matter check)</td><td>${yn(w.chkTools)}</td></tr><tr><td>6</td><td>Hygiene clearance given before production restart</td><td>${yn(w.chkClearance)}</td></tr></table>
 <h2>4. Recommendations</h2><table><tr><td style="height:50px">${esc(w.recommendations)||'&nbsp;'}</td></tr></table>
 <h2>5. Checked &amp; Verified by</h2><table class="sig"><tr><th style="width:33%">Handling by (Contractor / Vendor)</th><th style="width:33%">Reporting by (PIC GFB Food SB)</th><th>Verify By</th></tr><tr><td>${esc(w.technician)}</td><td>${esc(w.reportingPIC)}</td><td>${esc(w.verifiedBy)}</td></tr><tr><td>Date: ${fmtD(w.completedDate)}</td><td>Date: ${fmtD(w.reportDate)}</td><td>Date: ${fmtD(w.verifiedDate)}</td></tr></table>
-<p style="margin-top:14px;color:#555">Appendix: ${(w.files||[]).length} attachment(s) held in GFB Asset &amp; Maintenance (${(w.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}). Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+<p style="margin-top:14px;color:#555">Appendix: ${(w.files||[]).length} attachment(s) held in GFB FOOD - CMMS (${(w.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}). Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
   if(print){const win=window.open('','_blank');if(!win){toast('Allow pop-ups for this site to print.');return}win.document.write(html.replace('</body>','<script>setTimeout(function(){window.print()},300)<\/script></body>'));win.document.close();return}
   save(`${w.no}_F45_Maintenance_Report.html`,html);
 }
@@ -1273,7 +1273,7 @@ ${hasPerson(i)?`<h2>2. Person involved</h2><table>${r('Name',i.personName)}${r('
 <h2>${hasPerson(i)?5:3}. Investigation</h2><table>${r('Immediate action',i.immediateAction)}${r('Immediate cause',i.immediateCause)}${r('Root cause',i.rootCause)}${r('Investigated by / date',[i.investigatedBy,i.investigationDate&&fmtD(i.investigationDate)].filter(Boolean).join(' · '))}${r('HIRARC reviewed',i.hirarcReviewed?'Yes':'No')}</table>
 <h2>${hasPerson(i)?6:4}. Corrective &amp; preventive actions</h2><table><tr><th>Action</th><th>Owner</th><th>Due</th><th>Status</th></tr>${(i.capa||[]).map(c=>`<tr><td>${esc(c.action)}${(c.evidence||[]).length?`<br><small>Evidence: ${c.evidence.map(f=>esc(f.name)).join('; ')}</small>`:''}</td><td>${esc(c.owner)}</td><td>${fmtD(c.due)}</td><td>${esc(c.status)}${c.doneDate?' '+fmtD(c.doneDate):''}</td></tr>`).join('')||'<tr><td colspan="4">None recorded</td></tr>'}</table>
 <h2>${hasPerson(i)?7:5}. Sign-off</h2><table class="sig"><tr><th>Reported by</th><th>Investigated by</th><th>Safety &amp; health officer / HOD</th><th>Management</th></tr><tr><td>${esc(i.reportedBy)}</td><td>${esc(i.investigatedBy)}</td><td></td><td>${esc(i.closedBy)}</td></tr><tr><td>Date:</td><td>Date: ${fmtD(i.investigationDate)}</td><td>Date:</td><td>Date: ${fmtD(i.closedDate)}</td></tr></table>
-<p class="note">Internal record. Notifiable accidents and dangerous occurrences must be notified to the nearest DOSH office immediately and reported in writing on the approved form (JKKP 6, or JKKP 7 for occupational poisoning / disease) within 7 days, under the OSH (NADOPOD) Regulations 2004. Attachments held in GFB Asset &amp; Maintenance: ${(i.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
+<p class="note">Internal record. Notifiable accidents and dangerous occurrences must be notified to the nearest DOSH office immediately and reported in writing on the approved form (JKKP 6, or JKKP 7 for occupational poisoning / disease) within 7 days, under the OSH (NADOPOD) Regulations 2004. Attachments held in GFB FOOD - CMMS: ${(i.files||[]).map(f=>esc(f.kind+': '+f.name)).join('; ')||'none'}. Generated ${fmtDT(new Date().toISOString())}.</p></body></html>`;
   outputDoc(html,`${i.no}_Incident_Report.html`,print);
 }
 function registerDoc(year){
@@ -1637,7 +1637,7 @@ async function sync(){
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync()});
 
 async function start(){
-  if(!sbClient()){authCard(`<h2>Not connected yet</h2><p style="margin:0">This copy of GFB Asset &amp; Maintenance has no database settings. Open <span class="mono">config.js</span> and paste your Supabase project URL and anon key, as described in the setup guide.</p>`);return}
+  if(!sbClient()){authCard(`<h2>Not connected yet</h2><p style="margin:0">This copy of GFB FOOD - CMMS has no database settings. Open <span class="mono">config.js</span> and paste your Supabase project URL and anon key, as described in the setup guide.</p>`);return}
   if(/type=recovery/.test(location.hash)){showLogin('newpw');return}
   let st;try{st=await api('GET','/api/status')}catch(e){authCard(`<h2>Can’t reach the database</h2><p style="margin:0">${esc(e.message)}</p><button class="btn" onclick="location.reload()">Try again</button>`);return}
   if(!st.user){showLogin();return}
