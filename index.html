@@ -147,6 +147,8 @@ a{color:var(--accent)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
+.pl,.plh{display:grid;grid-template-columns:1.5fr 2fr 0.7fr 0.7fr 0.9fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.plh{font-size:12px}.pl-a{text-align:right}
+@media (max-width:760px){.plh{display:none}.pl{grid-template-columns:1fr 1fr 1fr;padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}.pl-p,.pl-d{grid-column:1/-1}.pl-x{justify-self:end}}
 .calr,.calh{display:grid;grid-template-columns:1.8fr 1.1fr 1fr 0.8fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.calh{font-size:12px}
 @media (max-width:640px){.calr,.calh{grid-template-columns:1.2fr 1fr 1fr 0.9fr 30px}.calr .cr-e,.calh span:nth-child(4){display:none}}
 .capa{display:grid;grid-template-columns:2fr 1fr 150px 90px auto 34px;gap:6px;align-items:center}
@@ -211,7 +213,7 @@ const WO_TYPES=['Breakdown / repair','Preventive maintenance','Calibration','Ins
 const WO_STATUS=['Open','In progress','Waiting parts','Completed','Verified'];
 const PRIORITY=['Critical','High','Normal','Low'];
 const INTERVALS=[['','No schedule'],['7','Weekly'],['14','Every 2 weeks'],['30','Monthly'],['60','Every 2 months'],['90','Quarterly'],['180','Half-yearly'],['365','Yearly']];
-const S={assets:{},workorders:{},parts:{},suppliers:{},incidents:{},contracts:{},config:{},settings:{...DEFAULTS},view:'dash',f:{},detail:null,sel:new Set(),canWrite:false,canAdmin:false,me:null,seq:0,ready:false};
+const S={assets:{},workorders:{},parts:{},suppliers:{},incidents:{},contracts:{},purchases:{},config:{},settings:{...DEFAULTS},view:'dash',f:{},detail:null,sel:new Set(),canWrite:false,canAdmin:false,me:null,seq:0,ready:false};
 /* ---------- Supabase connection ---------- */
 const CFG=window.GFB_CONFIG||{};
 let sb=null;
@@ -223,7 +225,7 @@ async function api(method,path,body){
   if(!sbClient())throw ERR('This copy is not connected to a database yet. Fill in config.js.','config');
   let m;
   if(path==='/api/status'){const {data:{session}}=await sb.auth.getSession();if(!session)return{user:null};let p;try{p=await rpc('my_profile',{})}catch(e){if(e.code===401)return{user:null};throw e}if(!p)return{user:null,orphan:true};
-    return{user:{id:p.id,name:p.name||p.email,username:p.email,role:p.role,active:p.active,incidents:p.role==='admin'||!!p.incident_access}}}
+    return{user:{id:p.id,name:p.name||p.email,username:p.email,role:p.role,active:p.active,incidents:p.role==='admin'||!!p.incident_access,approver:!!p.can_approve&&!!p.active}}}
   if(path==='/api/login'){const {error}=await sb.auth.signInWithPassword({email:String(body.username||'').trim(),password:body.password||''});if(error)throw ERR(/invalid login/i.test(error.message)?'Wrong email or password.':/not confirmed/i.test(error.message)?'Confirm your email first: open the link Supabase sent you.':error.message,401);return{ok:true}}
   if(path==='/api/signup'){if(String(body.password||'').length<8)throw ERR('Use a password of at least 8 characters.',400);const {data,error}=await sb.auth.signUp({email:String(body.email||'').trim(),password:body.password,options:{data:{name:String(body.name||'').trim()},emailRedirectTo:location.origin+location.pathname}});if(error)throw ERR(error.message,400);return{ok:true,session:!!(data&&data.session)}}
   if(path==='/api/forgot'){const {error}=await sb.auth.resetPasswordForEmail(String(body.email||'').trim(),{redirectTo:location.origin+location.pathname});if(error)throw ERR(error.message,400);return{ok:true}}
@@ -235,13 +237,15 @@ async function api(method,path,body){
     let deleted=[];if(since){const {data,error}=await sb.from('tombstones').select('coll,id,seq').gt('seq',since);if(error)throw sbErr(error);deleted=data}
     return{seq:Math.max(since,...docs.map(d=>+d.seq),...deleted.map(d=>+d.seq)),docs,deleted,full:!since}}
   if((m=path.match(/^\/api\/docs\/([a-z]+)\/([A-Za-z0-9_\-]+)$/))){
-    if(method==='PUT'){let r;try{r=await rpc('save_doc',{p_coll:m[1],p_id:m[2],p_data:body.data,p_act:body.act,p_base:body.base??null})}catch(e){if(m[1]==='contracts'&&/Unknown record type/i.test(e.message))throw ERR('Contracts are not switched on in the database yet. An admin needs to run enable-contracts.sql in Supabase (SQL Editor).',400);throw e}
+    if(method==='PUT'){let r;try{r=await rpc('save_doc',{p_coll:m[1],p_id:m[2],p_data:body.data,p_act:body.act,p_base:body.base??null})}catch(e){if(m[1]==='purchases'&&/Unknown record type/i.test(e.message))throw ERR('Purchasing is not switched on in the database yet. An admin needs to run enable-purchasing.sql in Supabase (SQL Editor).',400);if(m[1]==='contracts'&&/Unknown record type/i.test(e.message))throw ERR('Contracts are not switched on in the database yet. An admin needs to run enable-contracts.sql in Supabase (SQL Editor).',400);throw e}
       if(r.conflict)throw ERR('Someone else changed this record while you were editing. Your copy has been refreshed; please re-enter your change.',409,{current:r.current});return{ok:true,doc:r.doc}}
     if(method==='DELETE'){await rpc('delete_doc',{p_coll:m[1],p_id:m[2]});return{ok:true}}}
   if((m=path.match(/^\/api\/stock\/([A-Za-z0-9_\-]+)$/))){const r=await rpc('stock_move',{p_id:m[1],p_type:body.type,p_delta:body.delta??0,p_count:body.count??null,p_date:body.date||'',p_ref:body.ref||'',p_note:body.note||'',p_unit_cost:(body.unitCost===''||body.unitCost==null)?null:Number(body.unitCost)});
     if(r.error)throw ERR(r.error,400);if(r.conflict)throw ERR('Stock changed at the same moment. Try again.',409);return{ok:true,doc:r.doc}}
+  if((m=path.match(/^\/api\/receive\/([A-Za-z0-9_\-]+)$/))){const r=await rpc('po_receive',{p_id:m[1],p_date:body.date||'',p_do:body.doNo||'',p_note:body.note||'',p_lines:body.lines,p_base:body.base??null});
+    if(r.error)throw ERR(r.error,400);if(r.conflict)throw ERR('Someone else changed this purchase at the same moment. Close it, reopen and try again.',409);return{ok:true,doc:r.doc}}
   if(path==='/api/users'){const {data,error}=await sb.from('profiles').select('*').order('created_at');if(error)throw sbErr(error);return data}
-  if((m=path.match(/^\/api\/users\/([0-9a-f-]{36})$/))){await rpc('admin_update_user',{p_id:m[1],p_name:body.name,p_role:body.role,p_active:!!body.active,p_incidents:!!body.incidents});return{ok:true}}
+  if((m=path.match(/^\/api\/users\/([0-9a-f-]{36})$/))){await rpc('admin_update_user',{p_id:m[1],p_name:body.name,p_role:body.role,p_active:!!body.active,p_incidents:!!body.incidents,p_approve:!!body.approve});return{ok:true}}
   if(path==='/api/import'){let n=0;for(let i=0;i<body.docs.length;i+=100){const r=await rpc('import_docs',{p_docs:body.docs.slice(i,i+100)});n+=r.imported}return{imported:n}}
   throw ERR('Unknown request '+path,'404');
 }
@@ -261,16 +265,16 @@ async function uploadFile(coll,id,file){
 async function fillFiles(root){const els=$$('[data-fp]',root);if(!els.length||!sbClient())return;
   const paths=[...new Set(els.map(e=>e.dataset.fp))];const {data,error}=await sb.storage.from('attachments').createSignedUrls(paths,3600);if(error||!data)return;
   const u={};data.forEach(d=>{if(d.signedUrl)u[d.path]=d.signedUrl});els.forEach(e=>{const x=u[e.dataset.fp];if(!x)return;if(e.tagName==='IMG')e.src=x;else e.href=x})}
-const COLLS=['assets','workorders','parts','suppliers','incidents','contracts'];
+const COLLS=['assets','workorders','parts','suppliers','incidents','contracts','purchases'];
 
 /* ---------- derived ---------- */
 const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
 function normSettings(d){d=d||{};const pick=k=>Array.isArray(d[k])&&d[k].length?d[k]:DEFAULTS[k];
   const locList=Array.isArray(d.locList)?d.locList.filter(l=>l&&l.name).map(l=>({name:String(l.name),dept:String(l.dept||'')})):(Array.isArray(d.locations)&&d.locations.length?d.locations.map(n=>({name:n,dept:''})):DEFAULTS.locList.map(l=>({...l})));
   const dosh={reportDays:num(d.dosh&&d.dosh.reportDays)||7,perkesoHours:num(d.dosh&&d.dosh.perkesoHours)||48};
-  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{},assetDoc:(d.assetDoc&&typeof d.assetDoc==='object')?d.assetDoc:{},cal:{lead:(d.cal&&num(d.cal.lead))||30,rule:(d.cal&&d.cal.rule==='errU')?'errU':'error'}}}
+  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{},assetDoc:(d.assetDoc&&typeof d.assetDoc==='object')?d.assetDoc:{},poDoc:(d.poDoc&&typeof d.poDoc==='object')?d.poDoc:{},cal:{lead:(d.cal&&num(d.cal.lead))||30,rule:(d.cal&&d.cal.rule==='errU')?'errU':'error'}}}
 async function saveSettings(patch,act){
-  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},assetDoc:cur.assetDoc||{},cal:cur.cal||{lead:30,rule:'error'},...patch};body.locations=body.locList.map(l=>l.name);
+  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},assetDoc:cur.assetDoc||{},poDoc:cur.poDoc||{},cal:cur.cal||{lead:30,rule:'error'},...patch};body.locations=body.locList.map(l=>l.name);
   await put('config','settings',body,act||'Lists updated');
   S.settings=normSettings(body);
 }
@@ -323,7 +327,7 @@ async function put(coll,id,data,act){
     if(e.code===409){if(e.body&&e.body.current)S[coll][id]=e.body.current;renderList();if(!$('.sheet'))renderDetail()}
     if(e.code!==401)toast(e.message);throw e}
 }
-const newId=coll=>({assets:'ast',workorders:'wo',parts:'prt',suppliers:'sup',contracts:'con'}[coll]||'doc')+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+const newId=coll=>({assets:'ast',workorders:'wo',parts:'prt',suppliers:'sup',contracts:'con',purchases:'pur'}[coll]||'doc')+'-'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 function diffAct(prev,next,fields){
   if(!prev)return'Created';const ch=[];
   fields.forEach(f=>{if(f.type==='sec')return;const a=prev[f.k]??'',b=next[f.k]??'';if(String(a)!==String(b)){ch.push(f.type==='check'?`${f.short||f.label}: ${b?'ticked':'unticked'}`:(f.k==='status'?`Status ${a||'—'} → ${b}`:(f.short||f.label)))}});
@@ -372,7 +376,7 @@ function openSheet({title,sub,body,saveLabel='Save',onSave,danger,onDraft}){
   return sh;
 }
 function confirmBox(title,msg,label,onOk){openSheet({title,body:`<p style="margin:0">${msg}</p>`,saveLabel:label,onSave:async()=>{await onOk()}})}
-function formSheet({title,fields,data={},extra='',onSave,danger,onDraft}){
+function formSheet({title,fields,data={},extra='',onSave,danger,onDraft,saveLabel}){
   const body=`<div class="fgrid">${fields.map(f=>fieldHTML(f,data[f.k])).join('')}</div>${extra}`;
   const sh=openSheet({title,body,onSave:async()=>{
     const v=readForm(fields);const miss=fields.filter(f=>f.req&&(v[f.k]===''||v[f.k]==null)).map(f=>f.label);
@@ -383,7 +387,7 @@ function formSheet({title,fields,data={},extra='',onSave,danger,onDraft}){
       if(hit)v[f.k]=hit.name;else{try{await addLocations([{name:v[f.k],dept:v[f.deptField]||''}])}catch(e){}}
     }
     return onSave(v);
-  },danger,onDraft:onDraft?async()=>onDraft(readForm(fields)):null});
+  },danger,saveLabel,onDraft:onDraft?async()=>onDraft(readForm(fields)):null});
   fields.filter(f=>f.type==='locsel').forEach(f=>bindLocSel(sh,f));
   return sh;
 }
@@ -474,7 +478,7 @@ const F_SUP=[
 ];
 
 /* ---------- shell / navigation ---------- */
-const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM'],['cal','Calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM'],['cal','Calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['purchases','Purchasing'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
 let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
 function counts(){
   const as=Object.values(S.assets);
@@ -483,11 +487,12 @@ function counts(){
     open:Object.values(S.workorders).filter(openWO).length,
     low:Object.values(S.parts).filter(lowStock).length,
     renew:Object.values(S.contracts).filter(conDue).length,
-    cal:Object.values(S.assets).filter(calOverdue).length
+    cal:Object.values(S.assets).filter(calOverdue).length,
+    pur:Object.values(S.purchases).filter(p=>p.status==='Pending approval').length
   };
 }
 function renderTabs(){
-  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low,contracts:c.renew,cal:c.cal};
+  const c=counts();const badge={pm:c.overdue,wos:c.open,parts:c.low,contracts:c.renew,cal:c.cal,purchases:c.pur};
   $('#tabs').innerHTML=VIEWS.map(([k,l])=>`<button type="button" data-v="${k}" aria-current="${S.view===k}">${l}${badge[k]?`<span class="n">${badge[k]}</span>`:''}</button>`).join('');
   $$('#tabs button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 }
@@ -541,6 +546,7 @@ VIEW.dash={shell:()=>'<div id="list"></div>',list(){
     ${tile('warn',toVerify.length,'Awaiting QA verification','wos|status|Completed')}
     ${tile('bad',down.length,'Machines under repair','assets|status|Under repair')}
     ${tile('warn',low.length,'Spares at re-order level','parts|low|1')}
+    ${tile('warn',Object.values(S.purchases).filter(p=>p.status==='Pending approval').length,'Purchase requests awaiting approval','purchases|state|pending')}
     ${tile('warn',Object.values(S.contracts).filter(conDue).length,'Contract renewals due','contracts|state|due')}
     ${tile('warn',Object.values(S.assets).filter(calDue).length,'Calibration due / out of tolerance','cal|state|due')}
     ${S.me&&S.me.incidents?tile('bad',Object.values(S.incidents).filter(i=>i.status!=='Closed').length,'Open incidents','incidents|status|open')+tile('bad',Object.values(S.incidents).filter(incPending).length,'DOSH / PERKESO reports due','incidents|status|due'):''}
@@ -599,13 +605,13 @@ VIEW.parts={
     <input class="grow" type="search" data-f="q" id="q_s" placeholder="Search part code, name, asset…" value="${esc(fval('parts','q'))}">
     <select data-f="cat" id="c_s" style="width:auto"><option value="">All categories</option>${S.settings.partCats.map(c=>opt(c,fval('parts','cat'))).join('')}</select>
     <select data-f="low" id="l_s" style="width:auto">${[['','All stock'],['1','At / below re-order level']].map(o=>opt(o,fval('parts','low'))).join('')}</select>
-    ${W(()=>'<button class="btn pri" id="addP">Add part</button>')}<button class="btn" id="expP">Export CSV</button></div><div id="list"></div>`,
-  bind(){bindFilters('parts');const a=$('#addP');if(a)a.onclick=()=>partForm();$('#expP').onclick=()=>exportCSV('parts')},
+    ${W(()=>'<button class="btn pri" id="addP">Add part</button><button class="btn" id="prLow">Raise PR for low stock</button>')}<button class="btn" id="expP">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('parts');const a=$('#addP');if(a)a.onclick=()=>partForm();const pl=$('#prLow');if(pl)pl.onclick=()=>{const L=Object.entries(S.parts).filter(([pid,p])=>lowStock(p)&&onOrderQty(pid)<=0).sort(byStr('code'));if(!L.length){toast('No parts at re-order level without an open PO.');return}purForm(null,{purpose:'Re-order spares at or below re-order level',lines:L.map(([pid,p])=>({partId:pid,desc:p.code+' · '+p.name,qty:Math.max(1,num(p.minQty)*2-num(p.qty)),unit:p.unit||'',price:p.unitCost??''})),supplierId:L[0][1].supplierId||''})};$('#expP').onclick=()=>exportCSV('parts')},
   list(){
     const q=fval('parts','q'),c=fval('parts','cat'),lo=fval('parts','low');
     const rows=Object.entries(S.parts).filter(([,p])=>(!c||p.category===c)&&(!lo||lowStock(p))&&match(q,p.code,p.name,p.compatible,p.store)).sort(byStr('code'));
     const val=rows.reduce((s,[,p])=>s+num(p.qty)*num(p.unitCost),0);
-    return`<div class="tbl-wrap"><table><thead><tr><th class="hs">Code</th><th>Item</th><th class="hs">Category · store</th><th class="r">On hand</th><th class="r hs">Re-order at</th><th class="r hs">Value</th></tr></thead><tbody>${rows.length?rows.map(([id,p])=>`<tr data-open="part:${id}"><td class="mono hs">${esc(p.code)}</td><td><span class="so mono muted">${esc(p.code)}<br></span>${esc(p.name)}${p.foodGrade?'<span class="fc">FOOD-GRADE</span>':''}<br><span class="muted">${esc(p.compatible||'')}</span></td><td class="hs">${esc(p.category||'—')}<br><span class="muted">${esc(p.store||'')}</span></td><td class="r num"><span class="dot ${lowStock(p)?(num(p.qty)<=0?'bad':'warn'):'ok'}"></span>${num(p.qty)} ${esc(p.unit||'')}</td><td class="r num hs">${p.minQty===''||p.minQty==null?'—':esc(p.minQty)}</td><td class="r num hs">${rm(num(p.qty)*num(p.unitCost))}</td></tr>`).join(''):emptyRow(6,'No spares or consumables','Add parts you keep in store: bearings, belts, seals, filters, food-grade grease, fuses, toner.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} item(s) · stock value ${rm(val)}</p>`;
+    return`<div class="tbl-wrap"><table><thead><tr><th class="hs">Code</th><th>Item</th><th class="hs">Category · store</th><th class="r">On hand</th><th class="r hs">On order</th><th class="r hs">Re-order at</th><th class="r hs">Value</th></tr></thead><tbody>${rows.length?rows.map(([id,p])=>`<tr data-open="part:${id}"><td class="mono hs">${esc(p.code)}</td><td><span class="so mono muted">${esc(p.code)}<br></span>${esc(p.name)}${p.foodGrade?'<span class="fc">FOOD-GRADE</span>':''}<br><span class="muted">${esc(p.compatible||'')}</span></td><td class="hs">${esc(p.category||'—')}<br><span class="muted">${esc(p.store||'')}</span></td><td class="r num"><span class="dot ${lowStock(p)?(num(p.qty)<=0?'bad':'warn'):'ok'}"></span>${num(p.qty)} ${esc(p.unit||'')}</td><td class="r num hs">${(()=>{const o=onOrderQty(id);return o?o:'—'})()}</td><td class="r num hs">${p.minQty===''||p.minQty==null?'—':esc(p.minQty)}</td><td class="r num hs">${rm(num(p.qty)*num(p.unitCost))}</td></tr>`).join(''):emptyRow(7,'No spares or consumables','Add parts you keep in store: bearings, belts, seals, filters, food-grade grease, fuses, toner.')}</tbody></table></div><p class="muted" style="margin-top:8px">${rows.length} item(s) · stock value ${rm(val)}</p>`;
   }};
 
 VIEW.suppliers={
@@ -624,7 +630,7 @@ VIEW.activity={
   bind(){bindFilters('activity')},
   list(){
     const q=fval('activity','q');const ev=[];
-    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>(r.no||'Draft')+' · '+woWhat(r)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>(r.no||'Draft')+' · '+r.title],contracts:['contract',r=>r.title]};
+    const lab={assets:['asset',r=>r.code+' · '+r.name],workorders:['wo',r=>(r.no||'Draft')+' · '+woWhat(r)],parts:['part',r=>r.code+' · '+r.name],suppliers:['supplier',r=>r.name],incidents:['incident',r=>(r.no||'Draft')+' · '+r.title],contracts:['contract',r=>r.title],purchases:['purchase',r=>(r.poNo||r.no||'Draft')+' · '+String(r.purpose||'').split('\n')[0]]};
     COLLS.forEach(c=>Object.entries(S[c]).forEach(([id,r])=>(r.history||[]).forEach(h=>ev.push([h,c,id,lab[c][1](r)]))));
     const rows=ev.filter(([h,,,n])=>match(q,h.act,n)).sort((a,b)=>String(b[0].at).localeCompare(String(a[0].at))).slice(0,300);
     const kind={assets:'Asset',workorders:'Work order',parts:'Spare',suppliers:'Contractor',incidents:'Incident',contracts:'Contract'};
@@ -643,6 +649,9 @@ VIEW.settings={
      <div class="field" style="grid-column:span 2"><label for="set_calRule">Pass / fail rule</label><select id="set_calRule"${S.canAdmin?'':' disabled'}>${opt(['error','Error within tolerance (uncertainty not counted)'],S.settings.cal.rule)}${opt(['errU','Error + measurement uncertainty within tolerance (stricter)'],S.settings.cal.rule)}</select></div></div>
      <p class="muted" style="margin:6px 0 0">Uncertainty is optional per check point: copy the ± value from the certificate. With the stricter rule a point passes only when |error| + uncertainty ≤ tolerance.</p>
      ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="saveCal">Save calibration settings</button></div>':''}</div>
+   <h2>Purchase order</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Printed on every purchase order. Approvers are set per person under Users (tick “Can approve purchase requests”).</p>
+     <div class="fgrid">${[['address','Company address','textarea'],['phone','Phone'],['email','Email'],['regNo','Company registration no.'],['sstNo','SST registration no. (if any)'],['terms','Default payment terms'],['deliverTo','Default deliver-to address','textarea'],['prep','Prepared by (title on PO)'],['footer','Terms / note printed at the bottom of the PO','textarea']].map(([k,l,t])=>`<div class="field${t?' full':''}"><label for="po_${k}">${l}</label>${t?`<textarea id="po_${k}"${S.canAdmin?'':' readonly'}>${esc((S.settings.poDoc||{})[k]||'')}</textarea>`:`<input id="po_${k}" type="text" value="${esc((S.settings.poDoc||{})[k]||'')}"${S.canAdmin?'':' readonly'}>`}</div>`).join('')}</div>
+     ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="savePO">Save purchase order details</button></div>':''}</div>
    <h2>Data &amp; backups</h2><div class="panel"><p style="margin:0 0 10px">Records are stored in your Supabase project${CFG.supabaseUrl?` (<span class="mono">${esc(CFG.supabaseUrl.replace(/^https?:\/\//,''))}</span>)`:''}. Download a full copy every month and keep it with your ISO 22000 records. Attachments stay in Supabase Storage.</p>
      <div class="acts"><button class="btn pri" id="bkDl">Download full data copy (.json)</button>${S.canAdmin?'<label class="btn" for="bkImp" style="cursor:pointer">Import data file</label><input id="bkImp" type="file" accept=".json,application/json" hidden>':''}</div><div id="bkMsg" class="muted" style="margin-top:8px"></div></div>`,
   bind(){
@@ -650,6 +659,7 @@ VIEW.settings={
       try{await saveSettings(v,'Lists updated');toast('Lists saved')}catch(e){}};
     const sd=$('#saveDosh');if(sd)sd.onclick=async()=>{const d={reportDays:num($('#set_doshDays').value)||7,perkesoHours:num($('#set_perkesoH').value)||48};try{await saveSettings({dosh:d},'Reporting deadlines: DOSH '+d.reportDays+' days, PERKESO '+d.perkesoHours+' hours');toast('Deadlines saved')}catch(e){}};
     const sc=$('#saveCal');if(sc)sc.onclick=async()=>{const c={lead:Math.max(1,num($('#set_calLead').value)||30),rule:$('#set_calRule').value==='errU'?'errU':'error'};try{await saveSettings({cal:c},'Calibration settings: remind '+c.lead+' days before; rule '+(c.rule==='errU'?'error + uncertainty':'error only'));toast('Calibration settings saved')}catch(e){}};
+    const sp=$('#savePO');if(sp)sp.onclick=async()=>{const v={};['address','phone','email','regNo','sstNo','terms','deliverTo','prep','footer'].forEach(k=>v[k]=$('#po_'+k).value.trim());try{await saveSettings({poDoc:v},'Purchase order details updated');toast('Saved')}catch(e){}};
     $('#bkDl').onclick=()=>{const docs=[];COLLS.concat('config').forEach(c=>Object.entries(S[c]||{}).forEach(([id,data])=>docs.push({coll:c,id,data})));
       save(`GFB_Asset_Maintenance_backup_${today()}.json`,JSON.stringify({app:'GFB Asset & Maintenance',exported:new Date().toISOString(),docs},null,1))};
     const imp=$('#bkImp');if(imp)imp.onchange=async()=>{const f=imp.files[0];imp.value='';if(!f)return;const msg=$('#bkMsg');
@@ -667,12 +677,12 @@ VIEW.users={
 let USERS=[];
 async function loadUsers(){try{USERS=await api('GET','/api/users');renderList()}catch(e){toast(e.message)}}
 function usersHTML(){const L=USERS.slice().sort((a,b)=>(a.active===b.active?0:a.active?1:-1)||String(a.name).localeCompare(String(b.name)));
-  return`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th class="hs">Email</th><th>Role</th><th class="hs">Joined</th><th></th></tr></thead><tbody>${L.map(u=>`<tr><td>${esc(u.name||u.email)}${u.id===S.me.id?' <span class="pill acc">You</span>':''}</td><td class="hs">${esc(u.email)}</td><td>${u.active?`<span class="pill ${u.role==='admin'?'acc':u.role==='editor'?'info':''}">${esc(u.role)}</span>${u.role==='admin'||u.incident_access?' <span class="pill warn">Incidents</span>':''}`:'<span class="pill bad">Waiting for approval</span>'}</td><td class="hs">${fmtD(String(u.created_at).slice(0,10))}</td><td class="r"><button class="btn sm" data-eu="${esc(u.id)}">${u.active?'Edit':'Review'}</button></td></tr>`).join('')||emptyRow(5,'No users','')}</tbody></table></div>`}
+  return`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th class="hs">Email</th><th>Role</th><th class="hs">Joined</th><th></th></tr></thead><tbody>${L.map(u=>`<tr><td>${esc(u.name||u.email)}${u.id===S.me.id?' <span class="pill acc">You</span>':''}</td><td class="hs">${esc(u.email)}</td><td>${u.active?`<span class="pill ${u.role==='admin'?'acc':u.role==='editor'?'info':''}">${esc(u.role)}</span>${u.role==='admin'||u.incident_access?' <span class="pill warn">Incidents</span>':''}${u.can_approve?' <span class="pill ok">Approver</span>':''}`:'<span class="pill bad">Waiting for approval</span>'}</td><td class="hs">${fmtD(String(u.created_at).slice(0,10))}</td><td class="r"><button class="btn sm" data-eu="${esc(u.id)}">${u.active?'Edit':'Review'}</button></td></tr>`).join('')||emptyRow(5,'No users','')}</tbody></table></div>`}
 function userForm(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
   const fields=[{k:'name',label:'Full name',req:true},{k:'role',label:'Role',type:'select',opts:[['editor','Editor – add and update records'],['viewer','Viewer – read only'],['admin','Admin – everything']],blank:false},
-    {k:'active',label:'Account active (can sign in and see records)',type:'check',full:true},{k:'incidents',label:'Incident access (sees injury and health details in the incident register)',type:'check',full:true}];
-  formSheet({title:(u.active?'Edit ':'Approve ')+(u.name||u.email),fields,data:{name:u.name,role:u.active?u.role:'editor',active:true,incidents:!!u.incident_access},onSave:async v=>{
+    {k:'active',label:'Account active (can sign in and see records)',type:'check',full:true},{k:'incidents',label:'Incident access (sees injury and health details in the incident register)',type:'check',full:true},{k:'approve',label:'Can approve purchase requests (their name and time are recorded on each approval)',type:'check',full:true}];
+  formSheet({title:(u.active?'Edit ':'Approve ')+(u.name||u.email),fields,data:{name:u.name,role:u.active?u.role:'editor',active:true,incidents:!!u.incident_access,approve:!!u.can_approve},onSave:async v=>{
     try{await api('PUT','/api/users/'+u.id,v);toast('Saved');loadUsers()}catch(e){return e.message}}});
 }
 
@@ -680,7 +690,7 @@ function userForm(id){
 function openDetail(kind,id){S.detail={kind,id};renderDetail()}
 function renderDetail(){
   if(!S.detail)return;const{kind,id}=S.detail;const l=$('#layer');
-  const coll={asset:'assets',wo:'workorders',part:'parts',supplier:'suppliers',incident:'incidents',contract:'contracts'}[kind];const r=S[coll][id];
+  const coll={asset:'assets',wo:'workorders',part:'parts',supplier:'suppliers',incident:'incidents',contract:'contracts',purchase:'purchases'}[kind];const r=S[coll][id];
   $$('.drawer,.scrim:not(.top)',l).forEach(e=>e.remove());
   if(!r){S.detail=null;return}
   const scrollY=l.dataset.sy||0;
@@ -716,7 +726,8 @@ const DETAIL={
   wo(id,w){
     const chk=[['chkHygiene','Hygiene condition checked'],['chkSafety','Safety condition checked'],['chkIsolated','Work area isolated from production'],['chkPPE','Technicians wore PPE'],['chkTools','No foreign matter / tools left on line'],['chkClearance','Hygiene clearance before restart']];
     return{eyebrow:w.draft?'Work order · draft':'Work order · '+esc(w.no),title:w.title,pills:(w.draft?draftPill:woPill(w.status))+prPill(w.priority)+`<span class="pill">${esc(w.type)}</span>`,
-      body:`<div class="acts">${w.draft?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Draft.</b> Not yet a numbered work order. Click <b>Continue draft</b>, complete it and click <b>Save</b> to issue the WO number.</div>':''}${W(()=>`<button class="btn pri" id="dEdit">${w.draft?'Continue draft':'Update job'}</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button></div>
+      body:`<div class="acts">${w.draft?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Draft.</b> Not yet a numbered work order. Click <b>Continue draft</b>, complete it and click <b>Save</b> to issue the WO number.</div>':''}${W(()=>`<button class="btn pri" id="dEdit">${w.draft?'Continue draft':'Update job'}</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button>${!w.draft?W(()=>'<button class="btn" id="dPRw">Raise purchase request</button>'):''}</div>
+      ${(()=>{const L=Object.entries(S.purchases).filter(([,x])=>x.woId===id);return L.length?`<div><h3>Purchases for this job</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${L.map(([pid,x])=>`<tr data-open="purchase:${pid}"><td class="mono">${esc(x.poNo||x.no||'Draft')}</td><td>${purItemsText(x)}</td><td>${purPill(x)}</td><td class="r num">${rm(purGrand(x))}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
       ${w.incidentId?`<div class="banner" style="margin:0">${S.me&&S.me.incidents&&S.incidents[w.incidentId]?`Raised from incident <a href="#" data-inc="${w.incidentId}">${esc(S.incidents[w.incidentId].no)} · ${esc(S.incidents[w.incidentId].title)}</a>${w.capaId&&(S.incidents[w.incidentId].capa||[]).find(c=>c.cid===w.capaId)?' for action: <b>'+esc(S.incidents[w.incidentId].capa.find(c=>c.cid===w.capaId).action)+'</b>':''}`:'Raised from an incident record (restricted to people with incident access).'}</div>`:''}
       ${kv([['Machine / item',w.assetId&&A(w.assetId)?`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`:''],['Department · location',esc(woWhere(w))],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
       ${w.tasksDone?`<div><h3>Tasks completed</h3><div style="white-space:pre-wrap">${esc(w.tasksDone)}</div></div>`:''}
@@ -726,17 +737,18 @@ const DETAIL={
       ${kv([['Invoice',w.invoiceNo?`<span class="mono">${esc(w.invoiceNo)}</span>${w.invoiceDate?' · '+fmtD(w.invoiceDate):''}`:''],['Invoice amount',w.invoiceAmount!==''&&w.invoiceAmount!=null?rm(w.invoiceAmount):''],['Internal labour',w.labourCost?rm(w.labourCost):''],['Spares from store',partsCost(w)?rm(partsCost(w)):''],['Total cost',`<b class="num">${rm(woCost(w))}</b>`]])}</div>
       ${w.recommendations?`<div><h3>Recommendations</h3><div style="white-space:pre-wrap">${esc(w.recommendations)}</div></div>`:''}
       <div><h3>Verification</h3>${kv([['Reporting PIC',esc(w.reportingPIC)],['Verified by',esc(w.verifiedBy)],['Verified on',fmtD(w.verifiedDate)]])}</div>`,
-      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>woForm(id);const v=$('#dVerify',d);if(v)v.onclick=()=>verifyForm(id);$('#dF45',d).onclick=()=>downloadF45(id);$('#dF45p',d).onclick=()=>downloadF45(id,true);
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>woForm(id);const v=$('#dVerify',d);if(v)v.onclick=()=>verifyForm(id);$('#dF45',d).onclick=()=>downloadF45(id);const prw=$('#dPRw',d);if(prw)prw.onclick=()=>purForm(null,{woId:id,dept:w.dept||A(w.assetId)?.dept||'',purpose:'Parts / service for '+w.no+': '+woWhat(w)});$('#dF45p',d).onclick=()=>downloadF45(id,true);
         $$('[data-asset]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('asset',x.dataset.asset)});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)});$$('[data-inc]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('incident',x.dataset.inc)})}};
   },
   part(id,p){
     const mv=(p.moves||[]).slice().reverse();
     return{eyebrow:esc(p.code)+' · '+esc(p.category||'Spare'),title:p.name,pills:`<span class="pill ${lowStock(p)?(num(p.qty)<=0?'bad':'warn'):'ok'}">${num(p.qty)} ${esc(p.unit||'')} on hand</span>`+(p.foodGrade?'<span class="pill acc">Food-grade</span>':''),
-      body:`<div class="acts">${W(()=>'<button class="btn pri" data-mv="Receive">Receive stock</button><button class="btn" data-mv="Issue">Issue / use</button><button class="btn" data-mv="Adjust">Stock count</button><button class="btn" id="dEdit">Edit part</button>')}</div>
+      body:`<div class="acts">${W(()=>'<button class="btn pri" data-mv="Receive">Receive stock</button><button class="btn" data-mv="Issue">Issue / use</button><button class="btn" data-mv="Adjust">Stock count</button><button class="btn" id="dPR">Raise purchase request</button><button class="btn" id="dEdit">Edit part</button>')}</div>
+      ${(()=>{const ops=Object.entries(S.purchases).filter(([,x])=>!['Received','Cancelled','Rejected','Draft'].includes(x.status)&&(x.lines||[]).some(l=>l.partId===id));return ops.length?`<div><h3>Open purchases</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${ops.map(([pid,x])=>{const q=(x.lines||[]).filter(l=>l.partId===id).reduce((t,l)=>t+Math.max(0,num(l.qty)-purRecv(x,l.lid)),0);return`<tr data-open="purchase:${pid}"><td class="mono">${esc(x.poNo||x.no)}</td><td>${purPill(x)}</td><td class="r num">${q} ${esc(p.unit||'')}</td></tr>`}).join('')}</tbody></table></div></div>`:''})()}
       ${kv([['Re-order level',p.minQty===''||p.minQty==null?'':esc(p.minQty)+' '+esc(p.unit||'')],['Store / bin',esc(p.store)],['Unit cost',p.unitCost!==''&&p.unitCost!=null?rm(p.unitCost):''],['Stock value',rm(num(p.qty)*num(p.unitCost))],['Usual supplier',esc(sup(p.supplierId)?.name||'')],['Used on',esc(p.compatible)]])}
       ${p.notes?`<div style="white-space:pre-wrap">${esc(p.notes)}</div>`:''}
       <div><h3>Stock movements</h3>${mv.length?`<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>Movement</th><th class="r">Qty</th><th class="r">Balance</th></tr></thead><tbody>${mv.map(m=>`<tr><td class="num">${fmtD(m.date)}</td><td>${esc(m.type)}${m.ref?' · <span class="mono">'+esc(m.ref)+'</span>':''}${m.note?'<br><span class="muted">'+esc(m.note)+'</span>':''}<br><span class="muted">${who(m)}</span></td><td class="r num" style="color:${m.qty<0?'var(--bad)':'var(--ok)'}">${m.qty>0?'+':''}${esc(m.qty)}</td><td class="r num">${esc(m.bal)}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No movements yet. Receive stock when parts arrive and issue them when used.</span>'}</div>`,
-      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>partForm(id);$$('[data-mv]',d).forEach(b=>b.onclick=()=>moveForm(id,b.dataset.mv))}};
+      bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>partForm(id);const pr=$('#dPR',d);if(pr)pr.onclick=()=>purForm(null,{purpose:'Re-order '+p.name,supplierId:p.supplierId||'',lines:[{partId:id,desc:p.code+' · '+p.name,qty:p.minQty!==''&&p.minQty!=null?Math.max(1,num(p.minQty)*2-num(p.qty)):'',unit:p.unit||'',price:p.unitCost??''}]});$$('[data-mv]',d).forEach(b=>b.onclick=()=>moveForm(id,b.dataset.mv))}};
   },
   supplier(id,s){
     const ws=Object.entries(S.workorders).filter(([,w])=>w.supplierId===id).sort((x,y)=>String(y[1].reportDate).localeCompare(String(x[1].reportDate)));
@@ -751,7 +763,7 @@ const DETAIL={
 };
 
 /* ---------- attachments (supplier reports, invoices, photos) ---------- */
-const FILE_KINDS={incidents:['Photo','Medical certificate (MC)','JKKP 6 / JKKP 7 copy','Borang 34 copy','Police report','Investigation report','Other'],assets:['Photo','Manual','Warranty / certificate','Purchase invoice','Other'],workorders:['Supplier service report','Invoice','Photo – before','Photo – after','Quotation','Other'],parts:['Photo','Delivery order','Invoice','Spec / food-grade certificate','Other'],suppliers:['Certificate / licence','Supplier evaluation','Agreement','Safety briefing form','Other'],contracts:['Agreement / contract','Quotation','Purchase order','Invoice','Licence certificate','Other']};
+const FILE_KINDS={incidents:['Photo','Medical certificate (MC)','JKKP 6 / JKKP 7 copy','Borang 34 copy','Police report','Investigation report','Other'],assets:['Photo','Manual','Warranty / certificate','Purchase invoice','Other'],workorders:['Supplier service report','Invoice','Photo – before','Photo – after','Quotation','Other'],parts:['Photo','Delivery order','Invoice','Spec / food-grade certificate','Other'],suppliers:['Certificate / licence','Supplier evaluation','Agreement','Safety briefing form','Other'],contracts:['Agreement / contract','Quotation','Purchase order','Invoice','Licence certificate','Other'],purchases:['Quotation','Signed purchase order','Delivery order (DO)','Supplier invoice','Photo','Other']};
 function filesBlock(coll,id,r){
   const fs=r.files||[];
   return`<div><h3>Attachments</h3>${fs.length?`<div class="files">${fs.map((f,i)=>{const img=String(f.ct).startsWith('image/');return`<div class="file"><a class="th" data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${img?`<img data-fp="${esc(f.id)}" alt="${esc(f.name)}" loading="lazy">`:'PDF'}</a><div class="m"><a data-fp="${esc(f.id)}" href="#" target="_blank" rel="noopener">${esc(f.name)}</a><span class="muted">${esc(f.kind)} · ${fmtD((f.at||'').slice(0,10))}</span>${S.canWrite?`<button class="btn sm danger" data-rmf="${i}" type="button">Remove</button>`:''}</div></div>`}).join('')}</div>`:'<span class="muted">No files attached.</span>'}
@@ -1054,11 +1066,12 @@ function exportCSV(coll){
     workorders:[['WO no','no'],['Report date','reportDate'],['Type','type'],['Asset code',w=>A(w.assetId)?.code||''],['Asset',w=>A(w.assetId)?.name||''],['Department',w=>w.dept||A(w.assetId)?.dept||''],['Location',w=>w.location||A(w.assetId)?.location||''],['Incident',w=>S.incidents[w.incidentId]?.no||(w.incidentId?'Yes':'')],['Problem','title'],['Priority','priority'],['Status','status'],['Reported by','reportedBy'],['Performed by','performedBy'],['Contractor',w=>sup(w.supplierId)?.name||''],['Technician','technician'],['Start','startDate'],['Completed','completedDate'],['Downtime (h)','downtimeHrs'],['Tasks done','tasksDone'],['Hygiene check',w=>w.chkHygiene?'Y':'N'],['Safety check',w=>w.chkSafety?'Y':'N'],['Area isolated',w=>w.chkIsolated?'Y':'N'],['PPE',w=>w.chkPPE?'Y':'N'],['Foreign matter check',w=>w.chkTools?'Y':'N'],['Hygiene clearance',w=>w.chkClearance?'Y':'N'],['Supplier report no','supplierReportNo'],['Invoice no','invoiceNo'],['Invoice date','invoiceDate'],['Invoice (RM)','invoiceAmount'],['Labour (RM)','labourCost'],['Spares (RM)',w=>partsCost(w).toFixed(2)],['Total (RM)',w=>woCost(w).toFixed(2)],['Verified by','verifiedBy'],['Verified on','verifiedDate'],['Attachments',w=>(w.files||[]).length]],
     parts:[['Part code','code'],['Name','name'],['Category','category'],['Unit','unit'],['On hand','qty'],['Re-order level','minQty'],['Store','store'],['Unit cost (RM)','unitCost'],['Value (RM)',p=>(num(p.qty)*num(p.unitCost)).toFixed(2)],['Food grade',p=>p.foodGrade?'Yes':'No'],['Supplier',p=>sup(p.supplierId)?.name||''],['Used on','compatible']],
     contracts:[['Contract','title'],['Type','type'],['Vendor',c=>sup(c.supplierId)?.name||''],['Linked asset code',c=>A(c.assetId)?.code||''],['Linked asset',c=>A(c.assetId)?.name||''],['Department','dept'],['Person in charge','owner'],['Reference','ref'],['Users / seats','seats'],['Period start','startDate'],['Renewal date','endDate'],['Status',c=>{const i=conInfo(c);return({cancelled:'Cancelled / not renewing',expired:'Expired',soon:'Due for renewal',ok:'Active',unset:'No renewal date'})[i.state]}],['Days to renewal',c=>conInfo(c).days??''],['Reminder (days)','noticeDays'],['Billing','billing'],['Annual cost (RM)','annualCost'],['Auto-renew',c=>c.autoRenew?'Yes':'No'],['Support contact','supportContact'],['Support phone','supportPhone'],['Support email','supportEmail'],['Renewals recorded',c=>(c.renewals||[]).length],['Scope','scope'],['Notes','notes']],
+    purchases:[['PR no','no'],['PO no','poNo'],['Status','status'],['Request date','reqDate'],['Requested by','requestedBy'],['Department','dept'],['Purpose','purpose'],['Items',p=>(p.lines||[]).map(l=>l.desc+' x'+l.qty).join('; ')],['Item amount (RM)',p=>purLinesTotal(p).toFixed(2)],['Other charges (RM)',p=>num(p.po&&p.po.other).toFixed(2)],['Total (RM)',p=>purGrand(p).toFixed(2)],['Approval',p=>p.approval?p.approval.decision:''],['Approved by',p=>p.approval?p.approval.name:''],['Approved at',p=>p.approval&&p.approval.at?fmtDT(p.approval.at):''],['Supplier',p=>sup((p.po&&p.po.supplierId)||p.supplierId)?.name||''],['PO date',p=>p.po?p.po.date:''],['Received',p=>(p.receipts||[]).map(r=>r.date+(r.doNo?' DO '+r.doNo:'')).join('; ')],['Supplier invoice no',p=>p.inv?p.inv.invNo:''],['Invoice date',p=>p.inv?p.inv.invDate:''],['Invoice amount (RM)',p=>p.inv?p.inv.invAmount:''],['SAP B1 reference',p=>p.inv?p.inv.sapRef:''],['Work order',p=>S.workorders[p.woId]?.no||'']],
     suppliers:[['Company','name'],['Type','kind'],['Services','services'],['Contact','contact'],['Phone','phone'],['Email','email'],['Approval','approval'],['Next evaluation','evalDue'],['Safety briefing',s=>s.safetyBriefed?'Yes':'No'],['Jobs',s=>Object.values(S.workorders).filter(w=>w.supplierId===s._id).length]]
   }[coll];
   const rows=Object.entries(S[coll]).map(([id,r])=>({...r,_id:id}));
   const csv='﻿'+[spec.map(c=>c[0]).join(','),...rows.map(r=>spec.map(([,k])=>csvCell(typeof k==='function'?k(r):r[k])).join(','))].join('\r\n');
-  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors',contracts:'Contracts_Renewals'})[coll]}_${today()}.csv`,csv);
+  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors',contracts:'Contracts_Renewals',purchases:'Purchasing'})[coll]}_${today()}.csv`,csv);
 }
 function downloadF45(id,print){
   const w=S.workorders[id],a=A(w.assetId)||{},s=sup(w.supplierId)||{};
@@ -1853,6 +1866,212 @@ function labSheet(){
 }
 
 F_ASSET.push(...F_CAL);
+/* ---------- Purchasing: purchase request -> approval -> purchase order -> goods received -> SAP B1 reference ---------- */
+const PUR_STATUS=['Draft','Pending approval','Approved','Rejected','PO issued','Partly received','Received','Cancelled'];
+const PUR_PILL={'Draft':'warn','Pending approval':'warn','Approved':'info','Rejected':'bad','PO issued':'info','Partly received':'info','Received':'ok','Cancelled':''};
+const purPill=p=>`<span class="pill ${PUR_PILL[p.status]||''}">${esc(p.status||'Draft')}</span>`;
+const isApprover=()=>!!(S.me&&S.me.approver);
+const purLinesTotal=p=>Math.round((p.lines||[]).reduce((s,l)=>s+num(l.qty)*num(l.price),0)*100)/100;
+const purGrand=p=>Math.round((purLinesTotal(p)+num(p.po&&p.po.other))*100)/100;
+const purRecv=(p,lid)=>(p.receipts||[]).reduce((s,r)=>s+(r.lines||[]).filter(x=>x.lid===lid).reduce((t,x)=>t+num(x.qty),0),0);
+const purOpen=p=>['PO issued','Partly received'].includes(p.status);
+const purSapMissing=p=>['Received','Partly received'].includes(p.status)&&!(p.inv&&p.inv.sapRef);
+function purNextNo(kind){const d=new Date();const pre=kind+'-'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+'-';const k=kind==='PO'?'poNo':'no';
+  const max=Object.values(S.purchases).filter(p=>String(p[k]||'').startsWith(pre)).reduce((m,p)=>Math.max(m,parseInt(String(p[k]).slice(pre.length))||0),0);return pre+String(max+1).padStart(3,'0')}
+function purItemsText(p){const L=p.lines||[];if(!L.length)return'';return esc(L[0].desc||'')+(L.length>1?` <span class="muted">+${L.length-1} more</span>`:'')}
+function onOrderQty(partId){return Object.values(S.purchases).filter(purOpen).reduce((s,p)=>s+(p.lines||[]).filter(l=>l.partId===partId).reduce((t,l)=>t+Math.max(0,num(l.qty)-purRecv(p,l.lid)),0),0)}
+const lidNew=()=>'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* line editor */
+function purLineRow(l){const parts=Object.entries(S.parts).sort(byStr('code'));
+  return`<div class="pl" data-lid="${esc(l.lid||lidNew())}"><select class="pl-p" aria-label="Store item"><option value="">Other item (type description)</option>${parts.map(([pid,p])=>`<option value="${pid}"${l.partId===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (on hand ${num(p.qty)})</option>`).join('')}</select>
+  <input class="pl-d" type="text" aria-label="Description" placeholder="Description / specification" value="${esc(l.desc)}">
+  <input class="pl-q" type="number" step="any" inputmode="decimal" aria-label="Quantity" placeholder="Qty" value="${esc(l.qty)}">
+  <input class="pl-u" type="text" aria-label="Unit" placeholder="Unit" value="${esc(l.unit)}">
+  <input class="pl-r" type="number" step="any" inputmode="decimal" aria-label="Unit price (RM)" placeholder="Unit price" value="${esc(l.price)}">
+  <span class="pl-a num muted"></span><button type="button" class="btn sm pl-x" aria-label="Remove item">×</button></div>`}
+function purLinesHTML(lines){return`<div class="fgrid"><div class="sec">Items</div></div><div class="plh muted"><span>Store item</span><span>Description</span><span>Qty</span><span>Unit</span><span>Unit price (RM)</span><span>Amount</span><span></span></div>
+  <div id="purLines">${(lines.length?lines:[{}]).map(purLineRow).join('')}</div>
+  <div class="acts" style="margin:4px 0"><button type="button" class="btn sm" id="plAdd">Add item</button><span class="muted">Total <b id="plTot" class="num">RM 0.00</b></span></div>
+  <p class="muted" style="margin:0;font-size:12px">Pick a store item so stock goes up automatically when the goods arrive. For tools, services or items not kept in store, choose “Other item” and type a description.</p>`}
+function bindPurLines(sh){const box=$('#purLines',sh);if(!box)return;
+  const calc=()=>{let t=0;$$('.pl',box).forEach(r=>{const a=num($('.pl-q',r).value)*num($('.pl-r',r).value);t+=a;$('.pl-a',r).textContent=a?rm(a):''});$('#plTot',sh).textContent=rm(t)};
+  box.addEventListener('change',e=>{const s=e.target.closest('.pl-p');if(s){const r=s.closest('.pl'),p=S.parts[s.value];if(p){$('.pl-d',r).value=p.code+' · '+p.name;if(!$('.pl-u',r).value)$('.pl-u',r).value=p.unit||'';if(!$('.pl-r',r).value&&p.unitCost!==''&&p.unitCost!=null)$('.pl-r',r).value=p.unitCost;
+    if(!$('.pl-q',r).value&&p.minQty!==''&&p.minQty!=null)$('.pl-q',r).value=Math.max(1,num(p.minQty)*2-num(p.qty))}}calc()});
+  box.addEventListener('input',calc);
+  box.addEventListener('click',e=>{const x=e.target.closest('.pl-x');if(x){x.closest('.pl').remove();calc()}});
+  $('#plAdd',sh).onclick=()=>{box.insertAdjacentHTML('beforeend',purLineRow({}));calc()};calc()}
+function readPurLines(sh){return $$('#purLines .pl',sh).map(r=>{const pid=$('.pl-p',r).value;return{lid:r.dataset.lid,partId:pid||'',desc:$('.pl-d',r).value.trim(),qty:$('.pl-q',r).value.trim()===''?'':num($('.pl-q',r).value),unit:$('.pl-u',r).value.trim(),price:$('.pl-r',r).value.trim()===''?'':num($('.pl-r',r).value)}}).filter(l=>l.partId||l.desc||l.qty!=='')}
+
+/* purchase request form */
+const F_PR=[
+  {type:'sec',label:'Request'},
+  {k:'requestedBy',label:'Requested by',req:true},
+  {k:'dept',label:'Department',type:'select',opts:()=>S.settings.departments},
+  {k:'reqDate',label:'Request date',type:'date',req:true},
+  {k:'neededBy',label:'Needed by',type:'date'},
+  {k:'woId',label:'For work order (optional)',type:'select',opts:()=>Object.entries(S.workorders).filter(([,w])=>!w.draft&&w.no).sort((a,b)=>String(b[1].no).localeCompare(String(a[1].no))).slice(0,300).map(([id,w])=>[id,w.no+' · '+woWhat(w)])},
+  {k:'supplierId',label:'Suggested supplier (optional)',type:'select',opts:supOpts},
+  {k:'purpose',label:'Purpose / reason',type:'textarea',full:true,req:true,ph:'Why it is needed, e.g. replace worn sealer jaw on SM05; re-order below minimum stock'}
+];
+function purForm(id,preset={}){
+  const prev=id?S.purchases[id]:null;
+  if(prev&&!['Draft','Pending approval','Rejected','Approved'].includes(prev.status)){toast('A purchase order has been issued; items can no longer be edited here.');return}
+  const data=prev||{requestedBy:S.me.name,reqDate:today(),...preset};
+  const key=id||newId('purchases');
+  const sh=formSheet({title:prev?(prev.no?'Edit '+prev.no:'Draft purchase request'):'New purchase request',fields:F_PR,data,extra:purLinesHTML((prev&&prev.lines)||preset.lines||[]),saveLabel:prev&&prev.status==='Approved'?'Save':'Submit for approval',
+    danger:prev&&S.canAdmin?{label:prev.status==='Draft'?'Discard draft':'Delete request',onClick:()=>confirmBox('Delete '+(prev.no||'this draft')+'?','The purchase request and its approval record will be removed. Consider setting it to Cancelled instead so the record is kept.','Delete',async()=>{await api('DELETE','/api/docs/purchases/'+id);delete S.purchases[id];closeLayer('drawer');renderList();toast('Deleted')})}:null,
+    onDraft:(!prev||prev.status==='Draft')?async v=>{const lines=readPurLines(sh);await put('purchases',key,{...(prev||{}),...v,lines,status:'Draft',no:''},'Saved as draft');toast('Draft saved');renderList();openDetail('purchase',key)}:null,
+    onSave:async v=>{const lines=readPurLines(sh);
+      if(!lines.length)return'Add at least one item.';
+      const bad=lines.find(l=>!l.desc||!(num(l.qty)>0));if(bad)return'Each item needs a description and a quantity above 0.';
+      const next={...(prev||{}),...v,lines};const tot=purLinesTotal(next);let act;
+      if(prev&&prev.status==='Approved'&&prev.approval&&prev.approval.decision==='Approved'&&tot<=num(prev.approval.total)+0.005){act='Items updated (within approved amount)'}
+      else{next.status='Pending approval';next.approval=null;next.submittedAt=new Date().toISOString();if(!next.no)next.no=purNextNo('PR');
+        act=prev&&prev.status==='Approved'?'Amount raised above approved '+rm(prev.approval.total)+' → sent back for approval':prev&&prev.status==='Rejected'?'Revised and resubmitted for approval':'Submitted for approval · '+rm(tot)}
+      try{await put('purchases',key,next,act)}catch(e){return e.message}
+      toast(next.status==='Pending approval'?next.no+' sent for approval':'Saved');renderList();openDetail('purchase',key)}});
+  if(sh)bindPurLines(sh);
+}
+
+/* approval */
+function purDecide(id,decision){const p=S.purchases[id];
+  const fields=[{k:'note',label:decision==='Approved'?'Approval note (optional)':'Reason for rejecting',type:'textarea',full:true,req:decision!=='Approved'}];
+  formSheet({title:(decision==='Approved'?'Approve ':'Reject ')+p.no,fields,data:{},saveLabel:decision==='Approved'?'Approve '+rm(purLinesTotal(p)):'Reject',
+    extra:`<p class="muted" style="margin:0">${(p.lines||[]).length} item(s) · ${rm(purLinesTotal(p))} · requested by ${esc(p.requestedBy||'')}. Your name, the date and time are recorded with the decision.</p>`,
+    onSave:async v=>{try{await put('purchases',id,{...p,status:decision,approval:{decision,note:v.note||''}},(decision==='Approved'?'Approved':'Rejected')+(v.note?': '+v.note:''))}catch(e){return e.message}
+      toast(p.no+' '+decision.toLowerCase());renderList();renderDetail()}});
+}
+
+/* purchase order */
+function poForm(id){const p=S.purchases[id];const st=S.settings.poDoc||{};const po=p.po||{};
+  const fields=[{k:'supplierId',label:'Supplier',type:'select',opts:supOpts,req:true},{k:'date',label:'PO date',type:'date',req:true},{k:'delivery',label:'Delivery date required'},
+    {k:'terms',label:'Payment terms',ph:'e.g. 30 days'},{k:'quoteRef',label:'Supplier quotation ref.'},{k:'deliverTo',label:'Deliver to',full:true},
+    {k:'otherLabel',label:'Other charges / tax: description',ph:'e.g. Delivery charge, SST'},{k:'other',label:'Other charges / tax (RM)',type:'number'},
+    {k:'remarks',label:'Remarks on PO',type:'textarea',full:true}];
+  const lines=(p.lines||[]).map(l=>({...l}));const apTot=num(p.approval&&p.approval.total);
+  let saveFn=null;
+  const sh=formSheet({title:(p.poNo?'Edit ':'Create ')+'purchase order · '+p.no,fields,saveLabel:p.poNo?'Save':'Issue PO',onSave:v=>saveFn(v),
+    data:{supplierId:po.supplierId||p.supplierId||'',date:po.date||today(),delivery:po.delivery||p.neededBy||'',terms:po.terms||st.terms||'',quoteRef:po.quoteRef||'',deliverTo:po.deliverTo||st.deliverTo||'',otherLabel:po.otherLabel||'',other:po.other??'',remarks:po.remarks||''},
+    extra:`<div class="fgrid"><div class="sec">Confirmed prices</div></div><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Item</th><th class="r">Qty</th><th class="r">Unit price (RM)</th></tr></thead><tbody>${lines.map(l=>`<tr><td>${esc(l.desc)}</td><td class="r num">${esc(l.qty)} ${esc(l.unit||'')}</td><td class="r"><input type="number" step="any" inputmode="decimal" class="po-pr" data-lid="${esc(l.lid)}" value="${esc(l.price)}" style="max-width:130px;text-align:right"${p.poNo?' disabled':''}></td></tr>`).join('')}</tbody></table></div>
+      <p class="muted" style="margin:4px 0 0" id="poTotNote"></p>`});
+  if(!sh)return;
+  const note=()=>{const t=lines.reduce((s,l)=>s+num(l.qty)*num(($(`.po-pr[data-lid="${l.lid}"]`,sh)||{}).value),0);const over=t>apTot+0.005;
+    $('#poTotNote',sh).innerHTML=`Items ${rm(t)} · approved ${rm(apTot)}${over?(isApprover()?' · <b>above the approved amount</b>; saving re-approves it under your name.':' · <b style="color:var(--bad)">above the approved amount</b>; saving sends it back for approval instead of issuing the PO.'):''} Other charges / tax are added on the PO and are not part of the approved item amount.`};
+  $$('.po-pr',sh).forEach(i=>i.addEventListener('input',note));note();
+  saveFn=async v=>{
+    const nl=lines.map(l=>({...l,price:p.poNo?l.price:num(($(`.po-pr[data-lid="${l.lid}"]`,sh)||{}).value)}));const t=nl.reduce((s,l)=>s+num(l.qty)*num(l.price),0);
+    const next={...p,lines:nl,po:{...po,...v,other:v.other===''?'':num(v.other)}};let act;
+    if(t>apTot+0.005&&!p.poNo){
+      if(isApprover()){next.approval={decision:'Approved',note:'Re-approved at PO stage for '+rm(t)};next.status='PO issued';next.poNo=purNextNo('PO');next.po.issuedAt=new Date().toISOString();next.po.issuedBy=S.me.name;act='Re-approved '+rm(t)+' and issued '+next.poNo}
+      else{next.status='Pending approval';next.approval=null;act='Confirmed prices '+rm(t)+' above approved '+rm(apTot)+' → sent back for approval'}}
+    else if(!p.poNo){next.status='PO issued';next.poNo=purNextNo('PO');next.po.issuedAt=new Date().toISOString();next.po.issuedBy=S.me.name;act='Purchase order '+next.poNo+' issued to '+(sup(v.supplierId)?.name||'')}
+    else act='Purchase order details updated';
+    try{await put('purchases',id,next,act)}catch(e){return e.message}
+    toast(next.status==='PO issued'?next.poNo+' issued':'Sent back for approval');renderList();renderDetail()};
+
+}
+function poPrint(id,printNow=true){const p=S.purchases[id];const po=p.po||{};const st=S.settings.poDoc||{};const s=sup(po.supplierId)||{};const ap=p.approval||{};
+  const rows=(p.lines||[]).map((l,i)=>{const part=l.partId&&S.parts[l.partId];return`<tr><td>${i+1}</td><td>${part?esc(part.code):''}</td><td>${esc(l.desc)}</td><td class="r">${esc(l.qty)}</td><td>${esc(l.unit||'')}</td><td class="r">${num(l.price).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}</td><td class="r">${(num(l.qty)*num(l.price)).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2})}</td></tr>`}).join('');
+  const f2=n=>num(n).toLocaleString('en-MY',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const html=`<!doctype html><html><head><meta charset="utf-8"><title>${esc(p.poNo||'Purchase order')}</title><style>body{font:11px Arial,sans-serif;margin:22px;color:#111}h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 2px;letter-spacing:.06em}.top{display:flex;justify-content:space-between;gap:20px;border-bottom:2px solid #111;padding-bottom:8px;margin-bottom:10px}.r{text-align:right}table{border-collapse:collapse;width:100%}th,td{border:1px solid #555;padding:5px 6px;vertical-align:top;text-align:left}th{background:#eee}td.r,th.r{text-align:right}.box{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px}.box div{border:1px solid #999;padding:6px 8px;min-height:60px}.lbl{font-size:9px;color:#555;text-transform:uppercase;letter-spacing:.06em}.tot td{border:0;padding:3px 6px}.sig{display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px;margin-top:40px}.sig div{border-top:1px solid #111;padding-top:4px}.ft{margin-top:14px;font-size:10px;white-space:pre-wrap}@page{size:A4;margin:12mm}</style></head><body>
+<div class="top"><div><h1>${CO()}</h1><div style="white-space:pre-wrap">${esc(st.address||'')}</div><div>${[st.phone?'Tel: '+esc(st.phone):'',st.email?'Email: '+esc(st.email):''].filter(Boolean).join(' · ')}</div><div>${[st.regNo?'Co. Reg. No.: '+esc(st.regNo):'',st.sstNo?'SST No.: '+esc(st.sstNo):''].filter(Boolean).join(' · ')}</div></div>
+<div class="r"><h2>PURCHASE ORDER</h2><div><b>PO No.:</b> ${esc(p.poNo||'(not issued)')}</div><div><b>Date:</b> ${fmtD(po.date)}</div><div><b>PR No.:</b> ${esc(p.no||'')}</div>${po.quoteRef?`<div><b>Quotation:</b> ${esc(po.quoteRef)}</div>`:''}</div></div>
+<div class="box"><div><span class="lbl">Supplier</span><br><b>${esc(s.name||'')}</b>${s.contact?'<br>Attn: '+esc(s.contact):''}${s.phone?'<br>Tel: '+esc(s.phone):''}${s.email?'<br>'+esc(s.email):''}</div>
+<div><span class="lbl">Deliver to</span><br>${esc(po.deliverTo||'').replace(/\n/g,'<br>')}<br><span class="lbl">Delivery date</span> ${esc(po.delivery?(/^\d{4}-\d\d-\d\d$/.test(po.delivery)?fmtD(po.delivery):po.delivery):'')}<br><span class="lbl">Payment terms</span> ${esc(po.terms||'')}</div></div>
+<table><thead><tr><th>No.</th><th>Item code</th><th>Description</th><th class="r">Qty</th><th>Unit</th><th class="r">Unit price (RM)</th><th class="r">Amount (RM)</th></tr></thead><tbody>${rows}</tbody></table>
+<table class="tot" style="width:auto;margin-left:auto;margin-top:6px"><tr><td>Subtotal</td><td class="r">${f2(purLinesTotal(p))}</td></tr>${num(po.other)?`<tr><td>${esc(po.otherLabel||'Other charges')}</td><td class="r">${f2(po.other)}</td></tr>`:''}<tr><td><b>Total (RM)</b></td><td class="r"><b>${f2(purGrand(p))}</b></td></tr></table>
+${po.remarks?`<p><b>Remarks:</b> ${esc(po.remarks)}</p>`:''}
+<div class="sig"><div>Prepared by<br>${esc(po.issuedBy||'')}${st.prep?' · '+esc(st.prep):''}</div><div>Approved by<br>${esc(ap.name||'')}${ap.at?' · '+fmtD(String(ap.at).slice(0,10)):''}</div><div>Supplier acknowledgement<br>&nbsp;</div></div>
+${st.footer?`<div class="ft">${esc(st.footer)}</div>`:''}</body></html>`;
+  outputDoc(html,`${p.poNo||p.no||'PO'}.html`,printNow)}
+
+/* goods received */
+function recvForm(id){const p=S.purchases[id];
+  const lines=(p.lines||[]).map(l=>({...l,got:purRecv(p,l.lid)}));
+  const fields=[{k:'date',label:'Date received',type:'date',req:true},{k:'doNo',label:'Delivery order (DO) no.'},{k:'note',label:'Note (condition, shortage, wrong item…)',full:true}];
+  const sh=formSheet({title:'Goods received · '+p.poNo,fields,data:{date:today()},saveLabel:'Record goods received',
+    extra:`<div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Item</th><th class="r">Ordered</th><th class="r">Received before</th><th class="r">Receiving now</th></tr></thead><tbody>${lines.map(l=>`<tr><td>${esc(l.desc)}${l.partId?'<br><span class="muted">Adds to store stock</span>':'<br><span class="muted">Not a store item</span>'}</td><td class="r num">${esc(l.qty)} ${esc(l.unit||'')}</td><td class="r num">${l.got}</td><td class="r"><input type="number" step="any" inputmode="decimal" class="rv-q" data-lid="${esc(l.lid)}" value="${Math.max(0,num(l.qty)-l.got)||''}" style="max-width:110px;text-align:right"></td></tr>`).join('')}</tbody></table></div>
+    <p class="muted" style="margin:4px 0 0">Attach the DO or a photo on the purchase record afterwards. The supplier invoice is keyed into SAP B1; record its reference here with <b>Invoice &amp; SAP B1 ref</b>.</p>`,
+    onSave:async v=>{const L=$$('.rv-q',sh).map(i=>({lid:i.dataset.lid,qty:num(i.value)})).filter(x=>x.qty>0);if(!L.length)return'Enter the quantity received for at least one item.';
+      const over=L.find(x=>{const l=lines.find(y=>y.lid===x.lid);return l&&x.qty+l.got>num(l.qty)+1e-9});
+      if(over&&!sh.dataset.ok){sh.dataset.ok='1';return'More than ordered for one item. Click the button again to record it anyway.'}
+      try{const r=await api('POST','/api/receive/'+id,{date:v.date,doNo:v.doNo,note:v.note,lines:L,base:p.updatedAt});if(r&&r.doc)S.purchases[id]=r.doc;setTimeout(sync,300)}catch(e){return e.message}
+      toast('Goods received recorded'+(L.some(x=>(lines.find(y=>y.lid===x.lid)||{}).partId)?'; store stock updated':''));renderList();renderDetail()}});
+}
+function invForm(id){const p=S.purchases[id];const inv=p.inv||{};
+  const fields=[{k:'invNo',label:'Supplier invoice no.'},{k:'invDate',label:'Invoice date',type:'date'},{k:'invAmount',label:'Invoice amount (RM)',type:'number'},
+    {k:'sapRef',label:'SAP B1 reference no.',ph:'e.g. A/P invoice or GRPO document no.'},{k:'sapNote',label:'Note',full:true}];
+  formSheet({title:'Invoice & SAP B1 reference · '+(p.poNo||p.no),fields,data:inv,
+    extra:`<p class="muted" style="margin:0">The invoice itself is keyed into SAP B1. Record the SAP B1 document number here so this purchase can be traced from the CMMS to accounts.${num(inv.invAmount)||1?'':''}</p>`,
+    onSave:async v=>{const next={...p,inv:{...inv,...v,invAmount:v.invAmount===''?'':num(v.invAmount)}};
+      const warn=v.invAmount!==''&&Math.abs(num(v.invAmount)-purGrand(p))>0.009?` (invoice ${rm(v.invAmount)} differs from PO ${rm(purGrand(p))})`:'';
+      try{await put('purchases',id,next,'Invoice / SAP B1 reference: '+[v.invNo&&'inv '+v.invNo,v.sapRef&&'SAP '+v.sapRef].filter(Boolean).join(', ')+warn)}catch(e){return e.message}
+      toast('Saved'+warn);renderList();renderDetail()}});
+}
+function purCancel(id){const p=S.purchases[id];
+  formSheet({title:'Cancel '+(p.poNo||p.no),fields:[{k:'reason',label:'Reason',type:'textarea',full:true,req:true}],data:{},saveLabel:'Cancel request',
+    onSave:async v=>{try{await put('purchases',id,{...p,status:'Cancelled',cancelReason:v.reason},'Cancelled: '+v.reason)}catch(e){return e.message}toast('Cancelled');renderList();renderDetail()}});
+}
+
+/* detail */
+DETAIL.purchase=(id,p)=>{
+  const ap=p.approval||null,po=p.po||{},inv=p.inv||{},wo=p.woId&&S.workorders[p.woId];
+  const st=p.status||'Draft';
+  let banner='';
+  if(st==='Pending approval')banner=isApprover()?`<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Waiting for your approval.</b> ${rm(purLinesTotal(p))} for ${(p.lines||[]).length} item(s).</div>`:`<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Waiting for approval.</b> An approver will approve or reject this request.</div>`;
+  if(st==='Rejected')banner=`<div class="banner" style="margin:0;background:var(--bad-soft)"><b>Rejected</b> by ${esc(ap&&ap.name||'')}${ap&&ap.note?': '+esc(ap.note):''}. Revise and resubmit, or cancel.</div>`;
+  if(st==='Approved')banner=`<div class="banner" style="margin:0"><b>Approved.</b> Next: create the purchase order.</div>`;
+  if(purSapMissing(p))banner=`<div class="banner" style="margin:0;background:var(--warn-soft)"><b>SAP B1 reference missing.</b> Once the supplier invoice is keyed into SAP B1, record its reference number here.</div>`;
+  if(st==='Cancelled')banner=`<div class="banner" style="margin:0">Cancelled${p.cancelReason?': '+esc(p.cancelReason):''}.</div>`;
+  const btn=[];
+  if(S.canWrite){
+    if(st==='Pending approval'&&isApprover())btn.push('<button class="btn pri" id="pApprove">Approve</button><button class="btn" id="pReject">Reject</button>');
+    if(['Draft','Pending approval','Rejected','Approved'].includes(st))btn.push(`<button class="btn${st==='Draft'||st==='Rejected'?' pri':''}" id="pEdit">${st==='Draft'?'Continue draft':st==='Rejected'?'Revise &amp; resubmit':'Edit request'}</button>`);
+    if(st==='Approved')btn.push('<button class="btn pri" id="pPO">Create purchase order</button>');
+    if(purOpen(p))btn.push('<button class="btn pri" id="pRecv">Receive goods</button>');
+    if(['PO issued','Partly received','Received'].includes(st))btn.push('<button class="btn" id="pInv">Invoice &amp; SAP B1 ref</button>');
+  }
+  if(p.poNo)btn.push('<button class="btn" id="pPrint">Print PO</button><button class="btn" id="pDl">Download PO</button>');
+  if(S.canWrite&&p.poNo&&purOpen(p))btn.push('<button class="btn" id="pPOe">Edit PO details</button>');
+  if(S.canWrite&&!['Received','Cancelled'].includes(st))btn.push('<button class="btn" id="pCancel">Cancel</button>');
+  const lines=p.lines||[];const showRecv=(p.receipts||[]).length||purOpen(p);
+  return{eyebrow:'Purchase · '+esc(p.no||'Draft')+(p.poNo?' · '+esc(p.poNo):''),title:String(p.purpose||'Purchase request').split('\n')[0].slice(0,120),
+    pills:purPill(p)+`<span class="pill">${rm(purGrand(p))}</span>`+(purSapMissing(p)?'<span class="pill warn">SAP ref missing</span>':''),
+    body:`${banner}<div class="acts">${btn.join('')}</div>
+    ${kv([['PR no.',p.no?`<span class="mono">${esc(p.no)}</span>`:''],['Requested by',esc(p.requestedBy)],['Department',esc(p.dept)],['Request date',fmtD(p.reqDate)],['Needed by',fmtD(p.neededBy)],['For work order',wo?`<a href="#" data-wo="${p.woId}">${esc(wo.no)}</a> · ${esc(woWhat(wo))}`:''],['Suggested supplier',esc(sup(p.supplierId)?.name||'')]])}
+    ${p.purpose?`<div><h3>Purpose / reason</h3><div style="white-space:pre-wrap">${esc(p.purpose)}</div></div>`:''}
+    <div><h3>Items</h3><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Item</th><th class="r">Qty</th>${showRecv?'<th class="r">Received</th><th class="r">Outstanding</th>':''}<th class="r">Unit price</th><th class="r">Amount</th></tr></thead><tbody>${lines.map(l=>{const g=purRecv(p,l.lid);return`<tr><td>${l.partId&&S.parts[l.partId]?`<a href="#" data-part="${l.partId}">${esc(l.desc)}</a>`:esc(l.desc)}</td><td class="r num">${esc(l.qty)} ${esc(l.unit||'')}</td>${showRecv?`<td class="r num">${g}</td><td class="r num">${Math.max(0,num(l.qty)-g)}</td>`:''}<td class="r num">${l.price!==''&&l.price!=null?rm(l.price):'—'}</td><td class="r num">${rm(num(l.qty)*num(l.price))}</td></tr>`}).join('')||emptyRow(6,'No items','')}</tbody></table></div>
+      <p style="margin:6px 0 0;text-align:right">Items ${rm(purLinesTotal(p))}${num(po.other)?` · ${esc(po.otherLabel||'Other charges')} ${rm(po.other)}`:''} · <b>Total ${rm(purGrand(p))}</b></p></div>
+    <div><h3>Approval</h3>${ap?kv([['Decision',`<span class="pill ${ap.decision==='Approved'?'ok':'bad'}">${esc(ap.decision)}</span>`],['By',esc(ap.name||'')],['Date &amp; time',ap.at?fmtDT(ap.at):''],['Approved amount',ap.decision==='Approved'?rm(ap.total):''],['Note',esc(ap.note||'')]]):`<p class="muted" style="margin:0">${st==='Draft'?'Not submitted yet.':'No decision yet.'}</p>`}</div>
+    ${p.poNo?`<div><h3>Purchase order</h3>${kv([['PO no.',`<span class="mono">${esc(p.poNo)}</span>`],['PO date',fmtD(po.date)],['Supplier',po.supplierId&&sup(po.supplierId)?`<a href="#" data-sup="${po.supplierId}">${esc(sup(po.supplierId).name)}</a>`:''],['Delivery date',esc(po.delivery&&/^\d{4}-\d\d-\d\d$/.test(po.delivery)?fmtD(po.delivery):po.delivery||'')],['Payment terms',esc(po.terms)],['Quotation ref.',esc(po.quoteRef)],['Deliver to',esc(po.deliverTo)]])}</div>`:''}
+    ${(p.receipts||[]).length?`<div><h3>Goods received</h3><div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Date</th><th>DO no.</th><th>Items</th><th class="hs">Received by</th></tr></thead><tbody>${p.receipts.map(r=>`<tr><td class="num">${fmtD(r.date)}</td><td class="mono">${esc(r.doNo||'')}</td><td>${(r.lines||[]).map(x=>{const l=lines.find(y=>y.lid===x.lid);return esc((l?l.desc:'item')+' × '+x.qty)}).join('<br>')}${r.note?'<br><span class="muted">'+esc(r.note)+'</span>':''}</td><td class="hs">${who(r)}</td></tr>`).join('')}</tbody></table></div></div>`:''}
+    ${p.poNo?`<div><h3>Invoice &amp; SAP B1</h3>${kv([['Supplier invoice no.',esc(inv.invNo)],['Invoice date',fmtD(inv.invDate)],['Invoice amount',inv.invAmount!==''&&inv.invAmount!=null?rm(inv.invAmount)+(Math.abs(num(inv.invAmount)-purGrand(p))>0.009?' <span class="pill warn">differs from PO</span>':''):''],['SAP B1 reference no.',inv.sapRef?`<span class="mono">${esc(inv.sapRef)}</span>`:''],['Note',esc(inv.sapNote)]])}</div>`:''}`,
+    bind(d){const on=(s,f)=>{const b=$(s,d);if(b)b.onclick=f};
+      on('#pApprove',()=>purDecide(id,'Approved'));on('#pReject',()=>purDecide(id,'Rejected'));on('#pEdit',()=>purForm(id));on('#pPO',()=>poForm(id));on('#pPOe',()=>poForm(id));
+      on('#pRecv',()=>recvForm(id));on('#pInv',()=>invForm(id));on('#pPrint',()=>poPrint(id,true));on('#pDl',()=>poPrint(id,false));on('#pCancel',()=>purCancel(id));
+      $$('[data-wo]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('wo',x.dataset.wo)});
+      $$('[data-part]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('part',x.dataset.part)});
+      $$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)})}};
+};
+
+/* list */
+function filteredPurchases(){const q=fval('purchases','q'),s=fval('purchases','state');
+  return Object.entries(S.purchases).filter(([,p])=>{const st=p.status||'Draft';
+    const ok=!s?!['Received','Cancelled','Rejected'].includes(st)||purSapMissing(p):s==='pending'?st==='Pending approval':s==='approved'?st==='Approved':s==='order'?purOpen(p):s==='sap'?purSapMissing(p):s==='received'?st==='Received':s==='rejected'?st==='Rejected'||st==='Cancelled':s==='draft'?st==='Draft':true;
+    return ok&&match(q,p.no,p.poNo,p.purpose,p.requestedBy,p.dept,sup(p.supplierId)?.name,sup(p.po&&p.po.supplierId)?.name,p.inv&&p.inv.sapRef,p.inv&&p.inv.invNo,...(p.lines||[]).map(l=>l.desc))})
+    .sort((a,b)=>String(b[1].reqDate||'').localeCompare(String(a[1].reqDate||''))||String(b[1].no||'').localeCompare(String(a[1].no||'')))}
+VIEW.purchases={
+  shell:()=>`<h2>Purchasing</h2><p class="muted" style="margin-top:-4px">Purchase request → approval → purchase order → goods received. Supplier invoices are keyed into SAP B1; record the SAP B1 reference on each purchase.</p><div class="toolbar">
+    <input class="grow" type="search" data-f="q" id="q_u" placeholder="Search PR / PO no., item, supplier, SAP ref…" value="${esc(fval('purchases','q'))}">
+    <select data-f="state" id="s_u" style="width:auto">${[['','Open (not closed)'],['pending','Waiting for approval'],['approved','Approved, PO not issued'],['order','On order (PO issued)'],['sap','Received, SAP ref missing'],['received','Received'],['draft','Drafts'],['rejected','Rejected / cancelled'],['all','Everything']].map(o=>opt(o,fval('purchases','state'))).join('')}</select>
+    ${W(()=>'<button class="btn pri" id="addU">New purchase request</button>')}<button class="btn" id="expU">Export CSV</button></div><div id="list"></div>`,
+  bind(){bindFilters('purchases');const a=$('#addU');if(a)a.onclick=()=>purForm();$('#expU').onclick=()=>exportCSV('purchases')},
+  list(){const rows=filteredPurchases();const all=Object.values(S.purchases);
+    return`<p class="muted" style="margin:0 0 8px">${all.filter(p=>p.status==='Pending approval').length} waiting for approval · ${all.filter(p=>p.status==='Approved').length} approved, PO not issued · ${all.filter(purOpen).length} on order · ${all.filter(purSapMissing).length} received without SAP ref</p>
+    <div class="tbl-wrap"><table><thead><tr><th>PR · PO</th><th>Items · purpose</th><th class="hs">Supplier</th><th class="r">Amount</th><th>Status</th></tr></thead><tbody>${rows.length?rows.map(([id,p])=>`<tr data-open="purchase:${id}"><td class="mono">${esc(p.no||'Draft')}${p.poNo?'<br>'+esc(p.poNo):''}<br><span class="muted" style="font-family:var(--f-body)">${fmtD(p.reqDate)}</span></td><td>${purItemsText(p)}<br><span class="muted">${esc(String(p.purpose||'').split('\n')[0].slice(0,90))}</span><br><span class="muted">${esc(p.requestedBy||'')}${p.dept?' · '+esc(p.dept):''}</span></td><td class="hs">${esc(sup((p.po&&p.po.supplierId)||p.supplierId)?.name||'—')}</td><td class="r num">${rm(purGrand(p))}</td><td>${purPill(p)}${purSapMissing(p)?'<br><span class="pill warn">SAP ref missing</span>':''}${p.neededBy&&!['Received','Cancelled','Rejected'].includes(p.status)?`<br><span class="muted">Needed ${fmtD(p.neededBy)}</span>`:''}</td></tr>`).join(''):emptyRow(5,'No purchases here','Use New purchase request to start one.')}</tbody></table></div>`}
+};
+
 function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
 window.addEventListener('hashchange',routeHash);
 

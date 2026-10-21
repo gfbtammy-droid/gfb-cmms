@@ -104,7 +104,7 @@ th{background:var(--surface-2);font-weight:600}
   <div class="cover">
     <div style="flex:1;min-width:260px">
       <h2><small>01</small>Getting started</h2>
-      <p class="lead">The CMMS (Computerised Maintenance Management System) keeps GFB's machine register, repair jobs, preventive maintenance, calibration, incidents, contracts and spare parts in one place, as records for ISO 22000, HACCP and GMP audits.</p>
+      <p class="lead">The CMMS (Computerised Maintenance Management System) keeps GFB's machine register, repair jobs, preventive maintenance, calibration, incidents, contracts, spare parts and purchasing in one place, as records for ISO 22000, HACCP and GMP audits.</p>
       <p class="meta">Applies to: all staff with a CMMS account · Version: October 2026</p>
     </div>
   </div>
@@ -131,8 +131,9 @@ th{background:var(--surface-2);font-weight:600}
   <div class="tw"><table>
     <tr><th>Role</th><th>Can do</th></tr>
     <tr><td><b>Viewer</b></td><td>Look at everything they have access to. Cannot add or change records.</td></tr>
-    <tr><td><b>Editor</b></td><td>Add and update assets, work orders, calibration records, spares, contracts and contractors, and attach photos or PDFs.</td></tr>
+    <tr><td><b>Editor</b></td><td>Add and update assets, work orders, calibration records, spares, contracts and contractors; raise purchase requests, issue POs and receive goods; attach photos or PDFs.</td></tr>
     <tr><td><b>Admin</b></td><td>Everything an editor does, plus approve users, delete records, change Settings and download backups.</td></tr>
+    <tr><td><b>Can approve purchase requests</b> (extra tick)</td><td>Approve or reject purchase requests. Each decision is recorded with the approver's name, date and time.</td></tr>
     <tr><td><b>Incident access</b> (extra tick)</td><td>Needed to see the <span class="tab">Incidents</span> tab, because it holds injury and personal details. Given only to the people who handle incidents.</td></tr>
   </table></div>
   <div class="note"><b>Note.</b> If a tab or button in this guide is missing for you, your role does not include it. Ask the admin.</div>
@@ -362,8 +363,69 @@ th{background:var(--surface-2);font-weight:600}
 </section>
 
 <!-- ============ 10 ============ -->
+<section id="pur">
+  <h2><small>10</small>Purchasing (PR → approval → PO → goods received)</h2>
+  <p class="lead">Buy spare parts, consumables, tools and services with a full record: who asked, who approved and when, the purchase order, what arrived, and the SAP B1 reference of the invoice.</p>
+  <div class="note"><b>How it fits with SAP B1.</b> The CMMS handles the request, approval, PO and receiving. The supplier invoice is still keyed into <b>SAP B1</b> by accounts; the SAP B1 reference number is then recorded on the purchase in the CMMS so the two can be traced.</div>
+  <div class="tw"><table>
+    <tr><th>Status</th><th>Meaning</th><th>Who acts next</th></tr>
+    <tr><td><span class="pill warn">Draft</span></td><td>Saved, not yet submitted</td><td>Requester: finish and submit</td></tr>
+    <tr><td><span class="pill warn">Pending approval</span></td><td>Waiting for an approver</td><td>Approver: approve or reject</td></tr>
+    <tr><td><span class="pill info">Approved</span></td><td>Approved, PO not issued yet</td><td>Purchaser: create the PO</td></tr>
+    <tr><td><span class="pill bad">Rejected</span></td><td>Not approved (reason shown)</td><td>Requester: revise &amp; resubmit, or cancel</td></tr>
+    <tr><td><span class="pill info">PO issued</span> / <span class="pill info">Partly received</span></td><td>Ordered from the supplier</td><td>Store: receive goods when delivered</td></tr>
+    <tr><td><span class="pill ok">Received</span></td><td>Everything delivered</td><td>Accounts: key the invoice into SAP B1, then record the SAP ref here</td></tr>
+  </table></div>
+
+  <h3>1. Raise a purchase request (PR)</h3>
+  <figure><img src="guide/23-pur-form.jpg" alt="New purchase request" loading="lazy"><figcaption><span class="tab">Purchasing</span> → <span class="ui">New purchase request</span>.</figcaption></figure>
+  <ol>
+    <li>Go to <span class="tab">Purchasing</span> → <span class="ui">New purchase request</span>. Shortcuts: <span class="ui">Raise purchase request</span> on a work order or a spare part, or <span class="ui">Raise PR for low stock</span> on the Spares tab (fills in every part at or below its re-order level).</li>
+    <li>Fill in department, needed-by date, the work order it is for (optional) and the <b>purpose / reason</b>.</li>
+    <li>Add the items. Choose a <b>store item</b> so stock goes up automatically when it arrives; for tools, services or things not kept in store choose <b>Other item</b> and type a description. Enter quantity, unit and estimated unit price.</li>
+    <li>Click <span class="ui">Submit for approval</span> (or <span class="ui">Save as draft</span>). A PR number such as <b>PR-2610-001</b> is issued.</li>
+  </ol>
+
+  <h3>2. Approve or reject (approvers only)</h3>
+  <figure><img src="guide/24-pur-approve.jpg" alt="Approve purchase request" loading="lazy"><figcaption>An approver sees <b>Approve</b> and <b>Reject</b>. The Purchasing tab shows how many are waiting.</figcaption></figure>
+  <ul>
+    <li>Approvers are the people the admin has ticked as <b>Can approve purchase requests</b>. The Purchasing tab badge and the Overview tile <b>Purchase requests awaiting approval</b> show what is waiting.</li>
+    <li>Open the request, check the items and amount, then <span class="ui">Approve</span> (note optional) or <span class="ui">Reject</span> (reason required).</li>
+    <li>The decision is stored with the <b>approver's name, date and time and the approved amount</b>. The system itself checks this, so nobody else can mark a request approved.</li>
+  </ul>
+
+  <h3>3. Create the purchase order (PO)</h3>
+  <ol>
+    <li>On an approved request click <span class="ui">Create purchase order</span>.</li>
+    <li>Choose the supplier (new suppliers can be added from the dropdown), PO date, delivery date, payment terms, quotation reference and deliver-to address. Enter the <b>confirmed unit prices</b> from the quotation and any delivery charge or tax as <b>Other charges</b>.</li>
+    <li>Click <span class="ui">Issue PO</span>. A PO number such as <b>PO-2610-001</b> is issued. Use <span class="ui">Print PO</span> or <span class="ui">Download PO</span> to send it to the supplier.</li>
+  </ol>
+  <div class="warn"><b>Price went up?</b> If the confirmed prices come to more than the approved amount, the PO is not issued. The request goes back to <b>Pending approval</b> so the approver can approve the new amount. Other charges and tax are shown on the PO but are not part of the approved item amount.</div>
+  <figure><img src="guide/26-pur-po.jpg" alt="Printed purchase order" loading="lazy"><figcaption>The printed PO shows who prepared it and who approved it, with the date. Company details come from Settings → Purchase order.</figcaption></figure>
+
+  <h3>4. Receive the goods</h3>
+  <ol>
+    <li>When the delivery arrives, open the purchase and click <span class="ui">Receive goods</span>.</li>
+    <li>Enter the date, the <b>DO number</b> and the quantity received for each item (the outstanding quantity is filled in). Partial deliveries are fine: the status becomes <b>Partly received</b> until everything arrives.</li>
+    <li>Store items are added to stock automatically, with the PO and DO number in the part's stock movements.</li>
+    <li>Attach a photo of the DO under Attachments.</li>
+  </ol>
+
+  <h3>5. Record the SAP B1 reference</h3>
+  <figure><img src="guide/25-pur-record.jpg" alt="Completed purchase record" loading="lazy"><figcaption>A completed purchase: items with received quantities, the approval, the PO and the invoice / SAP B1 section.</figcaption></figure>
+  <p>After accounts key the supplier invoice into SAP B1, open the purchase and click <span class="ui">Invoice &amp; SAP B1 ref</span>. Enter the supplier invoice no., date and amount and the <b>SAP B1 reference number</b> (A/P invoice or GRPO document no.). Received purchases without a SAP reference are flagged <span class="pill warn">SAP ref missing</span>; use the filter <b>Received, SAP ref missing</b> to chase them. If the invoice amount differs from the PO, the record says so.</p>
+
+  <h3>Other</h3>
+  <ul>
+    <li><b>Cancel</b> a request or PO that is no longer needed (a reason is required). The record is kept.</li>
+    <li>Spares show an <b>On order</b> quantity, and each part lists its open purchases.</li>
+    <li><span class="ui">Export CSV</span> on the Purchasing tab gives every PR / PO with approval, receiving, invoice and SAP B1 reference for reconciliation.</li>
+  </ul>
+</section>
+
+<!-- ============ 11 ============ -->
 <section id="sup">
-  <h2><small>10</small>Contractors &amp; vendors</h2>
+  <h2><small>11</small>Contractors &amp; vendors</h2>
   <p class="lead">Service contractors and suppliers, their approval status and safety briefing.</p>
   <figure><img src="guide/17-contractors.jpg" alt="Contractors" loading="lazy"><figcaption><span class="tab">Contractors</span> tab.</figcaption></figure>
   <ul>
@@ -373,15 +435,16 @@ th{background:var(--surface-2);font-weight:600}
   </ul>
 </section>
 
-<!-- ============ 11 ============ -->
+<!-- ============ 12 ============ -->
 <section id="admin">
-  <h2><small>11</small>For admins: Settings, users, backups</h2>
+  <h2><small>12</small>For admins: Settings, users, backups</h2>
   <figure><img src="guide/18-settings.jpg" alt="Settings" loading="lazy"><figcaption><span class="tab">Settings</span>: reporting deadlines, calibration settings and backups.</figcaption></figure>
   <h3>Settings</h3>
   <ul>
     <li><b>Locations:</b> add rooms and areas and link each to a department.</li>
     <li><b>Lists used in forms:</b> asset categories, departments and spare-part categories (one per line).</li>
     <li><b>Reporting deadlines:</b> DOSH written report days and PERKESO Borang 34 hours.</li>
+    <li><b>Purchase order:</b> company address, phone, email, registration and SST numbers, default payment terms and deliver-to address, and the note printed at the bottom of every PO.</li>
     <li><b>Calibration:</b> how many days before an external calibration / stamping date it turns amber, and the pass / fail rule (error only, or error + uncertainty).</li>
     <li><b>Data &amp; backups:</b> click <span class="ui">Download full data copy (.json)</span> every month and keep it with your ISO 22000 records.</li>
   </ul>
@@ -389,14 +452,14 @@ th{background:var(--surface-2);font-weight:600}
   <figure><img src="guide/19-users.jpg" alt="Users" loading="lazy"><figcaption><span class="tab">Users</span>: approve new people and set their role.</figcaption></figure>
   <ol>
     <li>Send the person the CMMS link. They click <span class="ui">Request access</span>.</li>
-    <li>They appear as <b>Waiting for approval</b>. Click to edit, choose <b>Viewer</b>, <b>Editor</b> or <b>Admin</b>, tick <b>Incident access</b> only if they handle incidents, and activate.</li>
+    <li>They appear as <b>Waiting for approval</b>. Click to edit, choose <b>Viewer</b>, <b>Editor</b> or <b>Admin</b>, tick <b>Incident access</b> only if they handle incidents, tick <b>Can approve purchase requests</b> only for the people who approve purchases, and activate.</li>
     <li>When someone leaves, deactivate their account the same way.</li>
   </ol>
 </section>
 
-<!-- ============ 12 ============ -->
+<!-- ============ 13 ============ -->
 <section id="faq">
-  <h2><small>12</small>Questions &amp; troubleshooting</h2>
+  <h2><small>13</small>Questions &amp; troubleshooting</h2>
   <div class="tw"><table>
     <tr><th style="width:38%">Problem</th><th>What to do</th></tr>
     <tr><td>A new feature mentioned by the admin is not showing</td><td>Refresh fully: <b>Ctrl + F5</b> (Windows) or <b>Ctrl + Shift + R</b>. If the keyboard is not working, use the browser menu → <span class="ui">Settings</span> → clear cached images and files, then reopen. On a phone, close the app and open it again.</td></tr>
