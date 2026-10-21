@@ -35,6 +35,7 @@ header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;backgroun
 .brand{display:flex;align-items:center;gap:12px;padding-block:14px 8px;flex-wrap:wrap}
 .brand h1{font-family:var(--f-display);font-weight:700;font-size:26px;letter-spacing:.01em;margin:0;line-height:1}
 .brand .sub{color:var(--muted);font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+.guide-lk{margin-left:auto;font-size:13px;font-weight:500;color:var(--accent);text-decoration:none;border:1px solid var(--line);border-radius:999px;padding:5px 12px;white-space:nowrap;background:var(--surface)}.guide-lk:hover{background:var(--accent-soft)}.guide-lk+.me{margin-left:8px!important}@media (max-width:600px){.brand:has(#me:not(:empty)) .guide-lk{display:none}.brand:has(#me:not(:empty)) .me{margin-left:auto!important}}
 .brand .me{margin-left:auto;display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
 .brand .me img{width:26px;height:26px;border-radius:50%}
 nav.tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
@@ -142,7 +143,7 @@ a{color:var(--accent)}
 .menu{position:relative}
 .menu .pop{position:absolute;right:0;top:calc(100% + 6px);background:var(--surface);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:6px;display:flex;flex-direction:column;min-width:200px;z-index:30}
 .menu .pop button{background:none;border:0;text-align:left;padding:9px 10px;border-radius:6px;cursor:pointer}
-.menu .pop button:hover{background:var(--surface-2)}
+.menu .pop button:hover{background:var(--surface-2)}.menu .pop .pop-a{padding:9px 10px;border-radius:6px;color:inherit;text-decoration:none;font-size:14px}.menu .pop .pop-a:hover{background:var(--surface-2)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
@@ -165,7 +166,7 @@ td.mono,td .mono{white-space:nowrap}
   <div class="wrap" style="padding-block:0">
     <div class="brand">
       <div><h1>GFB FOOD - CMMS</h1><div class="sub">Machines · Equipment · Spares · Contractors — ISO 22000 / HACCP / GMP records</div></div>
-      <div class="me menu" id="me"></div>
+      <a class="guide-lk" href="guide.html" target="_blank" rel="noopener" title="User guide: how to use the CMMS" aria-label="User guide">User guide</a><div class="me menu" id="me"></div>
     </div>
     <nav class="tabs" id="tabs" aria-label="Modules"></nav>
   </div>
@@ -1879,7 +1880,7 @@ function showLogin(mode){
 }
 function renderMe(){
   const me=S.me;const ini=me.name.split(/\s+/).map(s=>s[0]).join('').slice(0,2).toUpperCase();
-  $('#me').innerHTML=`<button type="button" id="meb" aria-haspopup="true"><span class="av">${esc(ini)}</span><span>${esc(me.name)}</span></button><div class="pop" id="mep" hidden><div class="muted" style="padding:6px 10px;font-size:12px">${esc(me.username)} · ${esc(me.role)}</div><button type="button" id="mpw">Change password</button><button type="button" id="mout">Sign out</button></div>`;
+  $('#me').innerHTML=`<button type="button" id="meb" aria-haspopup="true"><span class="av">${esc(ini)}</span><span>${esc(me.name)}</span></button><div class="pop" id="mep" hidden><div class="muted" style="padding:6px 10px;font-size:12px">${esc(me.username)} · ${esc(me.role)}</div><a class="pop-a" href="guide.html" target="_blank" rel="noopener">User guide</a><button type="button" id="mpw">Change password</button><button type="button" id="mout">Sign out</button></div>`;
   $('#meb').onclick=e=>{e.stopPropagation();$('#mep').hidden=!$('#mep').hidden};
   document.addEventListener('click',()=>{const p=$('#mep');if(p)p.hidden=true});
   $('#mout').onclick=async()=>{await api('POST','/api/logout');location.reload()};

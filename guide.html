@@ -1,0 +1,426 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d6b5f">
+<title>GFB FOOD - CMMS User Guide</title>
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  --bg:#eef2f2;--surface:#fff;--surface-2:#f6f8f8;--ink:#152226;--muted:#5a6b70;--line:#d5dddd;
+  --accent:#0d6b5f;--accent-soft:#dcefeb;--warn:#a66300;--warn-soft:#fbeed8;--bad:#b3261e;--bad-soft:#f9e1df;--info:#2d5f9a;--info-soft:#e2ebf6;--ok:#2e7d3c;--ok-soft:#e1f1e3;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;--f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;--f-mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1517;--surface:#162024;--surface-2:#1b272b;--ink:#e2eaeb;--muted:#93a4a8;--line:#2b383c;--accent:#4fb3a3;--accent-soft:#16352f;--warn:#e3a54a;--warn-soft:#352711;--bad:#f08a80;--bad-soft:#3a1a18;--info:#8ab4e8;--info-soft:#18283c;--ok:#6cc27a;--ok-soft:#173222;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1517;--surface:#162024;--surface-2:#1b272b;--ink:#e2eaeb;--muted:#93a4a8;--line:#2b383c;--accent:#4fb3a3;--accent-soft:#16352f;--warn:#e3a54a;--warn-soft:#352711;--bad:#f08a80;--bad-soft:#3a1a18;--info:#8ab4e8;--info-soft:#18283c;--ok:#6cc27a;--ok-soft:#173222;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:72px;-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body)}
+a{color:var(--accent)}
+header.top{position:sticky;top:0;z-index:10;background:var(--bg);border-bottom:1px solid var(--line)}
+.bar{max-width:1240px;margin:0 auto;padding:10px 16px;display:flex;align-items:center;gap:12px}
+.bar h1{font:700 26px/1 var(--f-display);margin:0;letter-spacing:.2px}
+.bar .sub{font-size:12px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.bar .sp{flex:1}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;font:500 14px var(--f-body);cursor:pointer;text-decoration:none;white-space:nowrap}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .btn.pri{color:#06201b}}
+.layout{max-width:1240px;margin:0 auto;padding:0 16px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:28px}
+nav.toc{position:sticky;top:64px;align-self:start;max-height:calc(100vh - 80px);overflow:auto;padding:18px 0}
+nav.toc b{display:block;font:600 12px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+nav.toc a{display:block;padding:5px 10px;border-radius:6px;color:var(--ink);text-decoration:none;font-size:14px}
+nav.toc a:hover,nav.toc a.on{background:var(--accent-soft);color:var(--accent)}
+nav.toc a small{color:var(--muted);font-family:var(--f-mono);margin-right:6px}
+main{padding:18px 0 80px;min-width:0}
+section{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:22px 26px;margin-bottom:18px}
+h2{font:700 30px/1.1 var(--f-display);margin:0 0 4px}
+h2 small{font:500 14px var(--f-mono);color:var(--muted);margin-right:8px;vertical-align:middle}
+.lead{color:var(--muted);margin:0 0 14px}
+h3{font:600 17px/1.3 var(--f-body);margin:22px 0 6px}
+p{margin:0 0 10px}
+ol,ul{margin:0 0 12px;padding-left:22px}li{margin:3px 0}
+.ui{font-weight:600;background:var(--surface-2);border:1px solid var(--line);border-radius:5px;padding:0 6px;white-space:nowrap;font-size:.94em}
+.tab{font-weight:600;color:var(--accent)}
+figure{margin:12px 0 16px}
+figure img{display:block;width:100%;border:1px solid var(--line);border-radius:8px;box-shadow:0 4px 16px rgba(20,40,45,.08);background:#fff}
+figure.phone{display:flex;gap:14px;flex-wrap:wrap}
+figure.phone img{width:min(260px,46%)}
+figcaption{font-size:13px;color:var(--muted);margin-top:6px;width:100%}
+.note,.tip,.warn{border-radius:8px;padding:10px 14px;margin:12px 0;font-size:14px}
+.note{background:var(--info-soft);border-left:4px solid var(--info)}
+.tip{background:var(--ok-soft);border-left:4px solid var(--ok)}
+.warn{background:var(--warn-soft);border-left:4px solid var(--warn)}
+.note b:first-child,.tip b:first-child,.warn b:first-child{margin-right:4px}
+table{border-collapse:collapse;width:100%;margin:8px 0 14px;font-size:14px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:600}
+.tw{overflow-x:auto}
+.pill{display:inline-block;border-radius:999px;padding:0 9px;font-size:12px;font-weight:600;line-height:20px}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}.pill.warn{background:var(--warn-soft);color:var(--warn)}.pill.bad{background:var(--bad-soft);color:var(--bad)}.pill.info{background:var(--info-soft);color:var(--info)}
+.cover{display:flex;gap:20px;align-items:center;flex-wrap:wrap}
+.cover .meta{font-size:13px;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:10px;margin:12px 0}
+.cards a{display:block;border:1px solid var(--line);border-radius:10px;padding:12px 14px;text-decoration:none;color:var(--ink);background:var(--surface-2)}
+.cards a b{display:block;color:var(--accent)}
+.cards a span{font-size:13px;color:var(--muted)}
+.mtoc{display:none}
+@media (max-width:900px){
+  .layout{grid-template-columns:1fr;gap:0}nav.toc{display:none}.mtoc{display:block;margin:14px 0 0}
+  .mtoc select{width:100%;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:15px var(--f-body)}
+  section{padding:18px 16px}.bar .sub{display:none}.bar h1{font-size:22px}
+}
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  :root{--bg:#fff}
+  body{background:#fff;font-size:11.5pt;color:#111}
+  header.top,nav.toc,.mtoc,.noprint{display:none!important}
+  .layout{display:block;padding:0;max-width:none}
+  main{padding:0}
+  section{border:0;padding:0;margin:0 0 8mm;break-before:page;border-radius:0}
+  section:first-child{break-before:auto}
+  figure,table,.note,.tip,.warn{break-inside:avoid}
+  figure img{box-shadow:none;max-height:120mm;object-fit:contain;width:auto;max-width:100%}
+  figure.phone img{max-height:110mm}
+  a{color:inherit;text-decoration:none}
+  h2,h3{break-after:avoid}
+}
+</style>
+</head>
+<body>
+<header class="top"><div class="bar">
+  <div><h1>GFB FOOD - CMMS · User Guide</h1><div class="sub">How to use the maintenance, calibration and incident system</div></div>
+  <span class="sp"></span>
+  <button class="btn noprint" type="button" onclick="window.print()">Print / save as PDF</button>
+  <a class="btn pri noprint" href="./">Open CMMS</a>
+</div></header>
+
+<div class="layout">
+<nav class="toc" aria-label="Contents"><b>Contents</b><div id="tocList"></div></nav>
+<main>
+<div class="mtoc noprint"><select id="mtoc" aria-label="Jump to chapter"></select></div>
+
+<!-- ============ 1 ============ -->
+<section id="start">
+  <div class="cover">
+    <div style="flex:1;min-width:260px">
+      <h2><small>01</small>Getting started</h2>
+      <p class="lead">The CMMS (Computerised Maintenance Management System) keeps GFB's machine register, repair jobs, preventive maintenance, calibration, incidents, contracts and spare parts in one place, as records for ISO 22000, HACCP and GMP audits.</p>
+      <p class="meta">Applies to: all staff with a CMMS account · Version: October 2026</p>
+    </div>
+  </div>
+
+  <h3>Open the system</h3>
+  <ul>
+    <li><b>Computer:</b> open <a href="./">gfbtammy-droid.github.io/gfb-cmms</a> in Chrome or Edge. Bookmark it.</li>
+    <li><b>Phone:</b> scan the QR code you were given, or open the same link. In Chrome tap <span class="ui">⋮</span> → <span class="ui">Add to Home screen</span> (iPhone Safari: <span class="ui">Share</span> → <span class="ui">Add to Home Screen</span>) so it opens like an app.</li>
+  </ul>
+
+  <h3>First time: request access</h3>
+  <figure><img src="guide/01-signin.jpg" alt="Sign-in screen" loading="lazy"><figcaption>Sign-in screen. New users click <b>Request access</b>.</figcaption></figure>
+  <ol>
+    <li>On the sign-in screen click <span class="ui">Request access</span>.</li>
+    <li>Enter your name, your work email and a password of your choice.</li>
+    <li>You will see <b>Waiting for approval</b>. Tell the admin (Tammy) so she can give you a role.</li>
+    <li>Once approved, sign in with your email and password.</li>
+  </ol>
+
+  <h3>Forgot your password</h3>
+  <p>Click <span class="ui">Forgot password</span> on the sign-in screen, enter your email and follow the link sent to you. To change a password you know, click your name at the top right → <span class="ui">Change password</span>.</p>
+
+  <h3>Who can do what</h3>
+  <div class="tw"><table>
+    <tr><th>Role</th><th>Can do</th></tr>
+    <tr><td><b>Viewer</b></td><td>Look at everything they have access to. Cannot add or change records.</td></tr>
+    <tr><td><b>Editor</b></td><td>Add and update assets, work orders, calibration records, spares, contracts and contractors, and attach photos or PDFs.</td></tr>
+    <tr><td><b>Admin</b></td><td>Everything an editor does, plus approve users, delete records, change Settings and download backups.</td></tr>
+    <tr><td><b>Incident access</b> (extra tick)</td><td>Needed to see the <span class="tab">Incidents</span> tab, because it holds injury and personal details. Given only to the people who handle incidents.</td></tr>
+  </table></div>
+  <div class="note"><b>Note.</b> If a tab or button in this guide is missing for you, your role does not include it. Ask the admin.</div>
+</section>
+
+<!-- ============ 2 ============ -->
+<section id="layout">
+  <h2><small>02</small>Finding your way around</h2>
+  <p class="lead">Every screen works the same way, so once you know one module you know them all.</p>
+  <figure><img src="guide/02-overview.jpg" alt="Overview dashboard" loading="lazy"><figcaption>The <b>Overview</b> tab. Tiles show what needs attention; click a tile to open the matching list.</figcaption></figure>
+  <ul>
+    <li><b>Tabs</b> along the top switch modules. A red number on a tab (e.g. <span class="pill bad">3</span>) means items need action.</li>
+    <li><b>Search box and filters</b> above each list narrow it down: type part of a code, name, serial or WO number.</li>
+    <li><b>Click a row</b> to open the record in a panel on the right (on a phone it fills the screen). Close it with <span class="ui">×</span> or the <span class="ui">Esc</span> key.</li>
+    <li><b>Buttons at the top of a record</b> do the actions for that record: edit, print, record a check, and so on.</li>
+    <li><b>Forms</b> open in a pop-up. Fields marked <b style="color:var(--bad)">*</b> are required. Click <span class="ui">Save</span> at the bottom.</li>
+    <li><b>Colours</b>: <span class="pill ok">green</span> fine, <span class="pill warn">amber</span> due soon, <span class="pill bad">red</span> overdue or failed, <span class="pill info">blue</span> in progress / informational.</li>
+  </ul>
+  <h3>Save as draft</h3>
+  <p>Work orders and incident reports have <span class="ui">Save as draft</span> beside <span class="ui">Save</span>. A draft keeps what you typed without issuing a number, so you can finish it later. Drafts show a <span class="pill warn">Draft</span> label in the list. Open it and click <span class="ui">Continue draft</span> to finish. An admin can remove an unwanted draft with <span class="ui">Discard draft</span>.</p>
+  <h3>Every change is recorded</h3>
+  <p>Each record shows a <b>Change history</b> at the bottom (who changed what and when), and the <span class="tab">Activity</span> tab lists all changes across the system. This is your audit trail, so you do not need a separate logbook.</p>
+  <h3>Attachments</h3>
+  <p>Most records have an <b>Attachments</b> section. Choose the attachment type, then <span class="ui">Take photo</span> (phone camera) or <span class="ui">Attach PDF or photo</span>. Use this for service reports, invoices, certificates, manuals and photos.</p>
+  <figure class="phone"><img src="guide/21-phone-overview.jpg" alt="Overview on phone" loading="lazy"><img src="guide/22-phone-asset.jpg" alt="Asset on phone" loading="lazy"><figcaption>The same screens on a phone. Tabs scroll sideways; records open full screen.</figcaption></figure>
+</section>
+
+<!-- ============ 3 ============ -->
+<section id="assets">
+  <h2><small>03</small>Assets (machine &amp; equipment register)</h2>
+  <p class="lead">Every machine, instrument, aircon unit, forklift, computer and piece of equipment, with its location, maker, dates and history.</p>
+  <figure><img src="guide/03-assets.jpg" alt="Asset register" loading="lazy"><figcaption><span class="tab">Assets</span> tab with search, category, department, location and status filters.</figcaption></figure>
+
+  <h3>Add an asset</h3>
+  <ol>
+    <li>Click <span class="ui">Add asset</span>.</li>
+    <li>Fill in <b>Asset code</b> and <b>Asset name</b> (required), then category, department, location and status.</li>
+    <li>Under <b>Make &amp; purchase</b> add manufacturer, model, serial no., supplier, purchase date, install / commissioning date and warranty end date.</li>
+    <li>Under <b>Maintenance schedule</b> choose the PM frequency and type the PM checklist (one task per line).</li>
+    <li>For measuring instruments, fill the <b>Calibration</b> section (see chapter 6).</li>
+    <li>Click <span class="ui">Save</span>.</li>
+  </ol>
+  <div class="tip"><b>Tip.</b> Several identical units? Save the first one, open it and click <span class="ui">Add another unit</span>. The form is copied; change only the code and serial number.</div>
+
+  <h3>The asset record</h3>
+  <figure><img src="guide/04-asset-detail.jpg" alt="Asset detail" loading="lazy"><figcaption>An asset record: actions at the top, details, calibration, maintenance history and attachments below.</figcaption></figure>
+  <ul>
+    <li><span class="ui">Report problem / new job</span> raises a work order for this machine.</li>
+    <li><span class="ui">Log PM</span> records a preventive maintenance done.</li>
+    <li><span class="ui">Move location</span> changes department / location and keeps the move in the history.</li>
+    <li><span class="ui">QR label</span> prints a label for this machine.</li>
+    <li>Attach the <b>manual</b>, <b>technical spec</b> and <b>warranty card</b> under Attachments (choose the matching type), so they are on hand when the machine breaks down.</li>
+  </ul>
+
+  <h3>QR labels</h3>
+  <p>Click <span class="ui">Print QR labels</span> on the Assets tab (prints the assets currently filtered) or <span class="ui">QR label</span> on one asset. Stick the label on the machine. Anyone with an account can scan it with a phone camera to open that machine's record, see its history and report a problem.</p>
+
+  <h3>Machine / Equipment Master List</h3>
+  <figure><img src="guide/20-asset-master.jpg" alt="Machine master list dialog" loading="lazy"><figcaption><span class="ui">Master list (Excel / print)</span> on the Assets tab.</figcaption></figure>
+  <ol>
+    <li>On the <span class="tab">Assets</span> tab click <span class="ui">Master list (Excel / print)</span>.</li>
+    <li>Fill in the form no., revision, effective date, prepared by and approved by (saved for next time).</li>
+    <li>Optionally pick a department or category. Tick <b>Include disposed assets</b> if needed.</li>
+    <li>Click <span class="ui">Download Excel</span> or <span class="ui">Print / save as PDF</span>.</li>
+  </ol>
+  <p>The list shows codes, names, maker, model, serial, location, purchase / install / warranty dates, supplier, support or licence renewal, calibration ID and whether a manual or spec is attached (a red <b>No</b> means one is missing).</p>
+
+  <h3>Other tools</h3>
+  <ul>
+    <li><b>Set department &amp; location for many assets:</b> tick the boxes at the left of the rows, then use <span class="ui">Set department &amp; location</span>.</li>
+    <li><span class="ui">Export CSV</span> downloads the register for Excel. <span class="ui">Import CSV</span> (editors) adds many assets at once from the downloadable template.</li>
+  </ul>
+</section>
+
+<!-- ============ 4 ============ -->
+<section id="wo">
+  <h2><small>04</small>Work orders (repair &amp; maintenance jobs)</h2>
+  <p class="lead">Every breakdown, repair, PM, calibration, inspection or modification job gets a work order (WO). The completed WO is the F45 Machine Maintenance Upkeep Report.</p>
+  <figure><img src="guide/06-wo-list.jpg" alt="Work orders list" loading="lazy"><figcaption><span class="tab">Work orders</span> tab. Filter by status or job type.</figcaption></figure>
+
+  <h3>Raise a work order</h3>
+  <ol>
+    <li>Click <span class="ui">New work order</span> (or <span class="ui">Report problem / new job</span> on an asset, or scan the machine's QR label).</li>
+    <li>Choose the <b>Job type</b>: Breakdown / repair, Preventive maintenance, Calibration, Inspection, or Installation / modification.</li>
+    <li>Choose the machine if there is one. Machine, department and location are optional, so jobs like "toilet leaking" can be raised without an asset.</li>
+    <li>Type the <b>Problem / reason</b>, choose the priority (Critical, High, Normal, Low) and click <span class="ui">Save</span>. A WO number such as <b>WO-2610-001</b> is issued.</li>
+  </ol>
+  <figure><img src="guide/05-wo-form.jpg" alt="New work order form" loading="lazy"><figcaption>New work order form. Only job type, problem and reported date are required.</figcaption></figure>
+
+  <h3>Update the job as it progresses</h3>
+  <p>Open the WO and click <span class="ui">Update job</span>. Move the status along:</p>
+  <p><span class="pill bad">Open</span> → <span class="pill info">In progress</span> → <span class="pill warn">Waiting parts</span> → <span class="pill info">Completed</span> → <span class="pill ok">Verified</span></p>
+  <ul>
+    <li><b>Work done:</b> internal team or external contractor, contractor name, technician, start and completion dates, downtime hours, tasks completed.</li>
+    <li><b>Contractor not in the list?</b> Pick <span class="ui">＋ Add new contractor / vendor…</span> at the bottom of the dropdown, type the name and click <span class="ui">Add</span>.</li>
+    <li><b>Food safety &amp; compliance (F45 section 3):</b> tick the hygiene, safety, isolation, PPE, foreign-matter and hygiene-clearance checks.</li>
+    <li><b>Spares used from store:</b> click <span class="ui">Add spare part</span>, choose the part and quantity. Stock is deducted automatically when you save. A part not yet in the store list can be created on the spot with <span class="ui">＋ New part (not in list yet)</span>.</li>
+    <li><b>Supplier report &amp; invoice:</b> report no., invoice no., date and amount, plus internal labour cost.</li>
+    <li><b>Attachments:</b> attach the service report, invoice and before / after photos.</li>
+  </ul>
+
+  <h3>QA verification and the F45 report</h3>
+  <figure><img src="guide/07-wo-detail.jpg" alt="Work order record" loading="lazy"><figcaption>A completed WO with <b>QA verify</b>, <b>Print F45 report</b> and <b>Download F45</b>.</figcaption></figure>
+  <ol>
+    <li>When the job is <b>Completed</b>, QA / HOD opens it and clicks <span class="ui">QA verify</span>.</li>
+    <li>Confirm no tools or debris are left on the line and that hygiene clearance was given, enter your name and date, and save. The status becomes <span class="pill ok">Verified</span>.</li>
+    <li>Click <span class="ui">Print F45 report</span> (or <span class="ui">Download F45</span>) for the signed copy in your F45 file.</li>
+  </ol>
+  <div class="warn"><b>Food safety.</b> Production must not restart on a line after a repair until hygiene clearance is given. The Overview tile <b>Awaiting QA verification</b> shows completed jobs still waiting for this.</div>
+</section>
+
+<!-- ============ 5 ============ -->
+<section id="pm">
+  <h2><small>05</small>Preventive maintenance (PM)</h2>
+  <p class="lead">Scheduled servicing for machines, aircon, forklifts and so on, based on each asset's PM frequency.</p>
+  <figure><img src="guide/08-pm.jpg" alt="PM schedule" loading="lazy"><figcaption><span class="tab">PM</span> tab. Filter by overdue, due in 14 days or missing last-PM date.</figcaption></figure>
+  <ol>
+    <li>Set the PM frequency and checklist on each asset (Assets → open → <span class="ui">Edit asset</span> → Maintenance schedule).</li>
+    <li>Enter the <b>Last PM done</b> date once, so the system can work out the next one.</li>
+    <li>When PM is done, open the asset and click <span class="ui">Log PM</span>, or raise a WO with job type <b>Preventive maintenance</b>. The next due date moves forward automatically.</li>
+  </ol>
+  <p>Assets due within 14 days show amber and overdue ones red, on this tab and on the Overview.</p>
+</section>
+
+<!-- ============ 6 ============ -->
+<section id="cal">
+  <h2><small>06</small>Calibration</h2>
+  <p class="lead">QA's calibration master list (Form L04): internal verification, external calibration and Metrology stamping, with readings checked against each instrument's tolerance.</p>
+  <figure><img src="guide/09-cal-register.jpg" alt="Calibration register" loading="lazy"><figcaption><span class="tab">Calibration</span> tab: every instrument with its internal, external and stamping due dates and status.</figcaption></figure>
+
+  <h3>Reading the register</h3>
+  <ul>
+    <li><b>Internal:</b> frequency and next internal check. <span class="pill warn">Set last check</span> means no internal check is recorded yet. Record one to start the countdown.</li>
+    <li><b>External / Stamping:</b> next calibration and stamping dates. They turn <span class="pill warn">amber</span> a set number of days before (Settings → Calibration, default 30) and <span class="pill bad">red</span> when overdue.</li>
+    <li><b>Status:</b> <span class="pill ok">In use</span>, <span class="pill info">Sent for calibration</span> or <span class="pill bad">Out of tolerance</span>.</li>
+    <li>Use the filter to show <b>Due / overdue</b>, <b>Sent for calibration</b>, <b>Out of tolerance</b> or <b>Internal check date missing</b>.</li>
+  </ul>
+
+  <h3>Set up an instrument</h3>
+  <p>Click <span class="ui">Add instrument</span> (or edit an existing asset) and fill the <b>Calibration</b> section: Calibration ID (e.g. WS60/01), equipment type, range, tolerance (e.g. ±0.10kg), check points (e.g. 20kg, 40kg, 60kg), internal and external frequency, next external calibration and stamping dates, and the calibration lab.</p>
+
+  <h3>Record an internal check or external calibration</h3>
+  <ol>
+    <li>On the register click <span class="ui">Internal</span> or <span class="ui">External</span> on the instrument's row (or open the instrument and use <span class="ui">Record internal check</span> / <span class="ui">Record external calibration</span> / <span class="ui">Record stamping</span>).</li>
+    <li>A calibration work order opens, already filled in. For external, enter the <b>certificate no.</b> and attach the certificate PDF under Attachments.</li>
+    <li>For each check point type the <b>Reading</b>. The <b>Error</b> and <b>Pass / Fail</b> fill in automatically against the tolerance.</li>
+    <li>If the certificate shows a measurement uncertainty, type it in <b>± Uncertainty</b> (optional).</li>
+    <li>Click <span class="ui">Save</span>. The next due date moves forward automatically.</li>
+  </ol>
+  <figure><img src="guide/10-cal-record.jpg" alt="Calibration readings" loading="lazy"><figcaption>Calibration record: type the reading, the error and result are calculated.</figcaption></figure>
+  <div class="warn"><b>If a point fails.</b> You must write a <b>Product impact assessment</b> (what was measured with this instrument since the last good check, and whether product is on hold or released) before you can save. With the box ticked, the instrument is set <b>Out of service</b> and <b>Out of tolerance</b> until a passing check is recorded.</div>
+  <div class="note"><b>Pass / fail rule.</b> By default a point passes when the error is within tolerance. If QA chooses the stricter rule (Settings → Calibration), a point passes only when error + uncertainty is within tolerance. Each record shows which rule was used.</div>
+
+  <h3>Send / collect list for the calibration lab</h3>
+  <figure><img src="guide/11-cal-lab.jpg" alt="Send / collect list" loading="lazy"><figcaption><span class="ui">Send / collect list</span>: instruments due for the lab, and those already sent.</figcaption></figure>
+  <ol>
+    <li>Click <span class="ui">Send / collect list</span>, choose the lab (e.g. Obsnap) and how many days ahead to include.</li>
+    <li>Untick anything not going this round, then <span class="ui">Print list</span> ("TO COLLECT / PASS TO OBSNAP") for the lab's driver.</li>
+    <li>Click <span class="ui">Mark ticked as sent to lab</span>. Those instruments show <span class="pill info">Sent for calibration</span>.</li>
+    <li>When certificates come back, record each one with <span class="ui">External</span>. The status returns to <span class="pill ok">In use</span>.</li>
+  </ol>
+
+  <h3>Calibration Master List (Form L04)</h3>
+  <figure><img src="guide/12-cal-master.jpg" alt="L04 master list" loading="lazy"><figcaption><span class="ui">Master list (print)</span> with the Excel download in your L04 layout.</figcaption></figure>
+  <ol>
+    <li>Click <span class="ui">Master list (print)</span>.</li>
+    <li>Check the form no., revision, effective date, prepared by and approved by.</li>
+    <li>Click <span class="ui">Download Excel (L04 form)</span> for the Excel file in the L04 layout (3 pages, header and footer filled in), or <span class="ui">Print / save as PDF</span>.</li>
+  </ol>
+  <p><span class="ui">Export CSV</span> gives the full register, including last internal check dates, for your own analysis.</p>
+</section>
+
+<!-- ============ 7 ============ -->
+<section id="inc">
+  <h2><small>07</small>Incidents &amp; accidents</h2>
+  <p class="lead">Register of accidents, dangerous occurrences, occupational poisoning and disease, near misses and property damage, with DOSH and PERKESO deadlines. Only people with <b>incident access</b> see this tab.</p>
+  <figure><img src="guide/14-incident-detail.jpg" alt="Incident record" loading="lazy"><figcaption>An incident record with DOSH (JKKP 6) and PERKESO (Borang 34) deadline labels.</figcaption></figure>
+
+  <h3>Report an incident</h3>
+  <ol>
+    <li>Go to <span class="tab">Incidents</span> → <span class="ui">Report incident</span>.</li>
+    <li>Choose the type, date and time, where it happened and the equipment involved, and describe what happened.</li>
+    <li>For injuries fill in the person involved and the injury details (severity, days lost, where treated).</li>
+    <li>Note any food safety impact (e.g. possible product contamination).</li>
+    <li>Save. The system works out whether it is notifiable and shows the DOSH and PERKESO due dates. Overdue ones show red.</li>
+  </ol>
+  <div class="warn"><b>Deadlines.</b> The DOSH written report is due within 7 days under the NADOPOD Regulations 2004. Report fatal and serious cases to the nearest DOSH office immediately by phone. Keep the register for 5 years and send the year's extract to DOSH before 31 January. Check deadlines with DOSH, PERKESO or your HR SOP if unsure.</div>
+
+  <h3>Corrective actions and repair jobs</h3>
+  <ul>
+    <li>Under <b>Corrective &amp; preventive actions</b> click <span class="ui">Add action</span>: action, owner, due date and status. Attach photo or PDF evidence if you have it (optional).</li>
+    <li>If the incident needs a repair, click <span class="ui">Create repair job</span> (or <span class="ui">Create work order</span> next to an action). A linked WO is raised, and its progress and attachments show under the incident.</li>
+  </ul>
+
+  <h3>Reports</h3>
+  <ul>
+    <li><span class="ui">Print report</span> / <span class="ui">Download report</span>: the incident report for one case.</li>
+    <li><span class="ui">HIRARC (Excel)</span> on an incident, or <span class="ui">Reports</span> → <span class="ui">HIRARC (.xlsx)</span>: fills your HIRARC Form 2024 template from the risk assessment section of the incidents.</li>
+    <li><span class="ui">Reports</span> → register download for the yearly DOSH extract.</li>
+  </ul>
+</section>
+
+<!-- ============ 8 ============ -->
+<section id="con">
+  <h2><small>08</small>Contracts &amp; renewals</h2>
+  <p class="lead">Support agreements (AMC), software licences and subscriptions, warranty extensions, domain / hosting, antivirus, internet and non-IT service contracts such as pest control.</p>
+  <figure><img src="guide/15-contracts.jpg" alt="Contracts" loading="lazy"><figcaption><span class="tab">Contracts</span> tab with renewal status.</figcaption></figure>
+  <ol>
+    <li>Click <span class="ui">Add contract</span>. Enter the name, type, vendor, linked asset (optional), start and end dates, billing and cost.</li>
+    <li>Set <b>Remind me (days before renewal)</b>. Default is 60 days. The contract turns amber from that date and shows on the Contracts tab badge and Overview.</li>
+    <li>When renewed, open it and click <span class="ui">Record renewal</span>. Enter the new end date and cost, and attach the new invoice or certificate.</li>
+    <li><span class="ui">Renewal calendar</span> lists renewals for the next 12 months or a financial year (July to June) with estimated cost, for budgeting. Print it or download it as CSV.</li>
+  </ol>
+</section>
+
+<!-- ============ 9 ============ -->
+<section id="spares">
+  <h2><small>09</small>Spares (store)</h2>
+  <p class="lead">Spare parts and consumables kept for maintenance, with stock on hand and re-order levels.</p>
+  <figure><img src="guide/16-spares.jpg" alt="Spares" loading="lazy"><figcaption><span class="tab">Spares</span> tab.</figcaption></figure>
+  <ul>
+    <li><span class="ui">Add part</span>: code, name, category, unit, unit cost, <b>re-order level</b>, usual supplier and opening stock.</li>
+    <li>Open a part and use <span class="ui">Receive</span> (stock in, with DO / invoice no.), <span class="ui">Issue</span> (stock out to an asset) or <span class="ui">Adjust</span> (enter the counted quantity after a stock take).</li>
+    <li>Parts used on a work order are deducted automatically.</li>
+    <li>When stock falls to the re-order level, it shows on the Overview tile <b>Spares at re-order level</b>.</li>
+  </ul>
+</section>
+
+<!-- ============ 10 ============ -->
+<section id="sup">
+  <h2><small>10</small>Contractors &amp; vendors</h2>
+  <p class="lead">Service contractors and suppliers, their approval status and safety briefing.</p>
+  <figure><img src="guide/17-contractors.jpg" alt="Contractors" loading="lazy"><figcaption><span class="tab">Contractors</span> tab.</figcaption></figure>
+  <ul>
+    <li><span class="ui">Add contractor / vendor</span>: company, type, services, contact person, phone, email, approved-supplier status, next evaluation date, and whether the contractor safety instructions (Rev 2025-01) were signed.</li>
+    <li>Contractors added quickly from a dropdown start as <b>Under evaluation</b>. Complete their details here.</li>
+    <li>Open a contractor to see all jobs they did.</li>
+  </ul>
+</section>
+
+<!-- ============ 11 ============ -->
+<section id="admin">
+  <h2><small>11</small>For admins: Settings, users, backups</h2>
+  <figure><img src="guide/18-settings.jpg" alt="Settings" loading="lazy"><figcaption><span class="tab">Settings</span>: reporting deadlines, calibration settings and backups.</figcaption></figure>
+  <h3>Settings</h3>
+  <ul>
+    <li><b>Locations:</b> add rooms and areas and link each to a department.</li>
+    <li><b>Lists used in forms:</b> asset categories, departments and spare-part categories (one per line).</li>
+    <li><b>Reporting deadlines:</b> DOSH written report days and PERKESO Borang 34 hours.</li>
+    <li><b>Calibration:</b> how many days before an external calibration / stamping date it turns amber, and the pass / fail rule (error only, or error + uncertainty).</li>
+    <li><b>Data &amp; backups:</b> click <span class="ui">Download full data copy (.json)</span> every month and keep it with your ISO 22000 records.</li>
+  </ul>
+  <h3>Users</h3>
+  <figure><img src="guide/19-users.jpg" alt="Users" loading="lazy"><figcaption><span class="tab">Users</span>: approve new people and set their role.</figcaption></figure>
+  <ol>
+    <li>Send the person the CMMS link. They click <span class="ui">Request access</span>.</li>
+    <li>They appear as <b>Waiting for approval</b>. Click to edit, choose <b>Viewer</b>, <b>Editor</b> or <b>Admin</b>, tick <b>Incident access</b> only if they handle incidents, and activate.</li>
+    <li>When someone leaves, deactivate their account the same way.</li>
+  </ol>
+</section>
+
+<!-- ============ 12 ============ -->
+<section id="faq">
+  <h2><small>12</small>Questions &amp; troubleshooting</h2>
+  <div class="tw"><table>
+    <tr><th style="width:38%">Problem</th><th>What to do</th></tr>
+    <tr><td>A new feature mentioned by the admin is not showing</td><td>Refresh fully: <b>Ctrl + F5</b> (Windows) or <b>Ctrl + Shift + R</b>. If the keyboard is not working, use the browser menu → <span class="ui">Settings</span> → clear cached images and files, then reopen. On a phone, close the app and open it again.</td></tr>
+    <tr><td>I cannot see the Incidents tab</td><td>You need <b>incident access</b>. Ask the admin.</td></tr>
+    <tr><td>The Save button does nothing / I see a red message</td><td>Read the message at the bottom of the form. It names the required field that is missing (e.g. impact assessment when a calibration point fails).</td></tr>
+    <tr><td>I made a mistake in a record</td><td>Open it and click <span class="ui">Edit</span> / <span class="ui">Update job</span>. The change is kept in the history. Only admins can delete records.</td></tr>
+    <tr><td>Scanning a QR label asks me to sign in</td><td>Sign in once on that phone. The record opens after that.</td></tr>
+    <tr><td>"Waiting for approval" after signing up</td><td>The admin has not activated your account yet. Ask them.</td></tr>
+    <tr><td>Is my data safe if my laptop breaks?</td><td>Yes. Records are stored online (Supabase), not on your computer. Admins also download a monthly backup.</td></tr>
+  </table></div>
+  <p class="lead" style="margin-top:14px">Questions about the system: contact the CMMS admin, Tammy Ng.</p>
+</section>
+</main>
+</div>
+<script>
+(function(){
+  var secs=[].slice.call(document.querySelectorAll('main section'));
+  var toc=document.getElementById('tocList'),m=document.getElementById('mtoc');
+  secs.forEach(function(s){var h=s.querySelector('h2');var n=(h.querySelector('small')||{}).textContent||'';var t=h.textContent.replace(n,'').trim();
+    var a=document.createElement('a');a.href='#'+s.id;a.innerHTML='<small>'+n+'</small>'+t;toc.appendChild(a);
+    var o=document.createElement('option');o.value=s.id;o.textContent=n+'  '+t;m.appendChild(o)});
+  m.onchange=function(){location.hash=m.value};
+  var links=[].slice.call(toc.querySelectorAll('a'));
+  if('IntersectionObserver' in window){var io=new IntersectionObserver(function(es){es.forEach(function(e){if(e.isIntersecting){links.forEach(function(l){l.classList.toggle('on',l.getAttribute('href')==='#'+e.target.id)});m.value=e.target.id}})},{rootMargin:'-30% 0px -60% 0px'});secs.forEach(function(s){io.observe(s)})}
+})();
+</script>
+</body></html>
