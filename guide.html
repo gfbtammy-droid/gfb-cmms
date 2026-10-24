@@ -355,7 +355,7 @@ th{background:var(--surface-2);font-weight:600}
   <p class="lead">Spare parts and consumables kept for maintenance, with stock on hand and re-order levels.</p>
   <figure><img src="guide/16-spares.jpg" alt="Spares" loading="lazy"><figcaption><span class="tab">Spares</span> tab.</figcaption></figure>
   <ul>
-    <li><span class="ui">Add part</span>: the part code fills in automatically as a running number (SP-0001, SP-0002 …; change it if you prefer your own code), then name, category, unit, unit cost, <b>re-order level</b>, usual supplier and opening stock.</li>
+    <li><span class="ui">Add part</span>: choose the <b>category</b> first and the part code fills in as that category's running number: <b>FAC-0001</b> building &amp; facilities, <b>MCH-0001</b> machines &amp; tools, <b>FLT-0001</b> forklift &amp; reach truck, <b>OFC-0001</b> office equipment &amp; IT (PCs included). For existing parts, type your own code instead. Then enter the name, category, unit, unit cost, <b>re-order level</b>, usual supplier and opening stock.</li>
     <li>Open a part and use <span class="ui">Receive</span> (stock in, with DO / invoice no.), <span class="ui">Issue</span> (stock out to an asset) or <span class="ui">Adjust</span> (enter the counted quantity after a stock take).</li>
     <li>Parts used on a work order are deducted automatically.</li>
     <li>When stock falls to the re-order level, it shows on the Overview tile <b>Spares at re-order level</b>.</li>
@@ -443,6 +443,7 @@ th{background:var(--surface-2);font-weight:600}
   <ul>
     <li><b>Locations:</b> add rooms and areas and link each to a department.</li>
     <li><b>Lists used in forms:</b> asset categories, departments and spare-part categories (one per line).</li>
+    <li><b>Spare-part codes:</b> the prefix used for each spare-part category's running number (FAC, MCH, FLT, OFC).</li>
     <li><b>Reporting deadlines:</b> DOSH written report days and PERKESO Borang 34 hours.</li>
     <li><b>Purchase order:</b> company address, phone, email, registration and SST numbers, default payment terms and deliver-to address, and the note printed at the bottom of every PO.</li>
     <li><b>Calibration:</b> how many days before an external calibration / stamping date it turns amber, and the pass / fail rule (error only, or error + uncertainty).</li>

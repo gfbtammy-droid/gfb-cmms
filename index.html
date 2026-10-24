@@ -206,7 +206,7 @@ const DEFAULTS={
   categories:['Production machine','Production equipment','Hand tools & power tools','Material handling (forklift / reach truck)','Utilities & facility','Air-conditioning','Computer & IT','Office equipment','QC lab / measuring instrument'],
   departments:['Production','Warehouse','QA / QC','Office / Admin','Facility / utilities'],
   locList:[['Mixing room','Production'],['Packing area','Production'],['Raw material store','Warehouse'],['Finished goods store','Warehouse'],['QC lab','QA / QC'],['General office','Office / Admin'],['Meeting room','Office / Admin'],['Server / IT room','Office / Admin']].map(([name,dept])=>({name,dept})),
-  partCats:['Spare part','Consumable','Lubricant','Filter','Belt / seal / gasket','Electrical','IT accessory']
+  partCats:['Building & facilities','Machines & tools','Forklift & reach truck','Office equipment & IT']
 };
 const ASSET_STATUS=['Active','Under repair','Standby','Out of service','Disposed'];
 const WO_TYPES=['Breakdown / repair','Preventive maintenance','Calibration','Inspection','Installation / modification'];
@@ -272,9 +272,9 @@ const A=id=>S.assets[id]; const sup=id=>S.suppliers[id];
 function normSettings(d){d=d||{};const pick=k=>Array.isArray(d[k])&&d[k].length?d[k]:DEFAULTS[k];
   const locList=Array.isArray(d.locList)?d.locList.filter(l=>l&&l.name).map(l=>({name:String(l.name),dept:String(l.dept||'')})):(Array.isArray(d.locations)&&d.locations.length?d.locations.map(n=>({name:n,dept:''})):DEFAULTS.locList.map(l=>({...l})));
   const dosh={reportDays:num(d.dosh&&d.dosh.reportDays)||7,perkesoHours:num(d.dosh&&d.dosh.perkesoHours)||48};
-  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{},assetDoc:(d.assetDoc&&typeof d.assetDoc==='object')?d.assetDoc:{},poDoc:(d.poDoc&&typeof d.poDoc==='object')?d.poDoc:{},cal:{lead:(d.cal&&num(d.cal.lead))||30,rule:(d.cal&&d.cal.rule==='errU')?'errU':'error'}}}
+  return{categories:pick('categories'),departments:pick('departments'),partCats:pick('partCats'),locList,dosh,calDoc:(d.calDoc&&typeof d.calDoc==='object')?d.calDoc:{},assetDoc:(d.assetDoc&&typeof d.assetDoc==='object')?d.assetDoc:{},poDoc:(d.poDoc&&typeof d.poDoc==='object')?d.poDoc:{},partPrefix:(d.partPrefix&&typeof d.partPrefix==='object')?d.partPrefix:{},cal:{lead:(d.cal&&num(d.cal.lead))||30,rule:(d.cal&&d.cal.rule==='errU')?'errU':'error'}}}
 async function saveSettings(patch,act){
-  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},assetDoc:cur.assetDoc||{},poDoc:cur.poDoc||{},cal:cur.cal||{lead:30,rule:'error'},...patch};body.locations=body.locList.map(l=>l.name);
+  const cur=S.settings;const body={categories:cur.categories,departments:cur.departments,partCats:cur.partCats,locList:cur.locList,dosh:cur.dosh,calDoc:cur.calDoc||{},assetDoc:cur.assetDoc||{},poDoc:cur.poDoc||{},partPrefix:cur.partPrefix||{},cal:cur.cal||{lead:30,rule:'error'},...patch};body.locations=body.locList.map(l=>l.name);
   await put('config','settings',body,act||'Lists updated');
   S.settings=normSettings(body);
 }
@@ -641,6 +641,9 @@ VIEW.settings={
   shell:()=>`<div id="list"></div><h2>Lists used in forms</h2><p class="muted" style="margin-top:-4px">One item per line. Renaming an item does not change records already saved.${S.canAdmin?'':' Only an admin can change these lists.'}</p>
    <div class="grid2">${[['categories','Asset categories'],['departments','Departments'],['partCats','Spare-part categories']].map(([k,l])=>`<div class="panel"><div class="field"><label for="set_${k}">${l}</label><textarea id="set_${k}" style="min-height:200px"${S.canAdmin?'':' readonly'}>${esc((S.settings[k]||[]).join('\n'))}</textarea></div></div>`).join('')}</div>
    ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn pri" id="saveSet">Save lists</button></div>':''}
+   <h2>Spare-part codes</h2><div class="panel"><p class="muted" style="margin:0 0 10px">New parts get an automatic running number by category, e.g. <span class="mono">${esc(partPrefix(S.settings.partCats[0]))}-0001</span>. Change a prefix here (2 to 5 letters or digits). Existing parts keep their codes; anyone can still type their own code when adding a part.</p>
+     <div class="fgrid">${S.settings.partCats.map((c,i)=>`<div class="field"><label for="pp_${i}">${esc(c)}</label><input id="pp_${i}" data-cat="${esc(c)}" type="text" maxlength="5" value="${esc(partPrefix(c))}"${S.canAdmin?'':' readonly'}><span class="muted" style="font-size:12px">Next: <span class="mono">${esc(nextPartCode(c))}</span></span></div>`).join('')}</div>
+     ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="savePP">Save code prefixes</button></div>':''}</div>
    <h2>Reporting deadlines</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Used by the incident register. The DOSH written report is 7 days under the NADOPOD Regulations 2004. Confirm the PERKESO Borang 34 deadline with PERKESO or your HR SOP.</p>
      <div class="fgrid"><div class="field"><label for="set_doshDays">DOSH written report due (days after incident)</label><input id="set_doshDays" type="number" value="${esc(S.settings.dosh.reportDays)}"${S.canAdmin?'':' readonly'}></div><div class="field"><label for="set_perkesoH">PERKESO Borang 34 due (hours after incident)</label><input id="set_perkesoH" type="number" value="${esc(S.settings.dosh.perkesoHours)}"${S.canAdmin?'':' readonly'}></div></div>
      ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="saveDosh">Save deadlines</button></div>':''}</div>
@@ -659,6 +662,9 @@ VIEW.settings={
       try{await saveSettings(v,'Lists updated');toast('Lists saved')}catch(e){}};
     const sd=$('#saveDosh');if(sd)sd.onclick=async()=>{const d={reportDays:num($('#set_doshDays').value)||7,perkesoHours:num($('#set_perkesoH').value)||48};try{await saveSettings({dosh:d},'Reporting deadlines: DOSH '+d.reportDays+' days, PERKESO '+d.perkesoHours+' hours');toast('Deadlines saved')}catch(e){}};
     const sc=$('#saveCal');if(sc)sc.onclick=async()=>{const c={lead:Math.max(1,num($('#set_calLead').value)||30),rule:$('#set_calRule').value==='errU'?'errU':'error'};try{await saveSettings({cal:c},'Calibration settings: remind '+c.lead+' days before; rule '+(c.rule==='errU'?'error + uncertainty':'error only'));toast('Calibration settings saved')}catch(e){}};
+    const spp=$('#savePP');if(spp)spp.onclick=async()=>{const m={};let bad='';$$('[data-cat]').forEach(i=>{const v=i.value.trim().toUpperCase();if(!/^[A-Z0-9]{2,5}$/.test(v))bad=i.dataset.cat;m[i.dataset.cat]=v});
+      if(bad){toast('Prefix for '+bad+' must be 2 to 5 letters or digits.');return}const vals=Object.values(m);if(new Set(vals).size!==vals.length){toast('Each category needs a different prefix.');return}
+      try{await saveSettings({partPrefix:m},'Spare-part code prefixes: '+Object.entries(m).map(([k,v])=>k+' '+v).join(', '));toast('Saved');renderShell()}catch(e){}};
     const sp=$('#savePO');if(sp)sp.onclick=async()=>{const v={};['address','phone','email','regNo','sstNo','terms','deliverTo','prep','footer'].forEach(k=>v[k]=$('#po_'+k).value.trim());try{await saveSettings({poDoc:v},'Purchase order details updated');toast('Saved')}catch(e){}};
     $('#bkDl').onclick=()=>{const docs=[];COLLS.concat('config').forEach(c=>Object.entries(S[c]||{}).forEach(([id,data])=>docs.push({coll:c,id,data})));
       save(`GFB_Asset_Maintenance_backup_${today()}.json`,JSON.stringify({app:'GFB Asset & Maintenance',exported:new Date().toISOString(),docs},null,1))};
@@ -909,11 +915,19 @@ function supForm(id){
     danger:prev&&S.canAdmin?{label:'Delete',onClick:()=>confirmBox('Delete this contractor?','Jobs linked to this company keep their invoice details but lose the company link.','Delete',async()=>{await api('DELETE','/api/docs/suppliers/'+id);delete S.suppliers[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{const key=id||newId('suppliers');const next={...(prev||{}),...v};await put('suppliers',key,next,diffAct(prev,next,F_SUP));toast('Saved');renderList();if(prev)renderDetail()}});
 }
-function nextPartCode(){const max=Object.values(S.parts).reduce((m,p)=>{const x=String(p.code||'').match(/^SP-(\d+)$/i);return x?Math.max(m,parseInt(x[1],10)):m},0);return'SP-'+String(max+1).padStart(4,'0')}
+const PART_PREFIX_DEF={'building & facilities':'FAC','machines & tools':'MCH','forklift & reach truck':'FLT','office equipment & it':'OFC'};
+function partPrefix(cat){if(!cat)return'SP';const set=(S.settings.partPrefix||{})[cat];if(set)return String(set).toUpperCase();const d=PART_PREFIX_DEF[String(cat).toLowerCase()];if(d)return d;
+  const w=String(cat).toUpperCase().replace(/[^A-Z0-9 ]/g,' ').split(/\s+/).filter(Boolean);return(w.length>1?w.map(x=>x[0]).join(''):(w[0]||'SP')).slice(0,4)||'SP'}
+function nextPartCode(cat){const pre=partPrefix(cat);const re=new RegExp('^'+pre.replace(/[^A-Z0-9]/g,'')+'-(\\d+)$','i');
+  const max=Object.values(S.parts).reduce((m,p)=>{const x=String(p.code||'').match(re);return x?Math.max(m,parseInt(x[1],10)):m},0);return pre+'-'+String(max+1).padStart(4,'0')}
+/* keep a code field on the auto running number until the user types their own */
+function bindAutoCode(codeEl,catEl){if(!codeEl||!catEl||codeEl.dataset.bound)return;codeEl.dataset.bound='1';let auto=true;
+  const set=()=>{codeEl.value=nextPartCode(catEl.value)};set();
+  codeEl.addEventListener('input',()=>{auto=codeEl.value.trim()===''});catEl.addEventListener('change',()=>{if(auto)set()})}
 function partForm(id){
   const prev=id?S.parts[id]:null;
   const fields=prev?F_PART:[...F_PART.slice(0,4),{k:'qty',label:'Opening stock',type:'number'},...F_PART.slice(4)];
-  formSheet({title:prev?'Edit part':'Add spare / consumable',fields,data:prev||{qty:0,code:nextPartCode()},
+  const sh=formSheet({title:prev?'Edit part':'Add spare / consumable',fields,data:prev||{qty:0,code:nextPartCode('')},
     danger:prev&&S.canAdmin?{label:'Delete part',onClick:()=>confirmBox('Delete this part?','Its stock movement history will be deleted with it.','Delete',async()=>{await api('DELETE','/api/docs/parts/'+id);delete S.parts[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{
       const dup=Object.entries(S.parts).find(([k,p])=>k!==id&&String(p.code).toLowerCase()===v.code.toLowerCase());if(dup)return'Part code '+v.code+' already exists.';
@@ -921,6 +935,7 @@ function partForm(id){
       if(!prev){next.qty=num(v.qty);next.moves=next.qty?[{date:today(),type:'Opening stock',qty:next.qty,bal:next.qty,by:S.me.id,name:S.me.name,at:new Date().toISOString()}]:[]}
       await put('parts',key,next,diffAct(prev,next,F_PART));toast('Saved');renderList();if(prev)renderDetail();else openDetail('part',key);
     }});
+  if(sh&&!prev)bindAutoCode($('#f_code',sh),$('#f_category',sh));
 }
 function moveForm(id,type){
   const p=S.parts[id];
@@ -953,7 +968,7 @@ function lineRow(l){
 function linesEditor(lines){
   return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div><div class="acts" style="margin:0"><button type="button" class="btn sm" id="addLine"${Object.keys(S.parts).length?'':' hidden'}>Add spare part</button><button type="button" class="btn sm" id="newPartBtn">＋ New part (not in list yet)</button></div>
   <div id="newPart" class="panel" hidden style="padding:12px"><b>New spare / consumable</b><p class="muted" style="margin:2px 0 8px;font-size:12px">It is saved to Spares &amp; consumables and added to this job. Enter the quantity bought or in store now; the job deducts what it uses when it is marked Completed.</p>
-   <div class="fgrid"><div class="field"><label for="np_code">Part code * <span class="muted" style="font-weight:400">(auto)</span></label><input id="np_code" type="text" placeholder="e.g. SP-0001"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
+   <div class="fgrid"><div class="field"><label for="np_cat">Category</label><select id="np_cat"><option value="">—</option>${S.settings.partCats.map(c=>opt(c)).join('')}</select></div><div class="field"><label for="np_code">Part code * <span class="muted" style="font-weight:400">(auto)</span></label><input id="np_code" type="text" placeholder="e.g. SP-0001"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
    <div class="field"><label for="np_unit">Unit</label><input id="np_unit" type="text" placeholder="pcs, roll, litre"></div><div class="field"><label for="np_cost">Unit cost (RM)</label><input id="np_cost" type="number" step="any" inputmode="decimal"></div>
    <div class="field"><label for="np_qty">Quantity bought / in store now</label><input id="np_qty" type="number" step="any" inputmode="decimal"></div><div class="field"><label for="np_use">Used on this job</label><input id="np_use" type="number" step="any" inputmode="decimal" value="1"></div></div>
    <div class="acts" style="margin-top:8px"><button type="button" class="btn pri sm" id="np_save">Save part &amp; add to job</button><button type="button" class="btn sm" id="np_cancel">Cancel</button></div><div class="err" id="np_err" hidden></div></div>`;
@@ -1025,7 +1040,7 @@ function woForm(id,preset={}){
   };
   const al=$('#addLine',sh);if(al)al.onclick=()=>{$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:'',qty:1,unitCost:0}));bindLines()};
   const np=$('#newPart',sh),nb=$('#newPartBtn',sh);
-  if(nb)nb.onclick=()=>{np.hidden=false;nb.hidden=true;const c=$('#np_code',sh);if(!c.value)c.value=nextPartCode();$('#np_name',sh).focus()};
+  if(nb)nb.onclick=()=>{np.hidden=false;nb.hidden=true;bindAutoCode($('#np_code',sh),$('#np_cat',sh));if(!$('#np_code',sh).value)$('#np_code',sh).value=nextPartCode($('#np_cat',sh).value);$('#np_cat',sh).focus()};
   if(np){$('#np_cancel',sh).onclick=()=>{np.hidden=true;nb.hidden=false};
     $('#np_save',sh).onclick=async()=>{const err=$('#np_err',sh);err.hidden=true;const g=k=>$('#np_'+k,sh).value.trim();
       const code=g('code'),name=g('name'),qty=num(g('qty')),use=num(g('use'));
@@ -1033,13 +1048,13 @@ function woForm(id,preset={}){
       if(!code||!name)return fail('Enter the part code and name.');
       if(Object.values(S.parts).some(p=>String(p.code).toLowerCase()===code.toLowerCase()))return fail('Part code '+code+' already exists. Use “Add spare part” to pick it.');
       if(use>0&&qty<use)return fail('Quantity bought / in store must be at least the quantity used on this job.');
-      const key=newId('parts');const part={code,name,unit:g('unit'),unitCost:g('cost')===''?'':num(g('cost')),qty,minQty:'',moves:qty?[{date:today(),type:'Opening stock',qty,bal:qty,by:S.me.id,name:S.me.name,at:new Date().toISOString()}]:[]};
+      const key=newId('parts');const part={code,name,category:g('cat'),unit:g('unit'),unitCost:g('cost')===''?'':num(g('cost')),qty,minQty:'',moves:qty?[{date:today(),type:'Opening stock',qty,bal:qty,by:S.me.id,name:S.me.name,at:new Date().toISOString()}]:[]};
       const b=$('#np_save',sh);b.disabled=true;
       try{await put('parts',key,part,'Created from work order form');}catch(e){b.disabled=false;return fail(e.message||'Could not save the part.')}
       b.disabled=false;
       $$('#lines .lp',sh).forEach(sel=>{if(!sel.querySelector(`option[value="${key}"]`))sel.insertAdjacentHTML('beforeend',`<option value="${key}">${esc(code)} · ${esc(name)} (${qty} ${esc(part.unit||'')})</option>`)});
       if(use>0){$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:key,qty:use,unitCost:num(part.unitCost)}));bindLines()}
-      ['code','name','unit','cost','qty'].forEach(k=>$('#np_'+k,sh).value='');$('#np_use',sh).value='1';np.hidden=true;nb.hidden=false;if(al)al.hidden=false;toast(name+' added to Spares & consumables');
+      ['name','unit','cost','qty'].forEach(k=>$('#np_'+k,sh).value='');$('#np_code',sh).value=nextPartCode($('#np_cat',sh).value);$('#np_use',sh).value='1';np.hidden=true;nb.hidden=false;if(al)al.hidden=false;toast(name+' added to Spares & consumables');
     }}
   bindLines();
   // suggest contractor's name when contractor chosen
