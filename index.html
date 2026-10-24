@@ -454,7 +454,7 @@ const F_WO=[
   {k:'verifiedBy',label:'Verified by (QA / HOD)'},{k:'verifiedDate',label:'Verified on',type:'date'}
 ];
 const F_PART=[
-  {k:'code',label:'Part code',req:true,ph:'e.g. SP-BRG-6205'},
+  {k:'code',label:'Part code (auto running number; change if you use your own code)',short:'Part code',req:true,ph:'e.g. SP-0001'},
   {k:'name',label:'Part / consumable name',req:true},
   {k:'category',label:'Category',type:'select',opts:()=>S.settings.partCats},
   {k:'unit',label:'Unit',ph:'pcs, roll, litre, box'},
@@ -909,10 +909,11 @@ function supForm(id){
     danger:prev&&S.canAdmin?{label:'Delete',onClick:()=>confirmBox('Delete this contractor?','Jobs linked to this company keep their invoice details but lose the company link.','Delete',async()=>{await api('DELETE','/api/docs/suppliers/'+id);delete S.suppliers[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{const key=id||newId('suppliers');const next={...(prev||{}),...v};await put('suppliers',key,next,diffAct(prev,next,F_SUP));toast('Saved');renderList();if(prev)renderDetail()}});
 }
+function nextPartCode(){const max=Object.values(S.parts).reduce((m,p)=>{const x=String(p.code||'').match(/^SP-(\d+)$/i);return x?Math.max(m,parseInt(x[1],10)):m},0);return'SP-'+String(max+1).padStart(4,'0')}
 function partForm(id){
   const prev=id?S.parts[id]:null;
   const fields=prev?F_PART:[...F_PART.slice(0,4),{k:'qty',label:'Opening stock',type:'number'},...F_PART.slice(4)];
-  formSheet({title:prev?'Edit part':'Add spare / consumable',fields,data:prev||{qty:0},
+  formSheet({title:prev?'Edit part':'Add spare / consumable',fields,data:prev||{qty:0,code:nextPartCode()},
     danger:prev&&S.canAdmin?{label:'Delete part',onClick:()=>confirmBox('Delete this part?','Its stock movement history will be deleted with it.','Delete',async()=>{await api('DELETE','/api/docs/parts/'+id);delete S.parts[id];closeLayer('drawer');renderList()})}:null,
     onSave:async v=>{
       const dup=Object.entries(S.parts).find(([k,p])=>k!==id&&String(p.code).toLowerCase()===v.code.toLowerCase());if(dup)return'Part code '+v.code+' already exists.';
@@ -952,7 +953,7 @@ function lineRow(l){
 function linesEditor(lines){
   return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div><div class="acts" style="margin:0"><button type="button" class="btn sm" id="addLine"${Object.keys(S.parts).length?'':' hidden'}>Add spare part</button><button type="button" class="btn sm" id="newPartBtn">＋ New part (not in list yet)</button></div>
   <div id="newPart" class="panel" hidden style="padding:12px"><b>New spare / consumable</b><p class="muted" style="margin:2px 0 8px;font-size:12px">It is saved to Spares &amp; consumables and added to this job. Enter the quantity bought or in store now; the job deducts what it uses when it is marked Completed.</p>
-   <div class="fgrid"><div class="field"><label for="np_code">Part code *</label><input id="np_code" type="text" placeholder="e.g. SP-DOOR-PLATE"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
+   <div class="fgrid"><div class="field"><label for="np_code">Part code * <span class="muted" style="font-weight:400">(auto)</span></label><input id="np_code" type="text" placeholder="e.g. SP-0001"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
    <div class="field"><label for="np_unit">Unit</label><input id="np_unit" type="text" placeholder="pcs, roll, litre"></div><div class="field"><label for="np_cost">Unit cost (RM)</label><input id="np_cost" type="number" step="any" inputmode="decimal"></div>
    <div class="field"><label for="np_qty">Quantity bought / in store now</label><input id="np_qty" type="number" step="any" inputmode="decimal"></div><div class="field"><label for="np_use">Used on this job</label><input id="np_use" type="number" step="any" inputmode="decimal" value="1"></div></div>
    <div class="acts" style="margin-top:8px"><button type="button" class="btn pri sm" id="np_save">Save part &amp; add to job</button><button type="button" class="btn sm" id="np_cancel">Cancel</button></div><div class="err" id="np_err" hidden></div></div>`;
@@ -1024,7 +1025,7 @@ function woForm(id,preset={}){
   };
   const al=$('#addLine',sh);if(al)al.onclick=()=>{$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:'',qty:1,unitCost:0}));bindLines()};
   const np=$('#newPart',sh),nb=$('#newPartBtn',sh);
-  if(nb)nb.onclick=()=>{np.hidden=false;nb.hidden=true;$('#np_code',sh).focus()};
+  if(nb)nb.onclick=()=>{np.hidden=false;nb.hidden=true;const c=$('#np_code',sh);if(!c.value)c.value=nextPartCode();$('#np_name',sh).focus()};
   if(np){$('#np_cancel',sh).onclick=()=>{np.hidden=true;nb.hidden=false};
     $('#np_save',sh).onclick=async()=>{const err=$('#np_err',sh);err.hidden=true;const g=k=>$('#np_'+k,sh).value.trim();
       const code=g('code'),name=g('name'),qty=num(g('qty')),use=num(g('use'));
