@@ -343,7 +343,7 @@ function bindLocSel(sh,f){const sel=$('#f_'+f.k,sh),nw=$('#f_'+f.k+'_new',sh),ds
   refresh();if(ds)ds.addEventListener('change',refresh);
   sel.onchange=()=>{nw.hidden=sel.value!=='__new';if(!nw.hidden)nw.focus()}}
 function fieldHTML(f,v){
-  if(f.type==='sec')return`<div class="sec">${esc(f.label)}</div>`;
+  if(f.type==='sec')return`<div class="sec" data-sec="${esc(f.label)}">${esc(f.label)}</div>`;
   const id='f_'+f.k,req=f.req?' <span class="req">*</span>':'',cls=f.full?' full':'';
   if(f.type==='locsel')return`<div class="field${cls}"><label for="${id}">${esc(f.label)}${req}</label><select id="${id}">${locOptionsHTML('',v)}</select><input id="${id}_new" type="text" placeholder="Type the new location name" autocomplete="off" hidden></div>`;
   if(f.type==='check')return`<label class="check${cls}" for="${id}"><input type="checkbox" id="${id}"${v?' checked':''}><span>${esc(f.label)}${f.hint?`<br><span class="muted" style="font-size:12px">${esc(f.hint)}</span>`:''}</span></label>`;
@@ -893,7 +893,7 @@ function assetForm(id,copyFrom,preset){
       const key=id||newId('assets');const next={...(prev||{}),...v};
       await put('assets',key,next,src?'Created as another unit of '+src.code:diffAct(prev,next,F_ASSET));toast(prev?'Asset updated':'Asset added');renderList();if(prev)renderDetail();else openDetail('asset',key);
     }});
-  if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});const hide=it&&!(prev&&isCal(prev));F_CAL.forEach(f=>{if(f.k){const el=$('#f_'+f.k,sh)?.closest('.field');if(el)el.hidden=hide}});$$('.sec',sh).forEach(x=>{if(/^Calibration/.test(x.textContent))x.hidden=hide})};if(cat){cat.addEventListener('change',tog);tog()}}
+  if(sh){const cat=$('#f_category',sh);const tog=()=>{const it=isIT({category:cat.value});const hide=it&&!(prev&&isCal(prev));F_CAL.forEach(f=>{if(f.k){const el=$('#f_'+f.k,sh)?.closest('.field');if(el)el.hidden=hide}});$$('.sec',sh).forEach(x=>{if(/^Calibration/.test(x.dataset.sec||''))x.hidden=hide})};if(cat){cat.addEventListener('change',tog);tog()}}
   if(src&&sh){const sub=document.createElement('p');sub.className='muted';sub.style.margin='0';sub.textContent=`Copied from ${src.code}. Check the asset code, then enter the serial no., department and location of this unit.`;$('form',sh).prepend(sub);const lf=$('#f_location',sh);if(lf)lf.focus()}
 }
 /* inline "add new contractor / vendor" in any contractor dropdown */
@@ -1697,7 +1697,7 @@ function readCalBox(sh){const box=$('#calBox',sh);if(!box||box.hidden)return nul
   return{rule:(S.settings.cal&&S.settings.cal.rule)||'error',kind:$('#cal_kind',box).value,cert:$('#cal_cert',box).value.trim(),std:$('#cal_std',box).value.trim(),points,result:res,impact:$('#cal_impact',box).value.trim(),oos:$('#cal_oos',box).checked}}
 function bindCalBox(sh){
   const box=$('#calBox',sh);if(!box)return;const ty=$('#f_type',sh),as=$('#f_assetId',sh);
-  const anchor=$$('.fgrid .sec',sh).find(d=>/^Food safety & compliance/.test(d.textContent));if(anchor){box.style.gridColumn='1/-1';anchor.before(box)}
+  const anchor=$$('.fgrid .sec',sh).find(d=>/^Food safety & compliance/.test(d.dataset.sec||''));if(anchor){box.style.gridColumn='1/-1';anchor.before(box)}
   const tol=()=>{const a=A(as&&as.value);return a?a.calTol:''};
   const show=()=>{box.hidden=!(ty&&ty.value==='Calibration')};show();if(ty)ty.addEventListener('change',show);
   box.addEventListener('input',e=>{if(e.target.closest('.cr-s'))e.target.dataset.manual='1';calRecalc(box,tol())});
@@ -2092,13 +2092,13 @@ DETAIL.purchase=(id,p)=>{
 /* list */
 function filteredPurchases(){const q=fval('purchases','q'),s=fval('purchases','state');
   return Object.entries(S.purchases).filter(([,p])=>{const st=p.status||'Draft';
-    const ok=!s?!['Received','Cancelled','Rejected'].includes(st)||purSapMissing(p):s==='pending'?st==='Pending approval':s==='approved'?st==='Approved':s==='order'?purOpen(p):s==='sap'?purSapMissing(p):s==='received'?st==='Received':s==='rejected'?st==='Rejected'||st==='Cancelled':s==='draft'?st==='Draft':true;
+    const ok=!s||s==='all'?true:s==='open'?!['Received','Cancelled','Rejected'].includes(st)||purSapMissing(p):s==='pending'?st==='Pending approval':s==='approved'?st==='Approved':s==='order'?purOpen(p):s==='sap'?purSapMissing(p):s==='received'?st==='Received':s==='rejected'?st==='Rejected'||st==='Cancelled':s==='draft'?st==='Draft':true;
     return ok&&match(q,p.no,p.poNo,p.purpose,p.requestedBy,p.dept,sup(p.supplierId)?.name,sup(p.po&&p.po.supplierId)?.name,p.inv&&p.inv.sapRef,p.inv&&p.inv.invNo,...(p.lines||[]).map(l=>l.desc))})
     .sort((a,b)=>String(b[1].reqDate||'').localeCompare(String(a[1].reqDate||''))||String(b[1].no||'').localeCompare(String(a[1].no||'')))}
 VIEW.purchases={
   shell:()=>`<h2>Purchasing</h2><p class="muted" style="margin-top:-4px">Purchase request → approval → purchase order → goods received. Supplier invoices are keyed into SAP B1; record the SAP B1 reference on each purchase.</p><div class="toolbar">
     <input class="grow" type="search" data-f="q" id="q_u" placeholder="Search PR / PO no., item, supplier, SAP ref…" value="${esc(fval('purchases','q'))}">
-    <select data-f="state" id="s_u" style="width:auto">${[['','Open (not closed)'],['pending','Waiting for approval'],['approved','Approved, PO not issued'],['order','On order (PO issued)'],['sap','Received, SAP ref missing'],['received','Received'],['draft','Drafts'],['rejected','Rejected / cancelled'],['all','Everything']].map(o=>opt(o,fval('purchases','state'))).join('')}</select>
+    <select data-f="state" id="s_u" style="width:auto">${[['','All purchases (newest first)'],['open','Open (not closed)'],['pending','Waiting for approval'],['approved','Approved, PO not issued'],['order','On order (PO issued)'],['sap','Received, SAP ref missing'],['received','Received'],['draft','Drafts'],['rejected','Rejected / cancelled']].map(o=>opt(o,fval('purchases','state'))).join('')}</select>
     ${W(()=>'<button class="btn pri" id="addU">New purchase request</button>')}<button class="btn" id="expU">Export CSV</button></div><div id="list"></div>`,
   bind(){bindFilters('purchases');const a=$('#addU');if(a)a.onclick=()=>purForm();$('#expU').onclick=()=>exportCSV('purchases')},
   list(){const rows=filteredPurchases();const all=Object.values(S.purchases);
