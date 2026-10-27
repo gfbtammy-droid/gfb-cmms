@@ -230,7 +230,7 @@ th{background:var(--surface-2);font-weight:600}
     <li><b>Work done:</b> internal team or external contractor, contractor name, technician, start and completion dates, downtime hours, tasks completed.</li>
     <li><b>Contractor not in the list?</b> Pick <span class="ui">＋ Add new contractor / vendor…</span> at the bottom of the dropdown, type the name and click <span class="ui">Add</span>.</li>
     <li><b>Food safety &amp; compliance (F45 section 3):</b> tick the hygiene, safety, isolation, PPE, foreign-matter and hygiene-clearance checks.</li>
-    <li><b>Spares used from store:</b> click <span class="ui">Add spare part</span>, choose the part and quantity. Stock is deducted automatically when you save. A part not yet in the store list can be created on the spot with <span class="ui">＋ New part (not in list yet)</span>.</li>
+    <li><b>Parts &amp; consumables used from store:</b> click <span class="ui">Add spare part</span>, choose the part and quantity. Stock is deducted automatically when you save. A part not yet in the store list can be created on the spot with <span class="ui">＋ New part (not in list yet)</span>.</li>
     <li><b>Supplier report &amp; invoice:</b> report no., invoice no., date and amount, plus internal labour cost.</li>
     <li><b>Attachments:</b> attach the service report, invoice and before / after photos.</li>
   </ul>
@@ -351,14 +351,14 @@ th{background:var(--surface-2);font-weight:600}
 
 <!-- ============ 9 ============ -->
 <section id="spares">
-  <h2><small>09</small>Spares (store)</h2>
+  <h2><small>09</small>Part &amp; Consumables (store)</h2>
   <p class="lead">Spare parts and consumables kept for maintenance, with stock on hand and re-order levels.</p>
-  <figure><img src="guide/16-spares.jpg" alt="Spares" loading="lazy"><figcaption><span class="tab">Spares</span> tab.</figcaption></figure>
+  <figure><img src="guide/16-spares.jpg" alt="Part &amp; Consumables" loading="lazy"><figcaption><span class="tab">Part &amp; Consumables</span> tab.</figcaption></figure>
   <ul>
     <li><span class="ui">Add part</span>: choose the <b>category</b> first and the part code fills in as that category's running number: <b>FAC-0001</b> building &amp; facilities, <b>MCH-0001</b> machines &amp; tools, <b>FLT-0001</b> forklift &amp; reach truck, <b>OFC-0001</b> office equipment &amp; IT (PCs included). For existing parts, type your own code instead. Then enter the name, category, unit, unit cost, <b>re-order level</b>, usual supplier and opening stock.</li>
     <li>Open a part and use <span class="ui">Receive</span> (stock in, with DO / invoice no.), <span class="ui">Issue</span> (stock out to an asset) or <span class="ui">Adjust</span> (enter the counted quantity after a stock take).</li>
     <li>Parts used on a work order are deducted automatically.</li>
-    <li>When stock falls to the re-order level, it shows on the Overview tile <b>Spares at re-order level</b>.</li>
+    <li>When stock falls to the re-order level, it shows on the Overview tile <b>Parts at re-order level</b>.</li>
   </ul>
 </section>
 
@@ -380,9 +380,9 @@ th{background:var(--surface-2);font-weight:600}
   <h3>1. Raise a purchase request (PR)</h3>
   <figure><img src="guide/23-pur-form.jpg" alt="New purchase request" loading="lazy"><figcaption><span class="tab">Purchasing</span> → <span class="ui">New purchase request</span>.</figcaption></figure>
   <ol>
-    <li>Go to <span class="tab">Purchasing</span> → <span class="ui">New purchase request</span>. Shortcuts: <span class="ui">Raise purchase request</span> on a work order or a spare part, or <span class="ui">Raise PR for low stock</span> on the Spares tab (fills in every part at or below its re-order level).</li>
+    <li>Go to <span class="tab">Purchasing</span> → <span class="ui">New purchase request</span>. Shortcuts: <span class="ui">Raise purchase request</span> on a work order or a spare part, or <span class="ui">Raise PR for low stock</span> on the Part &amp; Consumables tab (fills in every part at or below its re-order level).</li>
     <li>Fill in department, needed-by date, the work order it is for (optional) and the <b>purpose / reason</b>.</li>
-    <li>Add the items. Choose a <b>store item</b> so stock goes up automatically when it arrives; for tools, services or things not kept in store choose <b>Other item</b> and type a description. Enter quantity, unit and estimated unit price.</li>
+    <li>Add the items. For each line choose:<ul><li>an <b>existing item</b> from Part &amp; Consumables, or</li><li><b>＋ New item</b>, type its name and pick its <b>category</b>. It is given an item code automatically (e.g. <b>MCH-0005</b>) and added to Part &amp; Consumables when you submit, or</li><li><b>Service / non-stock</b> for repairs, labour or one-off tools not kept in store (not added to the list).</li></ul>Enter quantity, unit and estimated unit price.</li>
     <li>Click <span class="ui">Submit for approval</span> (or <span class="ui">Save as draft</span>). A PR number such as <b>PR-2610-001</b> is issued.</li>
   </ol>
 
@@ -418,7 +418,7 @@ th{background:var(--surface-2);font-weight:600}
   <h3>Other</h3>
   <ul>
     <li><b>Cancel</b> a request or PO that is no longer needed (a reason is required). The record is kept.</li>
-    <li>Spares show an <b>On order</b> quantity, and each part lists its open purchases.</li>
+    <li>Part &amp; Consumables shows an <b>On order</b> quantity, and each part lists its open purchases.</li>
     <li><span class="ui">Export CSV</span> on the Purchasing tab gives every PR / PO with approval, receiving, invoice and SAP B1 reference for reconciliation.</li>
   </ul>
 </section>
@@ -443,7 +443,7 @@ th{background:var(--surface-2);font-weight:600}
   <ul>
     <li><b>Locations:</b> add rooms and areas and link each to a department.</li>
     <li><b>Lists used in forms:</b> asset categories, departments and spare-part categories (one per line).</li>
-    <li><b>Spare-part codes:</b> the prefix used for each spare-part category's running number (FAC, MCH, FLT, OFC).</li>
+    <li><b>Part &amp; consumable codes:</b> the prefix used for each spare-part category's running number (FAC, MCH, FLT, OFC).</li>
     <li><b>Reporting deadlines:</b> DOSH written report days and PERKESO Borang 34 hours.</li>
     <li><b>Purchase order:</b> company address, phone, email, registration and SST numbers, default payment terms and deliver-to address, and the note printed at the bottom of every PO.</li>
     <li><b>Calibration:</b> how many days before an external calibration / stamping date it turns amber, and the pass / fail rule (error only, or error + uncertainty).</li>

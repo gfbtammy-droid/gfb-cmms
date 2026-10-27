@@ -147,7 +147,7 @@ a{color:var(--accent)}
 .menu>button{background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px 4px 4px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink)}
 .av{width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:600;font-size:12px}
 .so{display:none}
-.pl,.plh{display:grid;grid-template-columns:1.5fr 2fr 0.7fr 0.7fr 0.9fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.plh{font-size:12px}.pl-a{text-align:right}
+.pl,.plh{display:grid;grid-template-columns:1.5fr 2fr 0.7fr 0.7fr 0.9fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.plh{font-size:12px}.pl-a{text-align:right}.pl-n{grid-column:1/-1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:-2px 0 4px}.pl-n select{width:auto;min-width:200px}.pl-code{font-size:13px}
 @media (max-width:760px){.plh{display:none}.pl{grid-template-columns:1fr 1fr 1fr;padding:8px;border:1px solid var(--line);border-radius:8px;margin-bottom:8px}.pl-p,.pl-d{grid-column:1/-1}.pl-x{justify-self:end}}
 .calr,.calh{display:grid;grid-template-columns:1.8fr 1.1fr 1fr 0.8fr 0.9fr 34px;gap:6px;align-items:center;margin-bottom:4px}.calh{font-size:12px}
 @media (max-width:640px){.calr,.calh{grid-template-columns:1.2fr 1fr 1fr 0.9fr 30px}.calr .cr-e,.calh span:nth-child(4){display:none}}
@@ -167,7 +167,7 @@ td.mono,td .mono{white-space:nowrap}
 <header class="top">
   <div class="wrap" style="padding-block:0">
     <div class="brand">
-      <div><h1>GFB FOOD - CMMS</h1><div class="sub">Machines · Equipment · Spares · Contractors — ISO 22000 / HACCP / GMP records</div></div>
+      <div><h1>GFB FOOD - CMMS</h1><div class="sub">Machines · Equipment · Parts · Contractors — ISO 22000 / HACCP / GMP records</div></div>
       <a class="guide-lk" href="guide.html" target="_blank" rel="noopener" title="User guide: how to use the CMMS" aria-label="User guide">User guide</a><div class="me menu" id="me"></div>
     </div>
     <nav class="tabs" id="tabs" aria-label="Modules"></nav>
@@ -478,7 +478,7 @@ const F_SUP=[
 ];
 
 /* ---------- shell / navigation ---------- */
-const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM'],['cal','Calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Spares'],['purchases','Purchasing'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
+const ALLVIEWS=[['dash','Overview'],['wos','Work orders'],['incidents','Incidents'],['pm','PM'],['cal','Calibration'],['contracts','Contracts'],['assets','Assets'],['parts','Part & Consumables'],['purchases','Purchasing'],['suppliers','Contractors'],['activity','Activity'],['settings','Settings'],['users','Users']];
 let VIEWS=ALLVIEWS.filter(v=>v[0]!=='users');
 function counts(){
   const as=Object.values(S.assets);
@@ -545,7 +545,7 @@ VIEW.dash={shell:()=>'<div id="list"></div>',list(){
     ${tile('bad',open.length,'Open work orders','wos|status|open')}
     ${tile('warn',toVerify.length,'Awaiting QA verification','wos|status|Completed')}
     ${tile('bad',down.length,'Machines under repair','assets|status|Under repair')}
-    ${tile('warn',low.length,'Spares at re-order level','parts|low|1')}
+    ${tile('warn',low.length,'Parts at re-order level','parts|low|1')}
     ${tile('warn',Object.values(S.purchases).filter(p=>p.status==='Pending approval').length,'Purchase requests awaiting approval','purchases|state|pending')}
     ${tile('warn',Object.values(S.contracts).filter(conDue).length,'Contract renewals due','contracts|state|due')}
     ${tile('warn',Object.values(S.assets).filter(calDue).length,'Calibration due / out of tolerance','cal|state|due')}
@@ -601,7 +601,7 @@ VIEW.pm={
   }};
 
 VIEW.parts={
-  shell:()=>`<h2>Spare parts &amp; consumables</h2><div class="toolbar">
+  shell:()=>`<h2>Part &amp; Consumables</h2><div class="toolbar">
     <input class="grow" type="search" data-f="q" id="q_s" placeholder="Search part code, name, asset…" value="${esc(fval('parts','q'))}">
     <select data-f="cat" id="c_s" style="width:auto"><option value="">All categories</option>${S.settings.partCats.map(c=>opt(c,fval('parts','cat'))).join('')}</select>
     <select data-f="low" id="l_s" style="width:auto">${[['','All stock'],['1','At / below re-order level']].map(o=>opt(o,fval('parts','low'))).join('')}</select>
@@ -641,7 +641,7 @@ VIEW.settings={
   shell:()=>`<div id="list"></div><h2>Lists used in forms</h2><p class="muted" style="margin-top:-4px">One item per line. Renaming an item does not change records already saved.${S.canAdmin?'':' Only an admin can change these lists.'}</p>
    <div class="grid2">${[['categories','Asset categories'],['departments','Departments'],['partCats','Spare-part categories']].map(([k,l])=>`<div class="panel"><div class="field"><label for="set_${k}">${l}</label><textarea id="set_${k}" style="min-height:200px"${S.canAdmin?'':' readonly'}>${esc((S.settings[k]||[]).join('\n'))}</textarea></div></div>`).join('')}</div>
    ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn pri" id="saveSet">Save lists</button></div>':''}
-   <h2>Spare-part codes</h2><div class="panel"><p class="muted" style="margin:0 0 10px">New parts get an automatic running number by category, e.g. <span class="mono">${esc(partPrefix(S.settings.partCats[0]))}-0001</span>. Change a prefix here (2 to 5 letters or digits). Existing parts keep their codes; anyone can still type their own code when adding a part.</p>
+   <h2>Part &amp; consumable codes</h2><div class="panel"><p class="muted" style="margin:0 0 10px">New parts get an automatic running number by category, e.g. <span class="mono">${esc(partPrefix(S.settings.partCats[0]))}-0001</span>. Change a prefix here (2 to 5 letters or digits). Existing parts keep their codes; anyone can still type their own code when adding a part.</p>
      <div class="fgrid">${S.settings.partCats.map((c,i)=>`<div class="field"><label for="pp_${i}">${esc(c)}</label><input id="pp_${i}" data-cat="${esc(c)}" type="text" maxlength="5" value="${esc(partPrefix(c))}"${S.canAdmin?'':' readonly'}><span class="muted" style="font-size:12px">Next: <span class="mono">${esc(nextPartCode(c))}</span></span></div>`).join('')}</div>
      ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="savePP">Save code prefixes</button></div>':''}</div>
    <h2>Reporting deadlines</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Used by the incident register. The DOSH written report is 7 days under the NADOPOD Regulations 2004. Confirm the PERKESO Borang 34 deadline with PERKESO or your HR SOP.</p>
@@ -726,7 +726,7 @@ const DETAIL={
       ${(()=>{const sib=sameModel(id,a);return sib.length?`<div><h3>Same model elsewhere</h3><p class="muted" style="margin:0 0 8px">${sib.length} other unit(s) of ${esc([a.manufacturer,a.model].filter(Boolean).join(' '))}</p><div class="tbl-wrap"><table style="min-width:0"><tbody>${sib.map(([sid,b])=>`<tr data-open="asset:${sid}"><td class="mono">${esc(b.code)}</td><td>${esc(place(b)||'—')}${b.assignedTo?'<br><span class="muted">'+esc(b.assignedTo)+'</span>':''}</td><td>${statusPill(b.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
       <div><h3>Maintenance history</h3><p class="muted" style="margin:0 0 8px">${ws.length} job(s) · ${rm(total)} · ${down} h downtime</p>${ws.length?`<div class="tbl-wrap"><table style="min-width:0"><tbody>${ws.map(([wid,w])=>`<tr data-open="wo:${wid}"><td class="mono">${esc(w.no)}<br><span class="muted">${fmtD(w.reportDate)}</span></td><td>${esc(w.title)}<br><span class="muted">${esc(w.type)}</span></td><td>${woPill(w.status)}</td><td class="r num">${rm(woCost(w))}</td></tr>`).join('')}</tbody></table></div>`:'<span class="muted">No jobs logged for this asset yet.</span>'}</div>
       ${S.me&&S.me.incidents?(()=>{const inc=Object.entries(S.incidents).filter(([,i])=>i.assetId===id);return inc.length?`<div><h3>Incidents involving this asset</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${inc.map(([iid,i])=>`<tr data-open="incident:${iid}"><td class="mono">${esc(i.no)}<br><span class="muted">${fmtD(i.incDate)}</span></td><td>${esc(i.title)}</td><td>${incStatusPill(i.status)}</td></tr>`).join('')}</tbody></table></div></div>`:''})():''}
-      ${usedParts.length?`<div><h3>Spares for this asset</h3>${usedParts.map(p=>`<div>${esc(p.code)} · ${esc(p.name)} — <b class="num">${num(p.qty)} ${esc(p.unit||'')}</b> in store</div>`).join('')}</div>`:''}`,
+      ${usedParts.length?`<div><h3>Parts used on this asset</h3>${usedParts.map(p=>`<div>${esc(p.code)} · ${esc(p.name)} — <b class="num">${num(p.qty)} ${esc(p.unit||'')}</b> in store</div>`).join('')}</div>`:''}`,
       bind(d){const e=$('#dEdit',d);if(e)e.onclick=()=>assetForm(id);const du=$('#dDup',d);if(du)du.onclick=()=>assetForm(null,id);const mvb=$('#dMove',d);if(mvb)mvb.onclick=()=>moveAsset(id);const n=$('#dNewWO',d);if(n)n.onclick=()=>woForm(null,{assetId:id});$('#dQR',d).onclick=()=>printLabels([id]);const p=$('#dPM',d);if(p)p.onclick=()=>woForm(null,{assetId:id,type:'Preventive maintenance',title:'Scheduled preventive maintenance',tasksDone:a.pmTasks||''});$$('[data-sup]',d).forEach(x=>x.onclick=ev=>{ev.preventDefault();openDetail('supplier',x.dataset.sup)});$$('[data-calrec]',d).forEach(b=>b.onclick=()=>calRecord(id,b.dataset.calrec));const ac=$('#dAddCon',d);if(ac)ac.onclick=()=>conForm(null,{assetId:id,supplierId:a.supplierId||'',dept:a.dept||'',title:a.name+' – support',type:isIT(a)?'Support agreement / AMC':'Service contract (non-IT)'})}};
   },
   wo(id,w){
@@ -966,8 +966,8 @@ function lineRow(l){
   return`<div class="line"><select class="lp" aria-label="Part"><option value="">Choose part…</option>${partOpts.map(([pid,p])=>`<option value="${pid}"${l.partId===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (${num(p.qty)} ${esc(p.unit||'')})</option>`).join('')}</select><input class="lq" type="number" step="any" inputmode="decimal" value="${esc(l.qty)}" aria-label="Quantity" placeholder="Qty"><span class="lc num muted">${l.partId?rm(num(l.qty)*num(l.unitCost)):''}</span><button type="button" class="btn sm lx" aria-label="Remove line">×</button></div>`;
 }
 function linesEditor(lines){
-  return`<div class="fgrid"><div class="sec">Spares used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div><div class="acts" style="margin:0"><button type="button" class="btn sm" id="addLine"${Object.keys(S.parts).length?'':' hidden'}>Add spare part</button><button type="button" class="btn sm" id="newPartBtn">＋ New part (not in list yet)</button></div>
-  <div id="newPart" class="panel" hidden style="padding:12px"><b>New spare / consumable</b><p class="muted" style="margin:2px 0 8px;font-size:12px">It is saved to Spares &amp; consumables and added to this job. Enter the quantity bought or in store now; the job deducts what it uses when it is marked Completed.</p>
+  return`<div class="fgrid"><div class="sec">Parts &amp; consumables used from store</div></div><div class="lines" id="lines">${lines.map(lineRow).join('')}</div><div class="acts" style="margin:0"><button type="button" class="btn sm" id="addLine"${Object.keys(S.parts).length?'':' hidden'}>Add spare part</button><button type="button" class="btn sm" id="newPartBtn">＋ New part (not in list yet)</button></div>
+  <div id="newPart" class="panel" hidden style="padding:12px"><b>New spare / consumable</b><p class="muted" style="margin:2px 0 8px;font-size:12px">It is saved to Part &amp; Consumables and added to this job. Enter the quantity bought or in store now; the job deducts what it uses when it is marked Completed.</p>
    <div class="fgrid"><div class="field"><label for="np_cat">Category</label><select id="np_cat"><option value="">—</option>${S.settings.partCats.map(c=>opt(c)).join('')}</select></div><div class="field"><label for="np_code">Part code * <span class="muted" style="font-weight:400">(auto)</span></label><input id="np_code" type="text" placeholder="e.g. SP-0001"></div><div class="field"><label for="np_name">Name *</label><input id="np_name" type="text" placeholder="e.g. Door borehole repair plate"></div>
    <div class="field"><label for="np_unit">Unit</label><input id="np_unit" type="text" placeholder="pcs, roll, litre"></div><div class="field"><label for="np_cost">Unit cost (RM)</label><input id="np_cost" type="number" step="any" inputmode="decimal"></div>
    <div class="field"><label for="np_qty">Quantity bought / in store now</label><input id="np_qty" type="number" step="any" inputmode="decimal"></div><div class="field"><label for="np_use">Used on this job</label><input id="np_use" type="number" step="any" inputmode="decimal" value="1"></div></div>
@@ -1054,7 +1054,7 @@ function woForm(id,preset={}){
       b.disabled=false;
       $$('#lines .lp',sh).forEach(sel=>{if(!sel.querySelector(`option[value="${key}"]`))sel.insertAdjacentHTML('beforeend',`<option value="${key}">${esc(code)} · ${esc(name)} (${qty} ${esc(part.unit||'')})</option>`)});
       if(use>0){$('#lines',sh).insertAdjacentHTML('beforeend',lineRow({partId:key,qty:use,unitCost:num(part.unitCost)}));bindLines()}
-      ['name','unit','cost','qty'].forEach(k=>$('#np_'+k,sh).value='');$('#np_code',sh).value=nextPartCode($('#np_cat',sh).value);$('#np_use',sh).value='1';np.hidden=true;nb.hidden=false;if(al)al.hidden=false;toast(name+' added to Spares & consumables');
+      ['name','unit','cost','qty'].forEach(k=>$('#np_'+k,sh).value='');$('#np_code',sh).value=nextPartCode($('#np_cat',sh).value);$('#np_use',sh).value='1';np.hidden=true;nb.hidden=false;if(al)al.hidden=false;toast(name+' added to Part & Consumables');
     }}
   bindLines();
   // suggest contractor's name when contractor chosen
@@ -1087,7 +1087,7 @@ function exportCSV(coll){
   }[coll];
   const rows=Object.entries(S[coll]).map(([id,r])=>({...r,_id:id}));
   const csv='﻿'+[spec.map(c=>c[0]).join(','),...rows.map(r=>spec.map(([,k])=>csvCell(typeof k==='function'?k(r):r[k])).join(','))].join('\r\n');
-  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Spares_Stock',suppliers:'Contractors',contracts:'Contracts_Renewals',purchases:'Purchasing'})[coll]}_${today()}.csv`,csv);
+  save(`GFB_${({assets:'Asset_Register',workorders:'Work_Orders',parts:'Part_Consumables_Stock',suppliers:'Contractors',contracts:'Contracts_Renewals',purchases:'Purchasing'})[coll]}_${today()}.csv`,csv);
 }
 function downloadF45(id,print){
   const w=S.workorders[id],a=A(w.assetId)||{},s=sup(w.supplierId)||{};
@@ -1899,25 +1899,40 @@ function onOrderQty(partId){return Object.values(S.purchases).filter(purOpen).re
 const lidNew=()=>'l'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
 /* line editor */
-function purLineRow(l){const parts=Object.entries(S.parts).sort(byStr('code'));
-  return`<div class="pl" data-lid="${esc(l.lid||lidNew())}"><select class="pl-p" aria-label="Store item"><option value="">Other item (type description)</option>${parts.map(([pid,p])=>`<option value="${pid}"${l.partId===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (on hand ${num(p.qty)})</option>`).join('')}</select>
-  <input class="pl-d" type="text" aria-label="Description" placeholder="Description / specification" value="${esc(l.desc)}">
+function purLineSel(l){return l.partId?l.partId:(l.kind==='svc'?'__svc':'__new')}
+function purLineRow(l){const parts=Object.entries(S.parts).sort(byStr('code'));const sel=purLineSel(l);
+  return`<div class="pl" data-lid="${esc(l.lid||lidNew())}"><select class="pl-p" aria-label="Item"><option value="__new"${sel==='__new'?' selected':''}>＋ New item (adds to Part &amp; Consumables)</option><option value="__svc"${sel==='__svc'?' selected':''}>Service / non-stock (not added to list)</option>${parts.length?`<optgroup label="Existing items">${parts.map(([pid,p])=>`<option value="${pid}"${sel===pid?' selected':''}>${esc(p.code)} · ${esc(p.name)} (on hand ${num(p.qty)})</option>`).join('')}</optgroup>`:''}</select>
+  <input class="pl-d" type="text" aria-label="Description" placeholder="Item name / specification" value="${esc(l.desc)}">
   <input class="pl-q" type="number" step="any" inputmode="decimal" aria-label="Quantity" placeholder="Qty" value="${esc(l.qty)}">
   <input class="pl-u" type="text" aria-label="Unit" placeholder="Unit" value="${esc(l.unit)}">
   <input class="pl-r" type="number" step="any" inputmode="decimal" aria-label="Unit price (RM)" placeholder="Unit price" value="${esc(l.price)}">
-  <span class="pl-a num muted"></span><button type="button" class="btn sm pl-x" aria-label="Remove item">×</button></div>`}
-function purLinesHTML(lines){return`<div class="fgrid"><div class="sec">Items</div></div><div class="plh muted"><span>Store item</span><span>Description</span><span>Qty</span><span>Unit</span><span>Unit price (RM)</span><span>Amount</span><span></span></div>
+  <span class="pl-a num muted"></span><button type="button" class="btn sm pl-x" aria-label="Remove item">×</button>
+  <div class="pl-n"${sel==='__new'?'':' hidden'}><select class="pl-c" aria-label="Category for the new item"><option value="">Category…</option>${S.settings.partCats.map(c=>opt(c,l.cat)).join('')}</select><span class="pl-code muted"></span></div></div>`}
+function purLinesHTML(lines){return`<div class="fgrid"><div class="sec">Items</div></div><div class="plh muted"><span>Item</span><span>Name / description</span><span>Qty</span><span>Unit</span><span>Unit price (RM)</span><span>Amount</span><span></span></div>
   <div id="purLines">${(lines.length?lines:[{}]).map(purLineRow).join('')}</div>
   <div class="acts" style="margin:4px 0"><button type="button" class="btn sm" id="plAdd">Add item</button><span class="muted">Total <b id="plTot" class="num">RM 0.00</b></span></div>
-  <p class="muted" style="margin:0;font-size:12px">Pick a store item so stock goes up automatically when the goods arrive. For tools, services or items not kept in store, choose “Other item” and type a description.</p>`}
+  <p class="muted" style="margin:0;font-size:12px">Pick an existing item, or <b>＋ New item</b> with its category: it gets an item code automatically and is added to Part &amp; Consumables when you submit, so stock goes up when the goods arrive. Use <b>Service / non-stock</b> for repairs, labour or one-off tools you do not keep in store.</p>`}
 function bindPurLines(sh){const box=$('#purLines',sh);if(!box)return;
-  const calc=()=>{let t=0;$$('.pl',box).forEach(r=>{const a=num($('.pl-q',r).value)*num($('.pl-r',r).value);t+=a;$('.pl-a',r).textContent=a?rm(a):''});$('#plTot',sh).textContent=rm(t)};
+  const calc=()=>{let t=0;const seen={};$$('.pl',box).forEach(r=>{const a=num($('.pl-q',r).value)*num($('.pl-r',r).value);t+=a;$('.pl-a',r).textContent=a?rm(a):'';
+    const isNew=$('.pl-p',r).value==='__new';$('.pl-n',r).hidden=!isNew;
+    if(isNew){const c=$('.pl-c',r).value;if(c){const base=nextPartCode(c);const m=base.match(/^(.*-)(\d+)$/);const n=(seen[c]||0);seen[c]=n+1;const code=m?m[1]+String(parseInt(m[2],10)+n).padStart(m[2].length,'0'):base;$('.pl-code',r).innerHTML='Item code: <b class="mono">'+esc(code)+'</b> (given when submitted)'}else $('.pl-code',r).textContent='Choose a category to get the item code.'}});
+    $('#plTot',sh).textContent=rm(t)};
   box.addEventListener('change',e=>{const s=e.target.closest('.pl-p');if(s){const r=s.closest('.pl'),p=S.parts[s.value];if(p){$('.pl-d',r).value=p.code+' · '+p.name;if(!$('.pl-u',r).value)$('.pl-u',r).value=p.unit||'';if(!$('.pl-r',r).value&&p.unitCost!==''&&p.unitCost!=null)$('.pl-r',r).value=p.unitCost;
     if(!$('.pl-q',r).value&&p.minQty!==''&&p.minQty!=null)$('.pl-q',r).value=Math.max(1,num(p.minQty)*2-num(p.qty))}}calc()});
   box.addEventListener('input',calc);
   box.addEventListener('click',e=>{const x=e.target.closest('.pl-x');if(x){x.closest('.pl').remove();calc()}});
   $('#plAdd',sh).onclick=()=>{box.insertAdjacentHTML('beforeend',purLineRow({}));calc()};calc()}
-function readPurLines(sh){return $$('#purLines .pl',sh).map(r=>{const pid=$('.pl-p',r).value;return{lid:r.dataset.lid,partId:pid||'',desc:$('.pl-d',r).value.trim(),qty:$('.pl-q',r).value.trim()===''?'':num($('.pl-q',r).value),unit:$('.pl-u',r).value.trim(),price:$('.pl-r',r).value.trim()===''?'':num($('.pl-r',r).value)}}).filter(l=>l.partId||l.desc||l.qty!=='')}
+function readPurLines(sh){return $$('#purLines .pl',sh).map(r=>{const sel=$('.pl-p',r).value;const kind=sel==='__new'?'new':sel==='__svc'?'svc':'part';
+  return{lid:r.dataset.lid,partId:kind==='part'?sel:'',kind,cat:kind==='new'?$('.pl-c',r).value:'',desc:$('.pl-d',r).value.trim(),qty:$('.pl-q',r).value.trim()===''?'':num($('.pl-q',r).value),unit:$('.pl-u',r).value.trim(),price:$('.pl-r',r).value.trim()===''?'':num($('.pl-r',r).value)}}).filter(l=>l.partId||l.desc||l.qty!=='')}
+/* create the new items in Part & Consumables (with their auto item code) and link the lines to them */
+async function purCreateParts(lines,prNo){const made=[];
+  for(const l of lines){if(l.kind!=='new')continue;
+    const hit=Object.entries(S.parts).find(([,p])=>String(p.name||'').trim().toLowerCase()===l.desc.toLowerCase());
+    if(hit){l.partId=hit[0];l.desc=hit[1].code+' · '+hit[1].name;l.kind='part';delete l.cat;continue}
+    const code=nextPartCode(l.cat),key=newId('parts');
+    await put('parts',key,{code,name:l.desc,category:l.cat,unit:l.unit,unitCost:l.price===''?'':num(l.price),qty:0,minQty:'',moves:[]},'Created from purchase request '+prNo);
+    made.push(code);l.partId=key;l.desc=code+' · '+l.desc;l.kind='part';delete l.cat}
+  return made}
 
 /* purchase request form */
 const F_PR=[
@@ -1941,12 +1956,15 @@ function purForm(id,preset={}){
     onSave:async v=>{const lines=readPurLines(sh);
       if(!lines.length)return'Add at least one item.';
       const bad=lines.find(l=>!l.desc||!(num(l.qty)>0));if(bad)return'Each item needs a description and a quantity above 0.';
-      const next={...(prev||{}),...v,lines};const tot=purLinesTotal(next);let act;
+      if(lines.some(l=>l.kind==='new'&&!l.cat))return'Choose a category for each new item, so it gets its item code.';
+      const prNo=(prev&&prev.no)||purNextNo('PR');let made=[];
+      try{made=await purCreateParts(lines,prNo)}catch(e){return'Could not add the new item(s) to Part & Consumables: '+e.message}
+      const next={...(prev||{}),...v,lines,no:prNo};const tot=purLinesTotal(next);let act;
       if(prev&&prev.status==='Approved'&&prev.approval&&prev.approval.decision==='Approved'&&tot<=num(prev.approval.total)+0.005){act='Items updated (within approved amount)'}
       else{next.status='Pending approval';next.approval=null;next.submittedAt=new Date().toISOString();if(!next.no)next.no=purNextNo('PR');
         act=prev&&prev.status==='Approved'?'Amount raised above approved '+rm(prev.approval.total)+' → sent back for approval':prev&&prev.status==='Rejected'?'Revised and resubmitted for approval':'Submitted for approval · '+rm(tot)}
       try{await put('purchases',key,next,act)}catch(e){return e.message}
-      toast(next.status==='Pending approval'?next.no+' sent for approval':'Saved');renderList();openDetail('purchase',key)}});
+      toast((next.status==='Pending approval'?next.no+' sent for approval':'Saved')+(made.length?' · added to Part & Consumables: '+made.join(', '):''));renderList();openDetail('purchase',key)}});
   if(sh)bindPurLines(sh);
 }
 
