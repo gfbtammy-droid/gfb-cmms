@@ -451,6 +451,13 @@ th{background:var(--surface-2);font-weight:600}
     <li><b>Calibration:</b> how many days before an external calibration / stamping date it turns amber, and the pass / fail rule (error only, or error + uncertainty).</li>
     <li><b>Data &amp; backups:</b> click <span class="ui">Download full data copy (.json)</span> every month and keep it with your ISO 22000 records.</li>
   </ul>
+  <h3>Admin corrections</h3>
+  <ul>
+    <li><b>Assets, work orders (even completed / verified), incidents (even closed), contracts, parts and contractors</b> can be edited at any time with <span class="ui">Edit</span> / <span class="ui">Update job</span> / <span class="ui">Update record</span>.</li>
+    <li><b>Purchases after the PO is issued</b> (PO issued, Partly received, Received, Cancelled): admins see <span class="ui">Edit (admin)</span> to correct the request, items, prices, PO details or reopen a cancelled purchase. Each goods-received entry has <span class="ui">Edit</span> (date, DO no., note) and <span class="ui">Undo receipt</span>, which takes the quantity back out of stock so the delivery can be recorded again.</li>
+    <li><b>Contract renewal history:</b> admins can <span class="ui">Edit</span> or <span class="ui">Delete</span> a renewal entry.</li>
+    <li>Every admin correction asks for a <b>reason</b>, which is saved in the record's change history with your name and time. The change history itself and stock movements cannot be edited, so the audit trail stays intact; correct stock with <span class="ui">Stock count</span>.</li>
+  </ul>
   <h3>Users</h3>
   <figure><img src="guide/19-users.jpg" alt="Users" loading="lazy"><figcaption><span class="tab">Users</span>: approve new people and set their role.</figcaption></figure>
   <ol>
