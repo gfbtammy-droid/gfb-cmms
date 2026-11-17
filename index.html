@@ -247,7 +247,7 @@ async function api(method,path,body){
   if((m=path.match(/^\/api\/receive\/([A-Za-z0-9_\-]+)$/))){const r=await rpc('po_receive',{p_id:m[1],p_date:body.date||'',p_do:body.doNo||'',p_note:body.note||'',p_lines:body.lines,p_base:body.base??null});
     if(r.error)throw ERR(r.error,400);if(r.conflict)throw ERR('Someone else changed this purchase at the same moment. Close it, reopen and try again.',409);return{ok:true,doc:r.doc}}
   if(path==='/api/users'){const {data,error}=await sb.from('profiles').select('*').order('created_at');if(error)throw sbErr(error);return data}
-  if((m=path.match(/^\/api\/users\/([0-9a-f-]{36})$/))){await rpc('admin_update_user',{p_id:m[1],p_name:body.name,p_role:body.role,p_active:!!body.active,p_incidents:!!body.incidents,p_approve:!!body.approve});return{ok:true}}
+  if((m=path.match(/^\/api\/users\/([0-9a-f-]{36})$/))){await rpc('admin_update_user',{p_id:m[1],p_name:body.name,p_role:body.role,p_active:!!body.active,p_incidents:!!body.incidents,p_approve:!!body.approve,p_verify:!!body.verify});return{ok:true}}
   if(path==='/api/import'){let n=0;for(let i=0;i<body.docs.length;i+=100){const r=await rpc('import_docs',{p_docs:body.docs.slice(i,i+100)});n+=r.imported}return{imported:n}}
   throw ERR('Unknown request '+path,'404');
 }
@@ -396,6 +396,8 @@ function formSheet({title,fields,data={},extra='',onSave,danger,onDraft,saveLabe
 }
 
 /* ---------- field specs ---------- */
+let PEOPLE=[];async function loadPeople(){try{PEOPLE=(await rpc('list_people'))||[]}catch(e){}}
+const picNameOf=id=>id?((PEOPLE.find(p=>p.id===id)||{}).name||''):'';
 const supOpts=()=>Object.entries(S.suppliers).sort(byStr('name')).map(([id,s])=>[id,s.name]);
 const assetOpts=()=>Object.entries(S.assets).filter(([,a])=>a.status!=='Disposed').sort(byStr('code')).map(([id,a])=>[id,a.code+' · '+a.name]);
 const F_ASSET=[
@@ -431,6 +433,7 @@ const F_WO=[
   {k:'title',label:'Problem / reason',req:true,full:true,ph:'e.g. Plug points not working, powder inside socket'},
   {k:'priority',label:'Priority',type:'select',opts:PRIORITY,blank:false},
   {k:'status',label:'Status',type:'select',opts:WO_STATUS,blank:false},
+  {k:'picId',label:'Person in charge (gets email updates)',short:'Person in charge',type:'select',opts:()=>{const L=PEOPLE.map(p=>[p.id,p.name]);return L}},
   {k:'reportDate',label:'Reported on',type:'date',req:true},{k:'reportedBy',label:'Reported by'},
   {type:'sec',label:'Work done'},
   {k:'performedBy',label:'Performed by',type:'select',opts:['Internal team','External contractor / vendor']},
@@ -668,6 +671,7 @@ VIEW.settings={
    <h2>Purchase order</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Printed on every purchase order. Approvers are set per person under Users (tick “Can approve purchase requests”).</p>
      <div class="fgrid">${[['address','Company address','textarea'],['phone','Phone'],['fax','Fax'],['email','Email'],['regNo','Company registration no.'],['sstNo','Sales Tax ID No.'],['tin','TIN (tax identification no.)'],['terms','Default payment terms'],['deliverTo','Default deliver-to address','textarea'],['prep','Prepared by (title on PO)'],['footer','Terms / note printed at the bottom of the PO','textarea']].map(([k,l,t])=>`<div class="field${t?' full':''}"><label for="po_${k}">${l}</label>${t?`<textarea id="po_${k}"${S.canAdmin?'':' readonly'}>${esc((S.settings.poDoc||{})[k]||'')}</textarea>`:`<input id="po_${k}" type="text" value="${esc((S.settings.poDoc||{})[k]||'')}"${S.canAdmin?'':' readonly'}>`}</div>`).join('')}</div>
      ${S.canAdmin?'<div class="acts" style="margin-top:12px"><button class="btn" id="savePO">Save purchase order details</button></div>':''}</div>
+   ${S.canAdmin?`<h2>Email notifications</h2><div class="panel"><p class="muted" style="margin:0 0 10px">Emails are sent from your Microsoft 365 mailbox when a purchase request needs approval or is approved, rejected or turned into a PO; when a work order is assigned, completed (to people ticked <b>Can verify work orders</b> under Users) or verified. A reminder summary goes out at 8:00 am on working days for anything waiting too long (purchase approval 2 working days; jobs: Critical 1, High 3, others 7; verification 2). After two reminders, overdue jobs are also sent to admins.</p><div id="ntBox" class="muted">Loading…</div></div>`:''}
    <h2>Data &amp; backups</h2><div class="panel"><p style="margin:0 0 10px">Records are stored in your Supabase project${CFG.supabaseUrl?` (<span class="mono">${esc(CFG.supabaseUrl.replace(/^https?:\/\//,''))}</span>)`:''}. Download a full copy every month and keep it with your ISO 22000 records. Attachments stay in Supabase Storage.</p>
      <div class="acts"><button class="btn pri" id="bkDl">Download full data copy (.json)</button>${S.canAdmin?'<label class="btn" for="bkImp" style="cursor:pointer">Import data file</label><input id="bkImp" type="file" accept=".json,application/json" hidden>':''}</div><div id="bkMsg" class="muted" style="margin-top:8px"></div></div>`,
   bind(){
@@ -678,6 +682,7 @@ VIEW.settings={
     const spp=$('#savePP');if(spp)spp.onclick=async()=>{const m={};let bad='';$$('[data-cat]').forEach(i=>{const v=i.value.trim().toUpperCase();if(!/^[A-Z0-9]{2,5}$/.test(v))bad=i.dataset.cat;m[i.dataset.cat]=v});
       if(bad){toast('Prefix for '+bad+' must be 2 to 5 letters or digits.');return}const vals=Object.values(m);if(new Set(vals).size!==vals.length){toast('Each category needs a different prefix.');return}
       try{await saveSettings({partPrefix:m},'Spare-part code prefixes: '+Object.entries(m).map(([k,v])=>k+' '+v).join(', '));toast('Saved');renderShell()}catch(e){}};
+    if(S.canAdmin)loadNotify();
     const sp=$('#savePO');if(sp)sp.onclick=async()=>{const v={};['address','phone','fax','email','regNo','sstNo','tin','terms','deliverTo','prep','footer'].forEach(k=>v[k]=$('#po_'+k).value.trim());try{await saveSettings({poDoc:v},'Purchase order details updated');toast('Saved')}catch(e){}};
     $('#bkDl').onclick=()=>{const docs=[];COLLS.concat('config').forEach(c=>Object.entries(S[c]||{}).forEach(([id,data])=>docs.push({coll:c,id,data})));
       save(`GFB_Asset_Maintenance_backup_${today()}.json`,JSON.stringify({app:'GFB Asset & Maintenance',exported:new Date().toISOString(),docs},null,1))};
@@ -694,14 +699,26 @@ VIEW.users={
   bind(){loadUsers()},
   list:()=>usersHTML()};
 let USERS=[];
+async function loadNotify(){const box=$('#ntBox');if(!box)return;
+  try{const [st,ob]=await Promise.all([sb.from('notify_settings').select('*'),sb.from('notify_outbox').select('id,to_email,to_name,subject,created_at,sent_at,last_error,attempts').order('id',{ascending:false}).limit(25)]);
+    if(st.error)throw sbErr(st.error);if(ob.error)throw sbErr(ob.error);
+    const set=Object.fromEntries((st.data||[]).map(r=>[r.key,r.value]));const on=set.enabled!=='false';const ls=set.last_status||'Not run yet';
+    const ok=/^OK/.test(ls);const when=t=>t?new Date(t).toLocaleString('en-GB',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}):'';
+    box.className='';box.innerHTML=`<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px"><span class="pill ${on?'ok':'bad'}">${on?'On':'Off'}</span><span class="pill ${ok?'ok':'warn'}">${ok?'Mailbox connected':'Mailbox not connected'}</span><span class="muted">${esc(ls)}</span></div>
+      <div class="acts" style="margin-bottom:12px"><button class="btn pri" id="ntTest">Send test email to me</button><button class="btn" id="ntTog">${on?'Turn emails off':'Turn emails on'}</button><button class="btn" id="ntRef">Refresh</button></div>
+      <div class="tbl-wrap"><table style="min-width:0"><thead><tr><th>Queued</th><th>To</th><th>Subject</th><th>Status</th></tr></thead><tbody>${(ob.data||[]).map(m=>`<tr><td class="num" style="white-space:nowrap">${when(m.created_at)}</td><td>${esc(m.to_name||m.to_email)}</td><td>${esc(m.subject)}</td><td>${m.sent_at?'<span class="pill ok">Sent '+when(m.sent_at)+'</span>':m.last_error?`<span class="pill bad" title="${esc(m.last_error)}">${/^Expired/.test(m.last_error)?'Expired':'Failed'}</span>`:'<span class="pill warn">Waiting</span>'}</td></tr>`).join('')||emptyRow(4,'No emails yet','')}</tbody></table></div>`;
+    $('#ntRef').onclick=loadNotify;
+    $('#ntTest').onclick=async()=>{try{await rpc('notify_test',{});toast('Test email queued. Check your inbox in a minute.');setTimeout(loadNotify,4000)}catch(e){toast(e.message)}};
+    $('#ntTog').onclick=async()=>{try{await rpc('notify_set_enabled',{p_on:!on});toast(on?'Emails turned off':'Emails turned on');loadNotify()}catch(e){toast(e.message)}};
+  }catch(e){box.textContent='Could not load email status: '+e.message}}
 async function loadUsers(){try{USERS=await api('GET','/api/users');renderList()}catch(e){toast(e.message)}}
 function usersHTML(){const L=USERS.slice().sort((a,b)=>(a.active===b.active?0:a.active?1:-1)||String(a.name).localeCompare(String(b.name)));
-  return`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th class="hs">Email</th><th>Role</th><th class="hs">Joined</th><th></th></tr></thead><tbody>${L.map(u=>`<tr><td>${esc(u.name||u.email)}${u.id===S.me.id?' <span class="pill acc">You</span>':''}</td><td class="hs">${esc(u.email)}</td><td>${u.active?`<span class="pill ${u.role==='admin'?'acc':u.role==='editor'?'info':''}">${esc(u.role)}</span>${u.role==='admin'||u.incident_access?' <span class="pill warn">Incidents</span>':''}${u.can_approve?' <span class="pill ok">Approver</span>':''}`:'<span class="pill bad">Waiting for approval</span>'}</td><td class="hs">${fmtD(String(u.created_at).slice(0,10))}</td><td class="r"><button class="btn sm" data-eu="${esc(u.id)}">${u.active?'Edit':'Review'}</button></td></tr>`).join('')||emptyRow(5,'No users','')}</tbody></table></div>`}
+  return`<div class="tbl-wrap"><table><thead><tr><th>Name</th><th class="hs">Email</th><th>Role</th><th class="hs">Joined</th><th></th></tr></thead><tbody>${L.map(u=>`<tr><td>${esc(u.name||u.email)}${u.id===S.me.id?' <span class="pill acc">You</span>':''}</td><td class="hs">${esc(u.email)}</td><td>${u.active?`<span class="pill ${u.role==='admin'?'acc':u.role==='editor'?'info':''}">${esc(u.role)}</span>${u.role==='admin'||u.incident_access?' <span class="pill warn">Incidents</span>':''}${u.can_approve?' <span class="pill ok">Approver</span>':''}${u.can_verify?' <span class="pill ok">Verifier</span>':''}`:'<span class="pill bad">Waiting for approval</span>'}</td><td class="hs">${fmtD(String(u.created_at).slice(0,10))}</td><td class="r"><button class="btn sm" data-eu="${esc(u.id)}">${u.active?'Edit':'Review'}</button></td></tr>`).join('')||emptyRow(5,'No users','')}</tbody></table></div>`}
 function userForm(id){
   const u=USERS.find(x=>x.id===id);if(!u)return;
   const fields=[{k:'name',label:'Full name',req:true},{k:'role',label:'Role',type:'select',opts:[['editor','Editor – add and update records'],['viewer','Viewer – read only'],['admin','Admin – everything']],blank:false},
-    {k:'active',label:'Account active (can sign in and see records)',type:'check',full:true},{k:'incidents',label:'Incident access (sees injury and health details in the incident register)',type:'check',full:true},{k:'approve',label:'Can approve purchase requests (their name and time are recorded on each approval)',type:'check',full:true}];
-  formSheet({title:(u.active?'Edit ':'Approve ')+(u.name||u.email),fields,data:{name:u.name,role:u.active?u.role:'editor',active:true,incidents:!!u.incident_access,approve:!!u.can_approve},onSave:async v=>{
+    {k:'active',label:'Account active (can sign in and see records)',type:'check',full:true},{k:'incidents',label:'Incident access (sees injury and health details in the incident register)',type:'check',full:true},{k:'approve',label:'Can approve purchase requests (their name and time are recorded on each approval)',type:'check',full:true},{k:'verify',label:'Can verify work orders (QA / HOD): gets an email when a job is marked Completed',type:'check',full:true}];
+  formSheet({title:(u.active?'Edit ':'Approve ')+(u.name||u.email),fields,data:{name:u.name,role:u.active?u.role:'editor',active:true,incidents:!!u.incident_access,approve:!!u.can_approve,verify:!!u.can_verify},onSave:async v=>{
     try{await api('PUT','/api/users/'+u.id,v);toast('Saved');loadUsers()}catch(e){return e.message}}});
 }
 
@@ -748,7 +765,7 @@ const DETAIL={
       body:`<div class="acts">${w.draft?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Draft.</b> Not yet a numbered work order. Click <b>Continue draft</b>, complete it and click <b>Save</b> to issue the WO number.</div>':''}${W(()=>`<button class="btn pri" id="dEdit">${w.draft?'Continue draft':'Update job'}</button>${w.status==='Completed'?'<button class="btn" id="dVerify">QA verify</button>':''}`)}<button class="btn" id="dF45p">Print F45 report</button><button class="btn" id="dF45">Download F45</button>${!w.draft?W(()=>'<button class="btn" id="dPRw">Raise purchase request</button>'):''}</div>
       ${(()=>{const L=Object.entries(S.purchases).filter(([,x])=>x.woId===id);return L.length?`<div><h3>Purchases for this job</h3><div class="tbl-wrap"><table style="min-width:0"><tbody>${L.map(([pid,x])=>`<tr data-open="purchase:${pid}"><td class="mono">${esc(x.poNo||x.no||'Draft')}</td><td>${purItemsText(x)}</td><td>${purPill(x)}</td><td class="r num">${rm(purGrand(x))}</td></tr>`).join('')}</tbody></table></div></div>`:''})()}
       ${w.incidentId?`<div class="banner" style="margin:0">${S.me&&S.me.incidents&&S.incidents[w.incidentId]?`Raised from incident <a href="#" data-inc="${w.incidentId}">${esc(S.incidents[w.incidentId].no)} · ${esc(S.incidents[w.incidentId].title)}</a>${w.capaId&&(S.incidents[w.incidentId].capa||[]).find(c=>c.cid===w.capaId)?' for action: <b>'+esc(S.incidents[w.incidentId].capa.find(c=>c.cid===w.capaId).action)+'</b>':''}`:'Raised from an incident record (restricted to people with incident access).'}</div>`:''}
-      ${kv([['Machine / item',w.assetId&&A(w.assetId)?`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`:''],['Department · location',esc(woWhere(w))],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
+      ${kv([['Machine / item',w.assetId&&A(w.assetId)?`<a href="#" data-asset="${w.assetId}">${esc(aLabel(w.assetId))}</a>`:''],['Department · location',esc(woWhere(w))],['Reported',fmtD(w.reportDate)+(w.reportedBy?' · '+esc(w.reportedBy):'')],['Performed by',esc(w.performedBy)],['Contractor',w.supplierId?`<a href="#" data-sup="${w.supplierId}">${esc(sup(w.supplierId)?.name||'')}</a>`:''],['Person in charge',esc(w.picName)],['Technician',esc(w.technician)],['Work dates',(w.startDate||w.completedDate)?fmtD(w.startDate)+' → '+fmtD(w.completedDate):''],['Downtime',w.downtimeHrs!==''&&w.downtimeHrs!=null?esc(w.downtimeHrs)+' h':''],['Supplier report no.',esc(w.supplierReportNo)]])}
       ${w.tasksDone?`<div><h3>Tasks completed</h3><div style="white-space:pre-wrap">${esc(w.tasksDone)}</div></div>`:''}
       ${calResultsHTML(w)}
       <div><h3>Compliance checks</h3><div style="display:grid;gap:4px">${chk.map(([k,l])=>`<div><span class="dot ${w[k]?'ok':'bad'}"></span>${l}${w[k]?'':' <span class="muted">— not confirmed</span>'}</div>`).join('')}</div></div>
@@ -1003,7 +1020,7 @@ function woForm(id,preset={}){
     danger:prev&&S.canAdmin?{label:prev.draft?'Discard draft':'Delete job',onClick:()=>prev.draft?confirmBox('Discard this draft?','The draft work order and any files attached to it will be removed.','Discard draft',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList();toast('Draft discarded')}):confirmBox('Delete '+prev.no+'?','The job, its compliance record and links to attachments will be removed. Spares already deducted are not returned to stock.','Delete',async()=>{await api('DELETE','/api/docs/workorders/'+id);delete S.workorders[id];closeLayer('drawer');renderList()})}:null,
     onDraft:(!prev||prev.draft)?async v=>{
       if(upPending)return'Please wait for the attachment upload to finish.';
-      const next={...(prev||{}),...link,...v,lines:readLines(),no:'',draft:true};const dc=v.type==='Calibration'?readCalBox(sh):null;if(dc)next.cal=dc;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines:readLines(),no:'',draft:true};next.picName=picNameOf(next.picId);const dc=v.type==='Calibration'?readCalBox(sh):null;if(dc)next.cal=dc;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       await put('workorders',key,next,prev?'Draft updated':'Saved as draft');toast('Draft saved. Open it from Work orders to finish.');renderList();if(prev)renderDetail();else openDetail('wo',key);
     }:null,
     onSave:async v=>{
@@ -1019,7 +1036,7 @@ function woForm(id,preset={}){
         if(!v.verifiedDate)v.verifiedDate=today();
       }
       if(v.status==='Completed'&&!prev?.partsPosted){for(const l of lines){const p=S.parts[l.partId];if(p&&num(l.qty)>num(p.qty))return`Only ${num(p.qty)} ${p.unit||''} of ${p.name} in store.`}}
-      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};const wasDraft=!!next.draft;delete next.draft;if(cal)next.cal=cal;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
+      const next={...(prev||{}),...link,...v,lines,no:prev?.no||nextWONo()};next.picName=picNameOf(next.picId);const wasDraft=!!next.draft;delete next.draft;if(cal)next.cal=cal;else delete next.cal;if(newFiles.length)next.files=[...(prev?.files||[]),...newFiles];if(!next.incidentId)delete next.incidentId;if(!next.capaId)delete next.capaId;
       const finishing=['Completed','Verified'].includes(next.status);
       // deduct spares once, when the job is first completed
       if(finishing&&!next.partsPosted&&lines.length){
@@ -2257,7 +2274,8 @@ function i18nButtons(){$$('[data-lang]').forEach(b=>b.setAttribute('aria-pressed
 function langSegHTML(){return`<div class="lang-seg" data-noi18n role="group" aria-label="Language / Bahasa"><button type="button" data-lang="ms" aria-pressed="${LANG==='ms'}">BM</button><button type="button" data-lang="en" aria-pressed="${LANG==='en'}">EN</button></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-lang]');if(b){setLang(b.dataset.lang);return}if(e.target.closest('#langBtn'))setLang(LANG==='ms'?'en':'ms')});
 I18N_OBS.observe(document.body,{childList:true,subtree:true,characterData:true});setLang(LANG);
-function routeHash(){const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
+function routeHash(){const lk=location.hash.match(/^#(wo|pur)-([A-Za-z0-9_\-]+)$/);if(lk){const kind=lk[1]==='wo'?'wo':'purchase',coll=lk[1]==='wo'?'workorders':'purchases';if(S[coll]&&S[coll][lk[2]]){go(lk[1]==='wo'?'wos':'purchases');openDetail(kind,lk[2])}else toast('That record was not found or you do not have access to it.');history.replaceState(null,'',location.pathname);return}
+  const m=location.hash.match(/^#asset-([A-Za-z0-9_\-]+)$/);if(m&&S.assets[m[1]]){openDetail('asset',m[1]);history.replaceState(null,'',location.pathname)}else{const v=location.hash.slice(1);if(ALLVIEWS.some(x=>x[0]===v))go(v)}}
 window.addEventListener('hashchange',routeHash);
 
 /* ---------- sign-in ---------- */
@@ -2304,7 +2322,7 @@ async function sync(){
     (r.deleted||[]).forEach(d=>{if(S[d.coll])delete S[d.coll][d.id]});
     const changed=r.docs.length||(r.deleted||[]).length;S.seq=r.seq;
     if(r.full||r.docs.some(d=>d.coll==='config'))applySettings();
-    if(!S.ready){S.ready=true;renderShell();routeHash()}
+    if(!S.ready){S.ready=true;renderShell();routeHash();loadPeople()}
     else if(changed){const ae=document.activeElement;if(!(S.view==='settings'&&ae&&ae.tagName==='TEXTAREA'))renderList();if(!$('.sheet'))renderDetail()}
     $('#offline')?.remove();
   }catch(e){if(e.code==='offline'&&!$('#offline'))document.body.insertAdjacentHTML('beforeend','<div id="offline" class="toast">No internet connection. Changes can’t be saved until it is back.</div>')}
