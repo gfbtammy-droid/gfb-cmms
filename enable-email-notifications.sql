@@ -60,6 +60,11 @@ begin
 exception when others then null;
 end $$;
 
+create or replace function public.notify_get_key() returns text language sql security definer set search_path = public as $$
+  select decrypted_secret from vault.decrypted_secrets where name = 'notify_key' $$;
+revoke execute on function public.notify_get_key() from public, anon, authenticated;
+grant execute on function public.notify_get_key() to service_role;
+
 create or replace function public.notify_enqueue(p_to uuid, p_subject text, p_body text, p_kind text, p_coll text, p_id text)
 returns void language plpgsql security definer set search_path = public as $$
 declare pr profiles;
@@ -192,6 +197,7 @@ create or replace function public.notify_wdays(p_from timestamptz) returns int l
 -- daily summary at 8:00 am (Mon-Fri): one email per person
 create or replace function public.notify_daily() returns int
 language plpgsql security definer set search_path = public as $$
+#variable_conflict use_column
 declare st record; d jsonb; thr int; who uuid[]; ref text; link text; what text; esc boolean; n int := 0;
         r record; html text; cnt int;
 begin
