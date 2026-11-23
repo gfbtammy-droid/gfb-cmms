@@ -54,6 +54,12 @@ begin
     execute format('grant execute on function %s to authenticated, service_role', f.sig);
   end loop;
 end $$;
+-- 4b. keep the internal email functions closed to signed-in users (database and email sender only), as in enable-email-notifications.sql
+revoke execute on function public.notify_claim(int), public.notify_done(bigint,boolean,text), public.notify_status(text),
+  public.notify_kick(), public.notify_enqueue(uuid,text,text,text,text,text), public.notify_daily(),
+  public.notify_doc_change(), public.notify_doc_delete(), public.notify_creator(jsonb), public.notify_get_key(),
+  public.sync_display_name() from public, anon, authenticated;
+grant execute on function public.notify_claim(int), public.notify_done(bigint,boolean,text), public.notify_status(text), public.notify_get_key() to service_role;
 alter function public._iso(timestamptz) set search_path = public;
 alter function public._pur_total(jsonb) set search_path = public;
 alter function public.notify_esc(text) set search_path = public;
