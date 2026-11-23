@@ -189,6 +189,15 @@ th{background:var(--surface-2);font-weight:600}
     <li><span class="ui">QR label</span> prints a label for this machine.</li>
     <li>Attach the <b>manual</b>, <b>technical spec</b> and <b>warranty card</b> under Attachments (choose the matching type), so they are on hand when the machine breaks down.</li>
   </ul>
+  <h3>Asset status</h3>
+  <table class="t"><tr><th>Status</th><th>Meaning</th><th>Set by</th></tr>
+  <tr><td><b>Active</b></td><td>In use.</td><td>Hand, or automatically when a repair job is completed or the item is collected back.</td></tr>
+  <tr><td><b>Inactive</b></td><td>Not in use: spare, not yet installed, or pending write-off.</td><td>Hand.</td></tr>
+  <tr><td><b>Damaged</b></td><td>Broken and not usable, waiting for a decision. Also set when a calibration fails.</td><td>Hand, or a failed calibration.</td></tr>
+  <tr><td><b>On hold for repair</b></td><td>Must not be used until repaired.</td><td>Automatically when a breakdown / repair job is raised, an incident names the machine, or it is sent out on a D/O for repair.</td></tr>
+  <tr><td><b>Under calibration</b></td><td>Sent out for calibration or stamping.</td><td>Automatically when it is sent out on a calibration D/O.</td></tr>
+  <tr><td><b>Disposed</b></td><td>Written off. Kept for history.</td><td>Hand.</td></tr></table>
+  <p>A machine on hold goes back to <b>Active</b> only when no other repair job or D/O for it is still open.</p>
 
   <h3>QR labels</h3>
   <p>Click <span class="ui">Print QR labels</span> on the Assets tab (prints the assets currently filtered) or <span class="ui">QR label</span> on one asset. Stick the label on the machine. Anyone with an account can scan it with a phone camera to open that machine's record, see its history and report a problem.</p>
@@ -286,7 +295,7 @@ th{background:var(--surface-2);font-weight:600}
     <li>Click <span class="ui">Save</span>. The next due date moves forward automatically.</li>
   </ol>
   <figure><img src="guide/10-cal-record.jpg" alt="Calibration readings" loading="lazy"><figcaption>Calibration record: type the reading, the error and result are calculated.</figcaption></figure>
-  <div class="warn"><b>If a point fails.</b> You must write a <b>Product impact assessment</b> (what was measured with this instrument since the last good check, and whether product is on hold or released) before you can save. With the box ticked, the instrument is set <b>Out of service</b> and <b>Out of tolerance</b> until a passing check is recorded.</div>
+  <div class="warn"><b>If a point fails.</b> You must write a <b>Product impact assessment</b> (what was measured with this instrument since the last good check, and whether product is on hold or released) before you can save. With the box ticked, the instrument is set <b>Damaged</b> and <b>Out of tolerance</b> until a passing check is recorded.</div>
   <div class="note"><b>Pass / fail rule.</b> By default a point passes when the error is within tolerance. If QA chooses the stricter rule (Settings → Calibration), a point passes only when error + uncertainty is within tolerance. Each record shows which rule was used.</div>
 
   <h3>Send / collect list for the calibration lab</h3>
@@ -320,7 +329,8 @@ th{background:var(--surface-2);font-weight:600}
     <li>Choose the type, date and time, where it happened and the equipment involved, and describe what happened.</li>
     <li>For injuries fill in the person involved and the injury details (severity, days lost, where treated).</li>
     <li>Note any food safety impact (e.g. possible product contamination).</li>
-    <li>Save. The system works out whether it is notifiable and shows the DOSH and PERKESO due dates. Overdue ones show red.</li>
+    <li>If a machine is named, it is set <b>On hold for repair</b> when you save, unless you tick that it was checked and is safe to keep using.</li>
+    <li>Save. The <b>Safety Officer</b> then decides under <b>DOSH notification</b> whether the case is notifiable. Once set to Yes, the system shows the report due date (incident date + 7 days) and turns red when overdue. The PERKESO due date is shown for employees.</li>
   </ol>
   <div class="warn"><b>Deadlines.</b> The DOSH written report is due within 7 days under the NADOPOD Regulations 2004. Report fatal and serious cases to the nearest DOSH office immediately by phone. Keep the register for 5 years and send the year's extract to DOSH before 31 January. Check deadlines with DOSH, PERKESO or your HR SOP if unsure.</div>
 
