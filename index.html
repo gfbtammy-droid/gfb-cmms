@@ -2451,6 +2451,7 @@ const DSP_PILL={'Reported':'warn','Completed':'ok','Cancelled':''};
 const dspPill=o=>`<span class="pill ${DSP_PILL[o.status]||''}">${esc(o.status==='Completed'?'Disposed':o.status||'Reported')}</span>`;
 const dspOpenFor=id=>Object.entries(S.disposals||{}).find(([,o])=>o.assetId===id&&o.status==='Reported');
 const dspDoneFor=id=>Object.entries(S.disposals||{}).find(([,o])=>o.assetId===id&&o.status==='Completed');
+const DSP_NOPHOTO=['tammyng@gfbfood.com'];const dspPhotoOptional=()=>DSP_NOPHOTO.includes(String(S.me?.username||'').toLowerCase());
 const dspPhotos=o=>(o.files||[]).filter(f=>String(f.ct||'').startsWith('image/')||/^Photo/.test(f.kind||''));
 function nextDspNo(){const d=new Date();const pre='DSP-'+String(d.getFullYear()).slice(2)+pad(d.getMonth()+1)+'-';let max=0;
   Object.values(S.disposals||{}).forEach(o=>{const v=String(o.no||'');if(v.startsWith(pre))max=Math.max(max,parseInt(v.slice(pre.length))||0)});return pre+String(max+1).padStart(3,'0')}
@@ -2488,14 +2489,14 @@ function dspForm(id,preset={}){
     }});
 }
 function dspComplete(id){const o=S.disposals[id];const a=S.assets[o.assetId];
-  const miss=[];if(!dspPhotos(o).length)miss.push('at least one photo (attach below, type Photo)');if(!String(o.picName||'').trim())miss.push('the person in charge');if(!String(o.damageDesc||'').trim())miss.push('the reason / description of damage');
+  const miss=[];if(!dspPhotos(o).length&&!dspPhotoOptional())miss.push('at least one photo (attach below, type Photo)');if(!String(o.picName||'').trim())miss.push('the person in charge');if(!String(o.damageDesc||'').trim())miss.push('the reason / description of damage');
   if(miss.length){toast('Before completing, add '+miss.join(', ')+'.');return}
   const F=[{k:'method',label:'Disposal method',type:'select',opts:DSP_METHODS,req:true,blank:false},{k:'disposalDate',label:'Date disposed',type:'date',req:true},
     {k:'proceeds',label:'Sale / trade-in value received (RM)',type:'number'},{k:'buyer',label:'Sold / given to'},{k:'approvedBy',label:'Approved by (HOD / management)'}];
   formSheet({title:'Complete disposal · '+o.no,fields:F,data:{method:o.method||(/Lost/.test(o.reason)?'Write-off only (item lost)':'Scrap / dispose as waste'),disposalDate:o.disposalDate||today(),proceeds:o.proceeds||'',buyer:o.buyer||'',approvedBy:o.approvedBy||''},saveLabel:'Complete disposal',
     extra:`<p class="muted" style="margin:6px 0 0"><b>${esc(a?a.code+' · '+a.name:'')}</b> will be set to <b>Disposed</b>. It drops out of PM, calibration and the master list, and stays in the register for history.</p>`,
     onSave:async v=>{
-      const next={...o,...v,status:'Completed',completedAt:new Date().toISOString(),completedBy:S.me?.name||''};
+      const next={...o,...v,status:'Completed',completedAt:new Date().toISOString(),completedBy:S.me?.name||'',noPhoto:!dspPhotos(o).length||undefined};
       await put('disposals',id,next,'Disposal completed: '+v.method+' on '+fmtD(v.disposalDate));
       if(a){try{await put('assets',o.assetId,{...a,status:'Disposed',disposedDate:v.disposalDate,disposalNo:o.no},'Disposed on '+o.no+' ('+v.method+'), '+fmtD(v.disposalDate)+'; status '+a.status+' → Disposed')}catch(e){setTimeout(()=>toast(o.no+' completed, but '+a.code+' could not be set to Disposed. Set it by hand.'),1600)}}
       toast(o.no+' completed. '+(a?a.code+' is now Disposed.':''));renderList();renderDetail();
@@ -2514,9 +2515,9 @@ ${ph.length?`<h3>Photos</h3><div class="ph">${ph.map(f=>urls[f.id]?`<img src="${
   if(!ph.length||!sbClient()){go({});return}
   sb.storage.from('attachments').createSignedUrls(ph.map(f=>f.id),3600).then(({data})=>{const u={};(data||[]).forEach(d=>{if(d.signedUrl)u[d.path]=d.signedUrl});go(u)},()=>go({}))}
 DETAIL.disposal=(id,o)=>{const a=S.assets[o.assetId];
-  return{eyebrow:'Asset damage & disposal',title:(o.no||'Report')+' · '+(a?a.code:''),pills:dspPill(o)+`<span class="pill">${esc(o.reason||'')}</span>`+(o.status==='Reported'&&!dspPhotos(o).length?'<span class="pill bad">No photo yet</span>':''),
+  return{eyebrow:'Asset damage & disposal',title:(o.no||'Report')+' · '+(a?a.code:''),pills:dspPill(o)+`<span class="pill">${esc(o.reason||'')}</span>`+(!dspPhotos(o).length&&o.status!=='Cancelled'?'<span class="pill '+(o.status==='Reported'?'bad':'')+'">No photo</span>':''),
     body:`<div class="acts"><button class="btn" id="dspP">Print report</button>${W(()=>`${o.status==='Reported'?'<button class="btn pri" id="dspC">Complete disposal</button>':''}${o.status==='Reported'||S.canAdmin?'<button class="btn" id="dspE">Edit</button>':''}${o.status==='Reported'?'<button class="btn" id="dspX">Cancel report</button>':''}`)}</div>
-    ${o.status==='Reported'?'<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Waiting to complete.</b> Attach at least one photo below (type <b>Photo – damage</b>), check the person in charge and the reason, then click <b>Complete disposal</b>.</div>':''}
+    ${o.status==='Reported'?`<div class="banner" style="margin:0;background:var(--warn-soft)"><b>Waiting to complete.</b> ${dspPhotoOptional()?'Attach photos below if you have them (optional for your login)':'Attach at least one photo below (type <b>Photo – damage</b>)'}, check the person in charge and the reason, then click <b>Complete disposal</b>.</div>`:''}
     ${kv([['Asset',a?`<a href="#" data-asset="${o.assetId}">${esc(a.code+' · '+a.name)}</a>`:''],['Fixed asset no.',a&&a.faNo?`<span class="mono">${esc(a.faNo)}</span>`:''],['Serial no.',a&&a.serial?`<span class="mono">${esc(a.serial)}</span>`:''],['Date reported',fmtD(o.reportDate)],['Reported by',esc(o.reportedBy)],['Person in charge',esc(o.picName)],['Method',esc(o.method)],['Date disposed',o.disposalDate?fmtD(o.disposalDate):''],['Proceeds (RM)',o.proceeds!==''&&o.proceeds!=null?rm(num(o.proceeds)):''],['Sold / given to',esc(o.buyer)],['Approved by',esc(o.approvedBy)],['Completed',o.completedAt?fmtDT(o.completedAt)+(o.completedBy?' · '+esc(o.completedBy):''):'']])}
     <div><h3>Reason / description of damage</h3><div style="white-space:pre-wrap">${esc(o.damageDesc||'')}</div></div>
     ${o.remarks?`<div><h3>Remarks</h3><div style="white-space:pre-wrap">${esc(o.remarks)}</div></div>`:''}`,
